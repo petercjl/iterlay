@@ -307,3 +307,12 @@ X、小红书、Hacker News、Linux.do、开源中国、少数派暂未找到已
 - 来源：`68ed26a44987b68dd2c1051123c2f0c4a5857f04`。
 - 状态：已部署；2026-10-29 的 42 页线上 SEO 检查通过。首次部署后审计因固定的旧页面数量失败，修正后重新部署成功：https://github.com/Davied-H/iterlay/actions/runs/40834280966 。
 - 指标及采集日期：未采集。
+
+### NPM-001 · Tuda画板能力包0.1.0
+
+- 入口：[npm精确版本](https://www.npmjs.com/package/@petercjl/tuda/v/0.1.0)。包名 `@petercjl/tuda`，初始渠道 `next`。
+- 受众与内容：具备Node.js与兼容桌面运行时的Agent宿主；提供29个画板管理、图片导入、布局、文字和导出工具的原生stdio入口，以及独立CLI/配套Skill。原生入口由宿主默认安装与内部授权，素材生成由调用方自身媒体能力完成。
+- 日期：2026-11-12 19:09:19（Asia/Shanghai，registry时间）。
+- 发布源码：`28b932438480fa944cf0abf6f24e0bcb2ac37ecb`；[GitHub Actions OIDC发布及三平台包级校验](https://github.com/petercjl/iterlay/actions/runs/43204912103)。该运行的发布后等待超时，实际公开版本、next标签与安装由本机独立核验；[只读CI复核](https://github.com/petercjl/iterlay/actions/runs/43207075389)已通过。
+- 状态：公开版本与next标签已核验；真实npm精确安装、CLI版本、29工具离线发现和生成能力拒绝通过。包176100字节，SHA-256 `7f874c4f67689b1b0686154aa384fd69e6ce82086e183a1c62ff45bbf12de0d2`，与CI制品相同。未随本次npm发布新的Windows或Mac桌面安装器。
+- 详细证据：[验收记录](../tuda-board-plugin-acceptance.md)。指标未采集。
