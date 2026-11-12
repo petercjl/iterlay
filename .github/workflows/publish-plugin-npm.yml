@@ -11,6 +11,14 @@ on:
         type: choice
         options: [next, latest]
         default: next
+      verify_only:
+        description: Verify an existing publication without publishing again
+        type: boolean
+        default: false
+      expected_integrity:
+        description: Exact verified tarball SRI for verification-only recovery
+        type: string
+        default: ''
 permissions:
   contents: read
 concurrency:
@@ -20,6 +28,7 @@ env:
   TUDA_NO_UPDATE_CHECK: '1'
 jobs:
   verify:
+    if: ${{ !inputs.verify_only }}
     strategy:
       fail-fast: false
       matrix:
@@ -52,7 +61,9 @@ jobs:
           path: petercjl-tuda-*.tgz
           if-no-files-found: error
   publish:
+    if: ${{ always() && (inputs.verify_only || needs.verify.result == 'success') }}
     needs: verify
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -64,10 +75,12 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: npm install --global npm@11
       - uses: actions/download-artifact@v4
+        if: ${{ !inputs.verify_only }}
         with:
           name: tuda-verified-npm
           path: candidate
       - name: Publish verified package with OIDC
+        if: ${{ !inputs.verify_only }}
         env:
           PACKAGE_VERSION: ${{ inputs.release }}
           DIST_TAG: ${{ inputs.tag }}
@@ -77,18 +90,42 @@ jobs:
           TARBALL="$PWD/candidate/petercjl-tuda-$PACKAGE_VERSION.tgz"
           test -f "$TARBALL"
           npm publish "$TARBALL" --access public --provenance --tag "$DIST_TAG"
+      - name: Verify registry identity and exact installed entry
+        env:
+          PACKAGE_VERSION: ${{ inputs.release }}
+          DIST_TAG: ${{ inputs.tag }}
+          EXPECTED_INTEGRITY: ${{ inputs.expected_integrity }}
+        shell: bash
+        run: |
           node --input-type=module <<'JS'
-          let verified = false;
-          for (let attempt = 0; attempt < 90; attempt++) {
-            const packageUrl = "https://registry.npmjs.org/@petercjl%2ftuda/" + process.env.PACKAGE_VERSION;
-            const r = await fetch(packageUrl, {signal: AbortSignal.timeout(8000)}).catch(() => null);
+          import assert from 'node:assert/strict';
+          import {createHash} from 'node:crypto';
+          import {existsSync,readFileSync} from 'node:fs';
+          import {execFileSync} from 'node:child_process';
+          import path from 'node:path';
+          const archive = path.resolve('candidate/petercjl-tuda-' + process.env.PACKAGE_VERSION + '.tgz');
+          const expected = process.env.EXPECTED_INTEGRITY || (existsSync(archive) ? 'sha512-' + createHash('sha512').update(readFileSync(archive)).digest('base64') : '');
+          assert.match(expected, /^sha512-[A-Za-z0-9+/]+={0,2}$/);
+          let published;
+          for (let attempt = 0; attempt < 180; attempt++) {
+            const suffix = '?verification=' + Date.now();
+            const options = {signal: AbortSignal.timeout(8000), headers: {'cache-control': 'no-cache'}};
+            const r = await fetch('https://registry.npmjs.org/@petercjl%2ftuda/' + process.env.PACKAGE_VERSION + suffix, options).catch(() => null);
             if (r?.ok) {
               const p = await r.json();
-              const t = await fetch("https://registry.npmjs.org/-/package/@petercjl%2ftuda/dist-tags", {signal: AbortSignal.timeout(8000)}).then(r => r.json()).catch(() => ({}));
-              if (p.version === process.env.PACKAGE_VERSION && t[process.env.DIST_TAG] === p.version) { verified = true; break; }
+              const t = await fetch('https://registry.npmjs.org/-/package/@petercjl%2ftuda/dist-tags' + suffix, options).then(r => r.json()).catch(() => ({}));
+              if (p.version === process.env.PACKAGE_VERSION && t[process.env.DIST_TAG] === p.version) { published = p; break; }
             }
             await new Promise(resolve => setTimeout(resolve, 4000));
           }
-          if (!verified) throw Error("Published version and dist-tag not yet verified; inspect registry before any retry");
-          console.log("Registry version and dist-tag verified");
+          assert(published, 'Registry propagation still pending; inspect publication before retrying');
+          assert.equal(published.dist.integrity, expected);
+          const bytes = Buffer.from(await fetch(published.dist.tarball).then(r => { assert(r.ok); return r.arrayBuffer(); }));
+          assert.equal('sha512-' + createHash('sha512').update(bytes).digest('base64'), expected);
+          const prefix = path.join(process.env.RUNNER_TEMP, 'tuda-public-verification');
+          execFileSync('npm', ['install', '--prefix', prefix, '--ignore-scripts', '--no-audit', '--no-fund', '--prefer-online', '--cache', prefix + '-cache', '@petercjl/tuda@' + published.version], {stdio: 'inherit'});
+          const entry = path.join(prefix, 'node_modules/@petercjl/tuda/dist/main.js');
+          const version = JSON.parse(execFileSync(process.execPath, [entry, 'version', '--json'], {encoding: 'utf8'}));
+          assert.equal(version.version, published.version);
+          console.log(JSON.stringify({ok:true, package:published.name, version:published.version, tag:process.env.DIST_TAG, integrity:expected, exactRegistryInstall:true}));
           JS
