@@ -120,7 +120,21 @@ jobs:
           }
           assert(published, 'Registry propagation still pending; inspect publication before retrying');
           assert.equal(published.dist.integrity, expected);
-          const bytes = Buffer.from(await fetch(published.dist.tarball).then(r => { assert(r.ok); return r.arrayBuffer(); }));
+          // Metadata and tarball CDN visibility can propagate independently.
+          let bytes;
+          for (let attempt = 0; attempt < 90; attempt++) {
+            const response = await fetch(published.dist.tarball + '?verification=' + Date.now(), {
+              signal: AbortSignal.timeout(15000), headers: {'cache-control': 'no-cache'}
+            }).catch(() => null);
+            if (response?.ok) { bytes = Buffer.from(await response.arrayBuffer()); break; }
+            if (response) {
+              const status = response.status;
+              await response.body?.cancel();
+              assert(status === 404 || status === 429 || status >= 500, 'Unexpected tarball response: ' + status);
+            }
+            await new Promise(resolve => setTimeout(resolve, 4000));
+          }
+          assert(bytes, 'Tarball propagation still pending; use verification-only recovery');
           assert.equal('sha512-' + createHash('sha512').update(bytes).digest('base64'), expected);
           const prefix = path.join(process.env.RUNNER_TEMP, 'tuda-public-verification');
           execFileSync('npm', ['install', '--prefix', prefix, '--ignore-scripts', '--no-audit', '--no-fund', '--prefer-online', '--cache', prefix + '-cache', '@petercjl/tuda@' + published.version], {stdio: 'inherit'});
