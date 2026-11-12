@@ -3,13 +3,7 @@ import { TextModelPicker } from "./TextModelPicker";
 import { useAssistantBranchLifecycle } from "@/features/assistant/use-assistant-branch-lifecycle";
 import type { GeneratedImage } from "@/components/canvas/ImageNode";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
+
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { createAssistantInstructionSender } from "@/features/assistant/assistant-instruction";
 import { useAssistantHistory } from "@/features/assistant/use-assistant-history";
@@ -21,7 +15,6 @@ import { useUiText } from "@/i18n";
 import { translateSourceText } from "@/i18n/ui-text";
 import { SHORT_DRAMA_PLUGIN_ID } from "@shared/plugins";
 import type {
-  AssistantIntentSuggestionCount,
   AssistantSurface,
   BoardMutationPlan,
   CollaborateSceneResult,
@@ -43,8 +36,8 @@ import { ChevronDown, ChevronUp, LayoutTemplate, Library, Loader2, PanelLeft, Pa
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { GenerateActionButton } from "./GenerateActionButton";
-import { GenerationSettingsPicker } from "./GenerationSettingsPicker";
-import { ProviderPicker } from "./ProviderPicker";
+
+
 import { ReferencePicker } from "./ReferencePicker";
 export { GenerateActionButton } from "./GenerateActionButton";
 
@@ -59,7 +52,7 @@ import type {
 import { ImageZoomLightbox } from "@/components/workbench/asset/ImageZoomLightbox";
 import { InlinePromptEditor } from "@/components/workbench/InlinePromptEditor";
 import { useI18n, type MessageKey } from "@/i18n";
-import { ASSISTANT_PROMPT_IDLE_MS, buildAssistantContextSignature, shouldScheduleAssistantPromptAnalysis } from "@/lib/assistant-awareness";
+import { buildAssistantContextSignature } from "@/lib/assistant-awareness";
 import { buildAssistantHistory, getLatestAssistantConversation } from "@/lib/assistant-history";
 import {
   buildAssistantActionConfirmInteraction,
@@ -275,10 +268,6 @@ export function PromptDock({
 
   providers,
   activeProviderId,
-  creditStatus,
-  creditLoading,
-  officialRequiredCredits,
-  onSelectProvider,
   comicDramaSnapshot = null,
   comicDramaSelectedNodeIds = [],
   onApplyComicDramaPlan,
@@ -325,7 +314,6 @@ export function PromptDock({
   textProviders = [],
   activeTextProviderId,
   onSelectTextProvider,
-  onOpenModelManagement,
   onAssistantDockLayoutChange,
   promptFocusNonce,
   onPromptFocusChange
@@ -951,20 +939,7 @@ export function PromptDock({
     if (prompt.length === 0) setPromptHeight(DEFAULT_PROMPT_HEIGHT);
   }
 
-  function changeCreationMode(next: CreationMode): void {
-    if (next === creationMode) return;
-    setUiBriefPreview(null);
-    setTemplatePromptPreview(null);
-    onInputChange({
-      creationMode: next,
-      referenceImages: next === "ui-design"
-        ? input.referenceImages.map((image) => ({
-          ...image,
-          semanticRole: image.semanticRole ?? inferUiMaterialRole(image.name)
-        }))
-        : input.referenceImages
-    });
-  }
+
 
   function changeUiMaterialRole(id: string, semanticRole: UiMaterialRole): void {
     setUiBriefPreview(null);

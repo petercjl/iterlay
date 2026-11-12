@@ -92,8 +92,6 @@ import {
   SceneMediaSummary,
   SceneTemplateData,
   SceneTemplateImportResult,
-  SuggestAssistantIntentsRequest,
-  SuggestAssistantIntentsResult,
   SuggestImageEditsRequest,
   SuggestImageEditsResult,
   UploadAppIconRequest,

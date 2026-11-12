@@ -41,7 +41,7 @@ describe("Tuda Agent model selection", () => {
     expect(toapisAgentProvider(images, "doubao-seedream-5-5").id).toBe(images[0].id);
   });
   it("routes image calls by conversational model choice and keeps video tools", async () => {
-    const execute = vi.fn(async (..._args: unknown[]) => ({ content: [{ type: "text", text: "submitted" }], details: {} }));
+    const execute = vi.fn(async (...args: unknown[]) => { void args; return { content: [{ type: "text", text: "submitted" }], details: {} }; });
     const original = { name: "generate_image", label: "Generate", description: "Generate", parameters: { type: "object", properties: {} }, execute } as unknown as ToolDefinition;
     const video = { ...original, name: "generate_video" };
     const [imageTool, videoTool] = bindTudaAgentMediaTools([original, video], images);

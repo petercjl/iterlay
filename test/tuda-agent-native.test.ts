@@ -23,7 +23,7 @@ afterEach(async () => {
 async function fixture(replies: Array<string | { name: string; args: unknown }>, protocol: "openai-chat-completions" | "openai-responses" | "anthropic-messages" = "openai-chat-completions", holdRequests = false) {
   const root = await mkdtemp(path.join(os.tmpdir(), "tuda-native-agent-")); directories.push(root);
   const cwd = path.join(root, "workspace"); await mkdir(cwd);
-  const requests: Array<{ body: Record<string, any>; headers: import("node:http").IncomingHttpHeaders }> = [];
+  const requests: Array<{ body: Record<string, unknown> & { tools: Array<{ type: string }> }; headers: import("node:http").IncomingHttpHeaders }> = [];
   const server = createServer(async (request, response) => {
     let body = ""; for await (const chunk of request) body += chunk;
     requests.push({ body: JSON.parse(body), headers: request.headers });

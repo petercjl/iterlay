@@ -66,8 +66,6 @@ import {
   routeTemplateAssistantIntent,
   SCENE_CREATOR_MAX_REFERENCE_COUNT,
   sceneDraftCompletion,
-  templateAssistantReferenceSuggestions,
-  templateAssistantStarterSuggestions,
   type SceneDraft,
   writeSceneCreatorDraft
 } from "@/lib/scene-creator";
@@ -287,7 +285,7 @@ export function SceneCreator({
   const [assistantExampleReferences, setAssistantExampleReferences] = useState<SceneCreatorReference[]>([]);
   const [assistantExamplesOpen, setAssistantExamplesOpen] = useState(false);
   const [loadingAssistantExampleIds, setLoadingAssistantExampleIds] = useState<Set<string>>(() => new Set());
-  const [assistantHasSubmitted, setAssistantHasSubmitted] = useState(hasRestoredAssistantConversation);
+  const [, setAssistantHasSubmitted] = useState(hasRestoredAssistantConversation);
   const [assistantInteraction, setAssistantInteraction] = useState<{
     state: AiAssistantInteractionState;
     result?: CollaborateSceneResult;
@@ -457,8 +455,6 @@ export function SceneCreator({
         .slice(0, SCENE_CREATOR_MAX_REFERENCE_COUNT);
       assistantReferencesRef.current = next;
       setAssistantReferences(next);
-      if (!assistantHasSubmitted && current.length === 0 && next.length > 0) {
-      }
       if (files.length > available) {
         toast(`已添加 ${added.length} 张，最多支持 ${SCENE_CREATOR_MAX_REFERENCE_COUNT} 张参考图。`);
       }
@@ -471,16 +467,12 @@ export function SceneCreator({
     const next = assistantReferencesRef.current.filter((reference) => reference.id !== id);
     assistantReferencesRef.current = next;
     setAssistantReferences(next);
-    if (!assistantHasSubmitted && next.length === 0 && assistantExampleReferencesRef.current.length === 0) {
-    }
   }
 
   function removeAssistantExampleReference(id: string): void {
     const next = assistantExampleReferencesRef.current.filter((reference) => reference.id !== id);
     assistantExampleReferencesRef.current = next;
     setAssistantExampleReferences(next);
-    if (!assistantHasSubmitted && next.length === 0 && assistantReferencesRef.current.length === 0) {
-    }
   }
 
   async function toggleAssistantExample(result: SceneMediaResult, index: number): Promise<void> {
@@ -523,8 +515,6 @@ export function SceneCreator({
       ];
       assistantExampleReferencesRef.current = next;
       setAssistantExampleReferences(next);
-      if (!assistantHasSubmitted && next.length === 1 && assistantReferencesRef.current.length === 0) {
-      }
     } catch (error) {
       toast.error(getWorkbenchErrorMessage(error, "无法把这张示例提供给 AI 助手。"));
     } finally {

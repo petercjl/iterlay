@@ -20,8 +20,6 @@ import type {
   SceneAssistantAction,
   SceneAssistantInteraction,
   SliceSubjectDetection,
-  SuggestAssistantIntentsRequest,
-  SuggestAssistantIntentsResult,
   SuggestImageEditsResult,
   TextProviderConfig
 } from "../../shared/types.js";

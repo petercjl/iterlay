@@ -36,7 +36,7 @@ export function AgentSkillBoard({ inventory, library, loading, error, disabled, 
   const [editingFolder, setEditingFolder] = useState<string | null>(null);
   const [saving, setSaving] = useState(false), [localError, setLocalError] = useState("");
   const [preview, setPreview] = useState<{ name: string; content: string } | null>(null);
-  const skills = inventory?.skills ?? [], busy = saving || loading;
+  const skills = useMemo(() => inventory?.skills ?? [], [inventory?.skills]), busy = saving || loading;
   const visible = useMemo(() => filterSkillLibrary(skills, library, section, query), [skills, library, section, query]);
   const folder = library.folders.find((item) => item.id === section);
   const title = section === "favorites" ? uiText("收藏") : section === "system" ? uiText("系统 Skill") : folder ? skillFolderLabel(library, folder.id) : uiText("全部用户 Skill");

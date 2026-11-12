@@ -3,12 +3,11 @@ import { TextModelPicker } from "./TextModelPicker";
 import "../assistant/assistant-chat.css";
 import { useUiText } from "@/i18n";
 import {
-  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
-  useState,
+  useState
 } from "react";
 import { useReducedMotion } from "framer-motion";
 import {
@@ -62,11 +61,10 @@ import { readCreationProjects, writeCreationProjects, type CreationProject } fro
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { formatAssistantInteractionAnswers } from "@/lib/assistant-interaction";
 import {
@@ -75,7 +73,7 @@ import {
 } from "@/lib/image-workbench-api";
 import { resolveCreateChatMediaType } from "@/lib/create-chat-media";
 import { sceneAssistantFieldsToPrompt } from "@/lib/prompt-assistant";
-import { cn } from "@/lib/utils";
+
 import { isSendEnter } from "@/lib/send-on-enter";
 import { AssistantPermissionCard } from "@/components/assistant/AssistantPermissionCard";
 import {
@@ -551,12 +549,7 @@ export function CreationAssistantPage({
       setTitleSource("auto");
     }).catch(() => { titleRequestsRef.current.delete(id); });
   }, [sessionReady, busy, titleSource, conversationId, messages, sessionTitle]);
-  const composerMediaType = resolveCreateChatMediaType(
-    messages
-      .filter((message) => message.role === "user")
-      .map((message) => ({ role: "user" as const, content: message.content })),
-    value,
-  );
+
 
   useEffect(() => {
     const thread = threadRef.current;

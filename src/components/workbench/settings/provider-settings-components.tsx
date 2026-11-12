@@ -17,7 +17,6 @@ import { getProviderModels } from "@shared/provider-models";
 import { formatModelPricing } from "@shared/model-pricing";
 import type {
   AppSettings,
-  AssistantIntentSuggestionCount,
   CodexAuthStatus,
   CopyImageFormat,
   EditInfoMode,

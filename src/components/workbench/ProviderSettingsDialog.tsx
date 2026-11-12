@@ -26,7 +26,6 @@ import { getImageWorkbenchApi, getWorkbenchErrorMessage } from "@/lib/image-work
 import { cn } from "@/lib/utils";
 import type {
   AppIconPreference,
-  AssistantIntentSuggestionCount,
   AssistantMemoryStats,
   AssistantSkillDetail,
   AssistantSkillSummary,

@@ -97,7 +97,6 @@ export function createAssistantInstructionSender({
   promptEnhancementUnavailableReason,
   onOpenSettings,
   boardId,
-  assistantAgentModeEnabled,
   activeTextProviderId,
   selectedSkillPath,
   onAssistantCreditsUsed,
@@ -113,7 +112,6 @@ export function createAssistantInstructionSender({
   assistantSurface,
   assistantOpenRef,
   t,
-  receivePromptAssistantResult,
   receiveComicDramaAgentResult
 }: AssistantInstructionOptions) {
   return async function sendAssistantInstruction(
@@ -140,7 +138,7 @@ export function createAssistantInstructionSender({
     assistantRequestVersionRef.current = requestVersion;
     const assistantMessageId = crypto.randomUUID();
     const userMessageId = crypto.randomUUID();
-    const previous = { prompt: promptDraftRef.current, sceneId: input.sceneId, n: input.n };
+
     setAssistantInteraction(null);
     setAssistantMessages((current) => [
       ...current,

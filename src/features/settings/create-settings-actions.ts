@@ -9,7 +9,6 @@ import { selectProviderModel } from "@shared/provider-models";
 import type {
   AppSettings,
   AppSettingsPatch,
-  AssistantIntentSuggestionCount,
   CopyImageFormat,
   EditInfoMode,
   GenerateButtonStyle,

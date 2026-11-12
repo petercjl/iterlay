@@ -1,3 +1,4 @@
+import { clearTimeout } from "node:timers";
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile, readFile } from "node:fs/promises";
 import path from "node:path";

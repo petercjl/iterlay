@@ -6,8 +6,9 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 const [version, tag, expectedIntegrity] = process.argv.slice(2);
-assert.match(version ?? "", /^\d+\.\d+\.\d+$/);
-assert.equal(tag, "latest");
+assert.match(version ?? "", /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/);
+assert(["latest", "next"].includes(tag));
+if (version.includes("-")) assert.equal(tag, "next");
 assert.match(expectedIntegrity ?? "", /^sha512-[A-Za-z0-9+/]+={0,2}$/);
 const name = "@petercjl/tuda-desktop";
 async function visible(url, attempts) {

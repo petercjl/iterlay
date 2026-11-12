@@ -79,8 +79,6 @@ import type {
   SaveWechatStickerPackageResult,
   SliceImageRequest,
   SliceImageResult,
-  SuggestAssistantIntentsRequest,
-  SuggestAssistantIntentsResult,
   SuggestImageEditsRequest,
   SuggestImageEditsResult,
   SystemNotificationDeliveryResult,

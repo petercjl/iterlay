@@ -33,7 +33,7 @@ async function start() {
   await page.waitForURL(/dist\/index\.html/u, { timeout: 60000 });
   await page.waitForFunction(() => window.imageWorkbench && document.querySelector('input[placeholder="搜索画板"]'), undefined, { timeout: 60000 });
 }
-async function getBoard(id = legacyId) { return page.evaluate(id => window.imageWorkbench.getBoard(id), id); }
+
 async function waitCover(nodeId, imagePath) {
   await page.waitForFunction(async ({ id, nodeId, imagePath }) => {
     const b = await window.imageWorkbench.getBoard(id);

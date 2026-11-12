@@ -1,6 +1,5 @@
 import type {
   AppSettings,
-  AssistantIntentSuggestionCount,
   CopyImageFormat,
   EditInfoMode,
   GenerateButtonStyle,

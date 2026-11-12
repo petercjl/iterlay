@@ -37,6 +37,7 @@ jobs:
         run: node -e "const p=require('./package.json'),c=require('./desktop-package/package.json');if(process.env.RELEASE_VERSION!==p.version||c.version!==p.version)throw Error('Commit matching application and desktop package versions, then request that exact version.')"
       - run: pnpm plugins:build
       - run: pnpm brand:check
+      - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm exec vitest run --maxWorkers=4 --minWorkers=1
       - run: pnpm release --arch x64

@@ -47,7 +47,7 @@ export async function mutateSkillLibrary(agentDir: string, operation: AgentSkill
       return folder;
     };
     const name = (raw: unknown, parentId: string | null, except?: string) => {
-      if (typeof raw !== "string" || !raw.trim() || raw.trim().length > 80 || /[\\/\x00-\x1f]/u.test(raw)) throw new Error("文件夹名称需为 1–80 个字符，不能包含斜线。");
+      if (typeof raw !== "string" || !raw.trim() || raw.trim().length > 80 || (/[\\/]/u.test(raw) || Array.from(raw).some((character) => character.charCodeAt(0) < 32))) throw new Error("文件夹名称需为 1–80 个字符，不能包含斜线。");
       const value = raw.trim();
       if (library.folders.some((item) => item.id !== except && item.parentId === parentId && item.name.toLocaleLowerCase() === value.toLocaleLowerCase())) throw new Error("当前分类下已有同名文件夹。");
       return value;

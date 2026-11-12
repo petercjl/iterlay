@@ -37,7 +37,6 @@ interface PiAgentCatalogItem {
 
 export function PiAgentSettingsPanel({
   available,
-  enabled,
   model,
   inventory,
   resourceError,
@@ -50,7 +49,6 @@ export function PiAgentSettingsPanel({
   customExtensionPaths,
   maxTurns,
   webSearchMaxResults,
-  onEnabledChange,
   onConfigureModel,
   onBuiltinToolsChange,
   onTudaToolsChange,

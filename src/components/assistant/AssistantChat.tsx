@@ -6,21 +6,19 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-  type ReactNode,
-  type CSSProperties,
+  type ReactNode
 } from "react";
 import { useReducedMotion } from "framer-motion";
 import {
   ArrowDown,
   ArrowLeft,
-  ArrowUp,
   Check,
   Copy,
   History,
   Pencil,
   Play,
   RotateCcw,
-  X,
+  X
 } from "lucide-react";
 import { AssistantMessageFrame, AssistantResponse } from "./AssistantMessage";
 import { useI18n, useUiText } from "@/i18n";
