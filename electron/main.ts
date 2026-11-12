@@ -1,4 +1,7 @@
-import { CompanyDesktop } from "./company/desktop.js";
+import { prepareTudaAgentHome } from "./tuda-agent-home.js";
+import { EnterpriseClient } from "./enterprise/client.js";
+import { BoardPluginSessions } from "./company/plugin-sessions.js";
+import { CompanyDesktop, scopedCompany } from "./company/desktop.js";
 import { TemplateStore } from "./storage/template-store.js";
 import { loadCompanyDefaults } from "./company/defaults.js";
 import { waitForStorageMutations } from "./storage/atomic-json.js";
@@ -432,11 +435,12 @@ app.whenReady().then(async () => {
     })()
   ]);
   startupMark("business-modules-loaded");
+  const agentHome = await prepareTudaAgentHome(app.getPath("home"), !app.isPackaged, app.getPath("userData"), app.getPath("logs"));
   const localSettings = new SettingsStore(dataDir);
   startupMark("local-settings-ready");
   const enterprise = await createEnterpriseClient(app.getPath("userData"));
   startupMark("enterprise-client-ready");
-  const company = new CompanyDesktop(app.getPath("userData"), enterprise, await loadCompanyDefaults(app.getPath("userData"), app.isPackaged ? process.resourcesPath : undefined));
+  const company = scopedCompany(new CompanyDesktop(app.getPath("userData"), enterprise, await loadCompanyDefaults(app.getPath("userData"), app.isPackaged ? process.resourcesPath : undefined)));
   await company.initialize();
   startupMark("company-account-ready");
   const settings = enterpriseSettings(localSettings, enterprise, company);
@@ -477,7 +481,14 @@ app.whenReady().then(async () => {
     if (image.isEmpty()) return null;
     const { width, height } = image.getSize();
     return width > 0 && height > 0 ? { width, height } : null;
-  })));
+  })), undefined, async imagePath => dimensionTasks.run(() => {
+    const image = nativeImage.createFromPath(imagePath);
+    if (image.isEmpty()) return "";
+    const { width, height } = image.getSize();
+    const scale = Math.min(1, 480 / Math.max(width, height));
+    const small = image.resize({ width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) });
+    return `data:image/jpeg;base64,${small.toJPEG(75).toString("base64")}`;
+  }));
 
   const boards = company.nasBoards(company.scopeStore(createBoards(dataDir), createBoards));
   const boardImageTrash = company.scopeStore(new BoardImageTrashStore(dataDir), root => new BoardImageTrashStore(root));
@@ -681,10 +692,10 @@ app.whenReady().then(async () => {
     }
   }
   }
-  const piAgentLogs = new PiAgentLogStore(app.getPath("logs"));
+  const piAgentLogs = new PiAgentLogStore(path.join(agentHome, "logs"));
   await piAgentLogs.start();
   flushAgentLogs = () => piAgentLogs.flush();
-  const piAgentEvolution = new PiAgentEvolutionStore(path.join(app.getPath("userData"), "pi-agent"));
+  const piAgentEvolution = new PiAgentEvolutionStore(path.join(agentHome, "pi-agent"));
   const masterGoBridge = new MasterGoBridge(
     path.join(app.getPath("userData"), "mastergo-workspace"),
     app.getVersion(),
@@ -1087,13 +1098,17 @@ app.whenReady().then(async () => {
     console.info("[browser-dev] 网页真实服务已就绪，桌面编辑器未启动。");
   }
   backgroundSession.markReady();
+  const pluginSessions = new BoardPluginSessions(async (value, key) => {
+    const legacy = new EnterpriseClient(path.join(app.getPath("userData"), "plugin-sessions", key), async () => undefined, () => undefined);
+    return company.createPluginConnection(value, legacy);
+  });
   const disposeLocalApi = await startLocalApi(() => BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows().find((window) => !window.isDestroyed()) ?? null, app.getPath("userData"),
     isBrowserDev ? () => undefined : () => backgroundSession.requestForeground(), value => company.acceptHostHandoff(value), () => company.authorizeHostOperation(), async () => {
       const active = BrowserWindow.getAllWindows().find(window => !window.isDestroyed());
       if (active) await flushWindow(active);
       await waitForStorageMutations();
       setTimeout(() => app.quit(), 100);
-    });
+    }, { sessions: pluginSessions, desktopVersion: app.getVersion() });
 
   if (settings.getSettings().memoryEnabled) {
     const maintenanceTimer = setTimeout(() => {
@@ -1109,6 +1124,7 @@ app.whenReady().then(async () => {
     mediaTools.cancel();
     disposeMediaToolsIpc();
     disposeLocalApi();
+    pluginSessions.stop();
     disposeEnterprise();
     disposeIpcResources();
     videoSequenceScheduler.dispose();

@@ -102,8 +102,6 @@ export function createSettingsActions(dependencies: SettingsActionDependencies) 
   setWechatStickerExportEnabled,
   setOnlineImageSharingEnabled,
   setCopyImageFormat,
-  setBoardAssistantIntentSuggestionsEnabled,
-  setBoardAssistantAwarenessEnabled,
   boardAssistantEnabled,
   setBoardAssistantEnabled,
   providerKeyStatus,
@@ -116,7 +114,6 @@ export function createSettingsActions(dependencies: SettingsActionDependencies) 
   setPiAgentCustomExtensionPaths,
   setPiAgentMaxTurns,
   setPiAgentWebSearchMaxResults,
-  setBoardAssistantIntentSuggestionCount,
   setMemoryEnabled,
   setMemoryUsageLevel,
   setEditInfoMode,
@@ -284,16 +281,6 @@ function changeCopyImageFormat(next: CopyImageFormat): void {
     persistSettingsPatch({ copyImageFormat: next });
   }
 
-function changeBoardAssistantIntentSuggestionsEnabled(next: boolean): void {
-    setBoardAssistantIntentSuggestionsEnabled(next);
-    persistSettingsPatch({ boardAssistantIntentSuggestionsEnabled: next });
-  }
-
-function changeBoardAssistantAwarenessEnabled(next: boolean): void {
-    setBoardAssistantAwarenessEnabled(next);
-    persistSettingsPatch({ boardAssistantAwarenessEnabled: next });
-  }
-
 function changeBoardAssistantEnabled(next: boolean): void {
     setBoardAssistantEnabled(next);
     persistSettingsPatch({ boardAssistantEnabled: next });
@@ -349,11 +336,6 @@ function changePiAgentMaxTurns(next: number): void {
 function changePiAgentWebSearchMaxResults(next: number): void {
     setPiAgentWebSearchMaxResults(next);
     persistSettingsPatch({ piAgentWebSearchMaxResults: next });
-  }
-
-function changeBoardAssistantIntentSuggestionCount(next: AssistantIntentSuggestionCount): void {
-    setBoardAssistantIntentSuggestionCount(next);
-    persistSettingsPatch({ boardAssistantIntentSuggestionCount: next });
   }
 
 function changeEditSmartSuggestionsEnabled(next: boolean): void {
@@ -415,8 +397,6 @@ return {
     changeWechatStickerExportEnabled,
     changeOnlineImageSharingEnabled,
     changeCopyImageFormat,
-    changeBoardAssistantIntentSuggestionsEnabled,
-    changeBoardAssistantAwarenessEnabled,
     changeBoardAssistantEnabled,
     changeBoardAssistantAgentModeEnabled,
     changePiAgentBuiltinTools,
@@ -427,7 +407,6 @@ return {
     changePiAgentCustomExtensionPaths,
     changePiAgentMaxTurns,
     changePiAgentWebSearchMaxResults,
-    changeBoardAssistantIntentSuggestionCount,
     changeEditSmartSuggestionsEnabled,
     persistMemoryPreferences,
     changeMemoryEnabled,

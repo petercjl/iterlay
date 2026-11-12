@@ -80,6 +80,8 @@ export function rebaseBoardSnapshot(base: BoardData, local: BoardSavePayload, re
     ...local, expectedRevision: remote.revision ?? 0, nodes, connections,
     name: local.name === base.name ? remote.name : local.name,
     viewport: equal(local.viewport, base.viewport) ? remote.viewport : local.viewport,
-    thumbnailDataUrl: local.thumbnailDataUrl === base.thumbnailDataUrl ? remote.thumbnailDataUrl : local.thumbnailDataUrl
+    coverNodeId: local.coverNodeId === undefined || (local.coverNodeId ?? "") === (base.coverNodeId ?? "") ? remote.coverNodeId : local.coverNodeId,
+    thumbnailImagePath: remote.coverNodeId !== base.coverNodeId && (local.coverNodeId ?? "") === (base.coverNodeId ?? "") ? remote.thumbnailImagePath : local.thumbnailImagePath === undefined || local.thumbnailImagePath === base.thumbnailImagePath ? remote.thumbnailImagePath : local.thumbnailImagePath,
+    thumbnailDataUrl: remote.coverNodeId !== base.coverNodeId && (local.coverNodeId ?? "") === (base.coverNodeId ?? "") ? remote.thumbnailDataUrl : local.thumbnailDataUrl === undefined || local.thumbnailDataUrl === base.thumbnailDataUrl ? remote.thumbnailDataUrl : local.thumbnailDataUrl
   };
 }

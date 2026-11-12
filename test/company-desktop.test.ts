@@ -18,6 +18,20 @@ import { inExecutionSpace } from "../electron/execution-space.js";
 import type { EnterpriseClient } from "../electron/enterprise/client.js";
 import { CompanyToapis } from "../electron/company/toapis.js";
 
+it.each(["", "https://custom-company.example"])("fills empty account settings from deployment defaults and preserves explicit settings (%s)", async (savedOrigin) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "tuda-company-upgrade-"));
+  const legacy = Object.assign(new EventEmitter(), { activeSpace: "personal", status: { pendingWrites: 0 }, stop: vi.fn() }) as unknown as EnterpriseClient;
+  const preferences = { version: 1, origin: savedOrigin, activeSpace: "personal", folders: {}, selections: {} };
+  const file = path.join(root, "company-workspaces.json");
+  await writeFile(file, JSON.stringify(preferences), { flag: "wx" });
+  const company = new CompanyDesktop(root, legacy, { accountOrigin: "https://company.example", nasUrl: "http://nas.example:18473" });
+  try {
+    await company.initialize();
+    expect(company.status).toMatchObject({ accountMode: "shared", serverUrl: savedOrigin || "https://company.example", storageUrl: "http://nas.example:18473" });
+    expect(JSON.parse(await readFile(file, "utf8"))).toEqual(preferences);
+  } finally { company.stop(); await rm(root, { recursive: true, force: true }); }
+});
+
 it("defaults a new company account to NAS and reuses an explicitly chosen local folder", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "tuda-storage-default-"));
   const legacy = Object.assign(new EventEmitter(), {

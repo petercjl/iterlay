@@ -279,17 +279,13 @@ export function PiAgentSettingsPanel({
       <section className="pi-agent-mode" aria-labelledby={`${modeId}-title`}>
         <div className="pi-agent-mode-row">
           <div className="pi-agent-mode-copy">
-            <label id={`${modeId}-title`} htmlFor={modeId}>{uiText("允许助手执行操作")}</label>
-            <p id={`${modeId}-description`}>{uiText("关闭时只进行对话；开启后，助手可以使用你允许的操作完成任务。")}</p>
+            <span id={`${modeId}-title`}>{uiText("Tuda Agent")}</span>
+            <p id={`${modeId}-description`}>{uiText("创作助手与画板对话共用 Pi Agent，操作范围由工具权限决定。")}</p>
           </div>
-          <span className="pi-agent-mode-status">{uiText(!available ? "待配置" : enabled ? "已开启" : "仅对话")}</span>
-          <Switch id={modeId} checked={enabled} disabled={!available} onCheckedChange={onEnabledChange}
-            aria-labelledby={`${modeId}-title`} aria-describedby={`${modeId}-description ${modeId}-readiness`} />
+          <span className="pi-agent-mode-status">{uiText(available ? "已就绪" : "待配置")}</span>
         </div>
         <div id={`${modeId}-readiness`} className="pi-agent-mode-readiness" role="status">
-          <span>{!available ? uiText("对话模型尚未就绪，请先完成模型连接设置。")
-            : enabled ? uiText("已允许的操作会按需使用，生成和重要修改仍需确认。")
-            : uiText("操作清单会保留，开启后才会使用。")}</span>
+          <span>{uiText(available ? "已允许的工具会按需使用。" : "对话模型尚未就绪，请先完成模型连接设置。")}</span>
           {!available && onConfigureModel ? <Button type="button" variant="outline" size="sm" onClick={onConfigureModel}>{uiText("配置对话模型")}</Button> : null}
         </div>
       </section>
@@ -327,7 +323,7 @@ export function PiAgentSettingsPanel({
         {tab === "permissions" ? <AssistantPermissionsSettings /> : tab === "logs" ? <div className="col-span-full overflow-y-auto p-6"><PiAgentLogPanel /></div> : tab === "overview" ? (
           <PiAgentOverview
             available={available}
-            enabled={enabled}
+            enabled={true}
             model={model}
             toolCount={builtinTools.length + tudaTools.length}
             skillCount={enabledSkillCount}
@@ -516,7 +512,7 @@ function PiAgentOverview({
   return (
     <section className="pi-overview">
       <div className="pi-overview-guide">
-        <h3>{uiText("开启后能帮你做什么？")}</h3>
+        <h3>{uiText("Tuda Agent 能帮你做什么？")}</h3>
         <p>{uiText("在“可执行操作”中选择允许的能力，助手会根据任务按需使用。")}</p>
         <ul>
           <li><strong>{uiText("查找与理解")}</strong><span>{uiText("读取画板、查找素材，了解当前创作内容。")}</span></li>

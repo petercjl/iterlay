@@ -28,7 +28,7 @@ export interface GenerationRecord {
 interface CommandDependencies {
   api: WorkspaceApi;
   emit: (event: WorkbenchEvent) => void;
-  flush: () => Promise<void>;
+  flush: (boardId?: string) => Promise<void>;
   taskDirectory?: string;
 }
 function string(value: unknown, fallback = ""): string {
@@ -50,6 +50,17 @@ function choice<T extends string>(value: unknown, values: readonly T[], fallback
   if (value === undefined) return fallback;
   if (!values.includes(value as T)) throw new Error("工具选项参数无效。");
   return value as T;
+}
+
+/** Tool reads keep semantic data and asset URLs, but not the UI-only cover bytes.
+ * Copy instead of mutating the storage/UI object: its thumbnail must remain intact.
+ */
+function boardToolResult<T extends { thumbnailDataUrl?: string; enterpriseState?: string }>(board: T): Omit<T, "thumbnailDataUrl" | "enterpriseState"> {
+  const result = { ...board };
+  delete result.thumbnailDataUrl;
+  // CRDT wire state duplicates nodes and embeds cover bytes; tools use the materialized fields.
+  delete result.enterpriseState;
+  return result;
 }
 
 /** Typed command dispatch; all mutations use the same service as UI IPC. */
@@ -97,13 +108,13 @@ export class WorkspaceCommands {
     const boardId = string(a.boardId);
     const nodeId = string(a.nodeId);
     const mutate = async (action: () => Promise<unknown>, detail: Record<string, unknown> = {}) => {
-      await this.dependencies.flush();
+      await this.dependencies.flush(boardId);
       const result = await action();
       emit({ type: "board-updated", boardId, ...detail });
       return result;
     };
     if (BOARD_PLUGIN_WRITES.has(method)) {
-      await this.dependencies.flush();
+      await this.dependencies.flush(boardId);
       const result = await this.boardPluginWrite(method, a);
       if (method === "trash_board") emit({ type: "board-trashed", boardId });
       else if (method === "restore_board") emit({ type: "board-restored", boardId });
@@ -174,13 +185,17 @@ export class WorkspaceCommands {
       }
       case "get_board_library": return api.getBoardLibrary();
       case "manage_board_library": { const result = await api.updateBoardLibrary(a as unknown as import("../../shared/board-library.js").BoardLibraryMutation); emit({ type: "library-updated" }); return result; }
-      case "list_boards": return api.listBoards();
+      case "list_boards": return (await api.listBoards()).map(boardToolResult);
       case "resolve_generation_board": return { boardId: await this.resolveGenerationBoard(boardId, a.preserveView === true) };
       case "get_active_board": {
         const state = await api.getBoardsState();
-        return state.lastOpenedBoardId ? api.getBoard(state.lastOpenedBoardId) : null;
+        const board = state.lastOpenedBoardId ? await api.getBoard(state.lastOpenedBoardId) : null;
+        return board ? boardToolResult(board) : null;
       }
-      case "get_board": return api.getBoard(boardId);
+      case "get_board": {
+        const board = await api.getBoard(boardId);
+        return board ? boardToolResult(board) : null;
+      }
       case "get_board_layout": {
         const board = await api.getBoard(boardId);
         if (!board) return null;

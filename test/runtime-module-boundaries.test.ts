@@ -11,6 +11,7 @@ const { options } = ts.parseJsonConfigFileContent(configFile.config, ts.sys, pro
 function runtimeModules(entry: string): Set<string> {
   const modules = new Set<string>();
   function visitFile(file: string): void {
+    file = path.resolve(file);
     if (modules.has(file)) return;
     modules.add(file);
     const source = ts.createSourceFile(file, fs.readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true);

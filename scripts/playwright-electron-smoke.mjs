@@ -1,9 +1,11 @@
 import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { createServer } from "node:http";
+import { spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import assert from "node:assert/strict";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { _electron as electron } from "playwright";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -35,6 +37,11 @@ await writeFile(path.join(userData, "workspace", "onboarding.json"), JSON.string
   ["board", "library", "gallery", "edit", "demo-start"].map((id) => [`tuda.onboarding.${id}.v1`, { status: "completed", at: new Date().toISOString() }])
 )));
 let electronApp;
+const expectedCompanyDefaults = process.env.TUDA_E2E_COMPANY_DEFAULTS_FILE
+  ? JSON.parse(await readFile(process.env.TUDA_E2E_COMPANY_DEFAULTS_FILE, "utf8")) : undefined;
+if (expectedCompanyDefaults && process.env.TUDA_E2E_STANDALONE !== "1") {
+  await writeFile(path.join(userData, "company-workspaces.json"), JSON.stringify({ version: 1, origin: "", activeSpace: "personal", folders: {}, selections: {} }), { flag: "wx", mode: 0o600 });
+}
 async function bridge(method, args = {}) {
   const info = JSON.parse(await readFile(path.join(userData, "local-api.json"), "utf8"));
   const response = await fetch(`http://127.0.0.1:${info.port}/call`, {
@@ -49,15 +56,51 @@ async function pageReady(page) {
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
   await page.waitForURL(/dist\/index\.html/u, { timeout: 60_000 });
-  await page.waitForFunction(() => window.imageWorkbench && document.documentElement.dataset.boardSaveState, { timeout: 60_000 });
+  await page.waitForFunction(() => window.imageWorkbench && document.querySelector('[data-library-nav-indicator], input[placeholder="搜索画板"]'), undefined, { timeout: 60_000 });
 }
 try {
-  const env = { ...process.env, TUDA_PLAYWRIGHT: "1", TUDA_E2E_USER_DATA: userData };
+  const packaged = process.env.TUDA_E2E_PACKAGED === "1";
+  const standalone = process.env.TUDA_E2E_STANDALONE === "1";
+  const env = { ...process.env, TUDA_PLAYWRIGHT: "1", TUDA_E2E_USER_DATA: userData,
+    ...(packaged && !standalone ? { TUDA_EMBEDDED_HOST: "release-verification", TUDA_USER_DATA_PATH: userData } : {}) };
+  if (standalone) { delete env.TUDA_EMBEDDED_HOST; delete env.TUDA_USER_DATA_PATH; }
   delete env.VITE_DEV_SERVER_URL;
-  electronApp = await electron.launch({ args: ["."], cwd: projectRoot, env,
+  electronApp = await electron.launch({ args: packaged ? [] : ["."], cwd: projectRoot, env,
     ...(process.env.TUDA_E2E_ELECTRON ? { executablePath: process.env.TUDA_E2E_ELECTRON } : {}), timeout: 60_000 });
   let page = await electronApp.firstWindow();
   await pageReady(page);
+  const appPath = await electronApp.evaluate(({ app }) => app.getAppPath());
+  const runtimeUrl = pathToFileURL(path.join(appPath, "dist-electron/electron/agents/coding-runtime.js")).href;
+  const piProbe = spawnSync(process.env.TUDA_E2E_ELECTRON || createRequire(import.meta.url)("electron"), ["--input-type=module", "-e",
+    `const runtime = await import(${JSON.stringify(runtimeUrl)}); if (typeof runtime.createAgentSession !== 'function' || typeof runtime.ModelRuntime.create !== 'function') process.exit(1);`
+  ], { env: { ...env, ELECTRON_RUN_AS_NODE: "1" }, encoding: "utf8", timeout: 30_000 });
+  assert.equal(piProbe.status, 0, `Pi SDK must import from the actual desktop runtime: ${piProbe.stderr || piProbe.error || ""}`);
+  const piRuntimeReady = true;
+  let companyDefaultsVerified = false;
+  if (expectedCompanyDefaults) {
+    const expectedAccount = new URL(expectedCompanyDefaults.accountOrigin).origin;
+    const expectedNas = new URL(expectedCompanyDefaults.nasUrl).href.replace(/\/$/, "");
+    const status = await page.evaluate(() => window.imageWorkbench.enterpriseStatus());
+    assert.equal(status.serverUrl, expectedAccount, "The installed account service must use its deployment default");
+    assert.equal(status.storageUrl, expectedNas, "The installed NAS service must use its deployment default");
+    if (standalone) {
+      await page.getByRole("button", { name: "切换个人与企业空间" }).click();
+      await page.locator("[data-company-advanced] summary").click();
+      assert.equal(await page.locator("#enterprise-server-url").inputValue(), expectedAccount);
+      assert.equal(await page.locator("#company-nas-url").inputValue(), expectedNas);
+      if (!status.authenticated) assert.equal(await page.getByRole("button", { name: "使用钉钉登录企业空间" }).isEnabled(), true);
+      await page.screenshot({ path: path.join(output, "company-defaults.png") });
+      await page.keyboard.press("Escape");
+    }
+    companyDefaultsVerified = true;
+  }
+  if (standalone) {
+    assert.equal(packaged, true, "Standalone startup verification requires an installed package");
+    const metadata = await electronApp.evaluate(({ app }) => ({ packaged: app.isPackaged, version: app.getVersion() }));
+    assert.equal(metadata.packaged, true);
+    await page.screenshot({ path: path.join(output, "installed-startup.png") });
+    console.log(JSON.stringify({ ok: true, ...metadata, standalone: true, libraryHome: true, piRuntimeReady, companyDefaultsVerified, screenshot: path.join(output, "installed-startup.png") }, null, 2));
+  } else {
   await page.waitForFunction(async () => (await window.imageWorkbench.getSettings()).setupComplete);
   const settings = await page.evaluate(() => window.imageWorkbench.getSettings());
   await page.evaluate((settings) => window.imageWorkbench.saveSettings({ ...settings, apiKeyByProviderId: { "fixture-provider": "offline-test-only" } }), settings);
@@ -140,7 +183,8 @@ try {
   assert.equal(windowOptions.contextIsolation, true);
   assert.equal(windowOptions.nodeIntegration, false);
   assert.equal(errors.filter((message) => /Content Security Policy|preload|uncaught|not defined/i.test(message)).length, 0, errors.join("\n"));
-  console.log(JSON.stringify({ ok: true, isolatedWorkspace: true, immediateCloseSaved: true, mcpReopen: true, rendererIndependentGeneration: true, sandbox: true, boardNodes: 3, cliLayoutSynchronized: true, webpThumbnail: true, screenshot: path.join(output, "electron-smoke.png") }, null, 2));
+  console.log(JSON.stringify({ ok: true, packaged, piRuntimeReady, companyDefaultsVerified, isolatedWorkspace: true, immediateCloseSaved: true, mcpReopen: true, rendererIndependentGeneration: true, sandbox: true, boardNodes: 3, cliLayoutSynchronized: true, webpThumbnail: true, screenshot: path.join(output, "electron-smoke.png") }, null, 2));
+  }
 } catch (error) {
   await writeFile(path.join(output, "electron-smoke-errors.json"), JSON.stringify({ error: String(error), rendererErrors: errors }, null, 2));
   if (electronApp) for (const page of electronApp.windows()) await page.screenshot({ path: path.join(output, "electron-smoke-failure.png") }).catch(() => undefined);

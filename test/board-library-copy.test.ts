@@ -94,7 +94,7 @@ it("recovers a partially committed local paste from its durable journal without 
       return JSON.stringify(files.get(file));
     },
     write: async (file, value) => {
-      if (fail && file.endsWith("library/index.json")) {
+      if (fail && file.endsWith(path.join("library", "index.json"))) {
         fail = false;
         throw new Error("fixture disk interruption");
       }
@@ -102,7 +102,7 @@ it("recovers a partially committed local paste from its durable journal without 
     },
     list: async (directory) =>
       [...files.keys()]
-        .filter((f) => f.startsWith(directory + "/"))
+        .filter((f) => f.startsWith(directory + path.sep))
         .map((f) => f.slice(directory.length + 1)),
     remove: async (file) => {
       files.delete(file);
@@ -127,5 +127,5 @@ it("recovers a partially committed local paste from its durable journal without 
     "图片方案",
     "图片方案 副本",
   ]);
-  expect(files.has("/fixture/boards/.transaction.json")).toBe(false);
+  expect(files.has(path.join("/fixture", "boards", ".transaction.json"))).toBe(false);
 });

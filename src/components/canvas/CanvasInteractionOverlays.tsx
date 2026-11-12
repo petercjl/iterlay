@@ -269,15 +269,16 @@ export interface CanvasContextMenuProps {
   onDelete: () => void;
   onClose: () => void;
   onCopy?: () => void;
+  onSetCover?: () => void;
   className?: string;
 }
 
-export function CanvasContextMenu({ anchor, target, onDelete, onClose, onCopy, className }: CanvasContextMenuProps): React.ReactElement {
+export function CanvasContextMenu({ anchor, target, onDelete, onClose, onCopy, onSetCover, className }: CanvasContextMenuProps): React.ReactElement {
   const uiText = useUiText();
 
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonsRef = useRef<Array<HTMLButtonElement | null>>([]);
-  const boundedAnchor = clampViewportAnchor(anchor, 168, onCopy ? 80 : 48);
+  const boundedAnchor = clampViewportAnchor(anchor, 168, (onCopy ? 80 : 48) + (onSetCover ? 32 : 0));
   useDismissableOverlay(rootRef, onClose);
   useMenuFocus(buttonsRef);
 
@@ -316,7 +317,8 @@ export function CanvasContextMenu({ anchor, target, onDelete, onClose, onCopy, c
         <ContextMenuButton ref={(button) => { buttonsRef.current[0] = button; }} icon={<CopyPlus />} onClick={() => run(onCopy)}>
           {uiText("复制")}</ContextMenuButton>
       ) : null}
-      <ContextMenuButton ref={(button) => { buttonsRef.current[onCopy ? 1 : 0] = button; }} icon={<Trash2 />} danger onClick={() => run(onDelete)}>
+      {onSetCover ? <ContextMenuButton ref={button => { buttonsRef.current[onCopy ? 1 : 0] = button; }} icon={<ImageIcon />} onClick={() => run(onSetCover)}>{uiText("设为画板封面")}</ContextMenuButton> : null}
+      <ContextMenuButton ref={(button) => { buttonsRef.current[(onCopy ? 1 : 0) + (onSetCover ? 1 : 0)] = button; }} icon={<Trash2 />} danger onClick={() => run(onDelete)}>
         {uiText("删除")}</ContextMenuButton>
     </div>
   );

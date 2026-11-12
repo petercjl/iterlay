@@ -6,7 +6,7 @@ export type CanvasToolHintKind = "canvas" | "select" | "pan" | "image" | "video"
 export const CANVAS_TOOL_HINTS = {
   canvas: { title: "添加 Canvas", description: "编写 HTML、React 或 Vue，运行交互预览。", shortcut: "", aria: undefined },
   select: { title: "选择", description: "选择、移动画布中的内容，拖拽框选多个节点。", shortcut: "V", aria: "V" },
-  pan: { title: "平移", description: "拖动画布浏览内容，也可按住空格临时平移。", shortcut: "H", aria: "H" },
+  pan: { title: "平移", description: "按住鼠标中键拖动即可平移画布，也可按住空格拖动。", shortcut: "H", aria: "H" },
   image: { title: "生成图片", description: "添加图片生成卡，输入描述并连接参考图。", shortcut: "Shift I", aria: "Shift+I" },
   video: { title: "生成视频", description: "添加视频生成卡，从文字或图片开始创作。", shortcut: "Shift V", aria: "Shift+V" },
   text: { title: "添加文本", description: "记录想法、编写提示词，并连接到生成卡。", shortcut: "Shift T", aria: "Shift+T" },

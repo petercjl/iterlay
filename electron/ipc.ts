@@ -1,3 +1,6 @@
+import { readSkillLibrary, mutateSkillLibrary } from "./skill-library.js";
+import { tudaAgentHome, rebaseAgentPath } from "./tuda-agent-home.js";
+import { createHash } from "node:crypto";
 import { executionContext } from "./execution-space.js";
 import { TemplateStore } from "./storage/template-store.js";
 import { continueWithScreenCapture } from "./application/screen-collaboration.js";
@@ -137,6 +140,7 @@ import { getCliInstallationStatus, installCli } from "./cli-installation.js";
 import { FfmpegService } from "./media/ffmpeg-service.js";
 import { PaidMediaQuoteService } from "./paid-media-quote.js";
 import { PiAgentLogStore } from "./pi-agent-log.js";
+import { removeLocalSkill } from "./agent-skills.js";
 import { discoverPiAgentResources } from "./pi-agent-resources.js";
 import { createTudaAgentTools } from "./pi-agent-tools.js";
 import { ManagerProductAnalyticsClient } from "./product-analytics-client.js";
@@ -154,7 +158,6 @@ import {
   enhancePromptWith,
   extractAssistantMemoriesWith,
   OpenAICompatibleTextTransport,
-  suggestAssistantIntentsWith,
   suggestImageEditsWith,
   type TextTransport
 } from "./providers/text-assistant.js";
@@ -434,6 +437,16 @@ export function registerIpc({
     }
     return true;
   };
+  const getAgentSettings = () => {
+    const currentSettings = settings.getSettings();
+    const root = tudaAgentHome(app.getPath("home"), !app.isPackaged);
+    for (const key of ["piAgentSkillPaths", "piAgentExtensionPaths", "piAgentCustomSkillPaths", "piAgentCustomExtensionPaths"] as const) {
+      currentSettings[key] = currentSettings[key]?.map((item) => rebaseAgentPath(item, app.getPath("userData"), root));
+    }
+    return currentSettings;
+  };
+  const tudaAgentDirectory = () => path.join(tudaAgentHome(app.getPath("home"), !app.isPackaged), "tuda-agent", executionContext().space,
+    createHash("sha256").update(executionContext().account ?? "personal").digest("hex"));
   const getAssistantAgentResourceOptions = async (
     request: CollaborateSceneRequest,
     uiCallbacks: {
@@ -454,7 +467,7 @@ export function registerIpc({
       builtInRoot,
       overrideRoot
     );
-    const currentSettings = settings.getSettings();
+    const currentSettings = getAgentSettings();
     const resolvedSettings = request.assistantSurface === "comic-drama"
       ? {
           ...currentSettings,
@@ -464,10 +477,15 @@ export function registerIpc({
           piAgentExtensionPaths: []
         }
       : currentSettings;
+    if (request.selectedSkillPath) {
+      const inventory = await discoverCurrentAgentResources();
+      if (!inventory.skills.some((skill) => skill.path === request.selectedSkillPath)) throw new Error("所选 Skill 已不存在，请刷新 Skill 看板。");
+      skills.paths = [...skills.paths, request.selectedSkillPath];
+    }
     const logTaskId = crypto.randomUUID();
     return {
-      cwd: executionContext().workspace ?? app.getAppPath(),
-      agentDir: executionContext().account ? path.join(app.getPath("userData"), "company-agents", executionContext().account!) : path.join(app.getPath("home"), ".pi", "agent"),
+      cwd: executionContext().workspace ?? app.getPath("userData"),
+      agentDir: tudaAgentDirectory(),
       settings: resolvedSettings,
       requiredSkillPaths: skills.paths,
       requiredSkillIds: skills.ids,
@@ -653,8 +671,13 @@ export function registerIpc({
     builtInRoot: app.isPackaged
       ? path.join(process.resourcesPath, "skills", "tuda-assistants")
       : path.join(app.getAppPath(), "resources", "skills", "tuda-assistants"),
-    overrideRoot: path.join(app.getPath("userData"), "assistant-skills")
+    overrideRoot: path.join(tudaAgentHome(app.getPath("home"), !app.isPackaged), "assistant-skills")
   });
+  const discoverCurrentAgentResources = async () => {
+    const roots = getAssistantSkillRoots();
+    const guides = await listAssistantSkills(roots.builtInRoot, roots.overrideRoot);
+    return discoverPiAgentResources(executionContext().workspace ?? app.getPath("userData"), tudaAgentDirectory(), getAgentSettings(), guides.map((skill) => skill.activePath));
+  };
   const sceneCollaborationStreams = new Map<
     string,
     {
@@ -730,6 +753,7 @@ export function registerIpc({
   async function resolveDownloadDirectory(): Promise<string | null> {
     const configured = settings.getSettings().downloadDirectory?.trim();
     if (configured) return ensureDownloadDirectory(configured);
+    if (executionContext().silent) return ensureDownloadDirectory(app.getPath("downloads"));
     return chooseDownloadDirectory();
   }
 
@@ -951,20 +975,33 @@ export function registerIpc({
   });
   ipcMain.handle("assistant:screenAccess:status", () => getScreenAccessStatus(settings.getSettings().assistantScreenAccess));
   ipcMain.handle("assistant:screenAccess:openSettings", () => openScreenCaptureSettings());
-  ipcMain.handle("pi-agent:resources:list", () => discoverPiAgentResources(
-    app.getAppPath(),
-    path.join(app.getPath("home"), ".pi", "agent"),
-    settings.getSettings()
-  ));
+  ipcMain.handle("pi-agent:resources:list", () => discoverCurrentAgentResources());
+  ipcMain.handle("pi-agent:skill-library:get", () => readSkillLibrary(tudaAgentDirectory()));
+  ipcMain.handle("pi-agent:skill-library:update", async (_event, operation: import("../shared/types.js").AgentSkillLibraryMutation) => {
+    if (operation?.type === "deleteFolder") {
+      const library = await readSkillLibrary(tudaAgentDirectory());
+      const folder = library.folders.find((item) => item.id === operation.id);
+      if (!folder) throw new Error("文件夹已不存在，请刷新。");
+      const confirmation = await dialog.showMessageBox({ type: "question", title: "删除 Skill 分类", message: `删除分类「${folder.name}」？`, detail: "此分类及其子分类将移除，Skill 文件和收藏保留，所属 Skill 回到全部用户 Skill。", buttons: ["取消", "删除分类"], defaultId: 0, cancelId: 0, noLink: true });
+      if (confirmation.response !== 1) return library;
+    }
+    const inventory = await discoverCurrentAgentResources();
+    return mutateSkillLibrary(tudaAgentDirectory(), operation, inventory.skills);
+  });
+  ipcMain.handle("pi-agent:skills:delete", async (_event, resourcePath: string) => {
+    if (typeof resourcePath !== "string") throw new Error("Skill 路径无效。");
+    const removed = await removeLocalSkill(tudaAgentDirectory(), resourcePath, {
+      confirm: async (folder) => (await dialog.showMessageBox({ type: "warning", title: "删除 Skill", message: `确定删除 Skill「${path.basename(folder)}」？`, detail: `该 Skill 文件夹及其附属文件将移入系统废纸篓。\n${folder}`, buttons: ["取消", "删除"], defaultId: 0, cancelId: 0, noLink: true })).response === 1,
+      trash: (folder) => shell.trashItem(folder)
+    });
+    if (removed) settings.updateSettings({ piAgentSkillPaths: (settings.getSettings().piAgentSkillPaths ?? []).filter((item) => item !== resourcePath) });
+    return removed;
+  });
   ipcMain.handle("pi-agent:resources:read", async (_event, resourcePath: string) => {
     if (typeof resourcePath !== "string" || !resourcePath.trim()) {
       throw new Error("Pi Agent 资源路径无效。");
     }
-    const inventory = await discoverPiAgentResources(
-      app.getAppPath(),
-      path.join(app.getPath("home"), ".pi", "agent"),
-      settings.getSettings()
-    );
+    const inventory = await discoverCurrentAgentResources();
     const resource = [...inventory.skills, ...inventory.extensions]
       .find((item) => item.path === resourcePath);
     if (!resource) throw new Error("Pi Agent 资源不在当前发现范围内。");
@@ -1895,35 +1932,6 @@ export function registerIpc({
   );
 
   ipcMain.handle(
-    "assistant:suggestIntents",
-    async (_event, req: SuggestAssistantIntentsRequest): Promise<SuggestAssistantIntentsResult> => {
-      if (!req || !["scene-template", "canvas-prompt", "canvas-edit", "gallery-review"].includes(req.assistantSurface)) {
-        throw new Error("缺少有效的 AI 助手上下文。");
-      }
-      const conversation = Array.isArray(req.conversation) ? req.conversation : [];
-      const currentFields = Array.isArray(req.currentFields) ? req.currentFields : [];
-      const templateScenario = normalizeTemplateExtractionScenario(req.templateScenario);
-      void analytics.track("assistant.opened", { surface: req.assistantSurface });
-      try {
-        const textProvider = resolveTextProvider(
-          req.textProviderId,
-          req.assistantSurface === "canvas-edit" ? "edit" : "generate"
-        );
-        const suggestions = await suggestAssistantIntentsWith(getTextTransport(textProvider), {
-          ...req,
-          conversation,
-          currentFields,
-          ...(templateScenario ? { templateScenario } : {})
-        });
-        void analytics.track("assistant.completed", { surface: req.assistantSurface });
-        return { suggestions };
-      } catch (error) {
-        throw normalizeProviderError(error);
-      }
-    }
-  );
-
-  ipcMain.handle(
     "prompt:suggestImageEdits",
     async (_event, req: SuggestImageEditsRequest): Promise<SuggestImageEditsResult> => {
       if (!req || typeof req.sourcePath !== "string" || !req.sourcePath.trim()) {
@@ -2095,7 +2103,7 @@ export function registerIpc({
 
     const destinationPath = await availableDownloadPath(directory, `tuda-images-${timestamp}.zip`);
     const archive = await buildAssetArchive(archiveItems);
-    await writeFile(destinationPath, archive);
+    await writeFile(destinationPath, archive, { flag: "wx" });
     return {
       ok: true,
       path: destinationPath,

@@ -52,7 +52,15 @@ export function createAssistantSessionService(dependencies: AssistantSessionDepe
     const validated = validateSceneCollaborationRequest(input);
     const perReferenceBudget = getAssistantReferenceByteBudget(validated.referenceImages.length);
     const referenceImages = await Promise.all(
-      validated.referenceImages.map((reference, index) => normalizeReference(reference, index, perReferenceBudget))
+      validated.referenceImages.map(async (reference, index) => {
+        const normalized = await normalizeReference(reference, index, perReferenceBudget);
+        if (!validated.creationWorkflow || normalized.imagePath) return normalized;
+        const [stored] = await assets.saveReferenceImageBytes([{
+          id: crypto.randomUUID(), name: normalized.name, mimeType: normalized.mimeType,
+          bytes: Buffer.from(normalized.dataBase64, "base64")
+        }]);
+        return { ...normalized, imagePath: stored.path };
+      })
     );
     return prepareMemoryRequest({ ...validated, referenceImages,
       screenCaptureAvailable: validated.assistantSurface !== "comic-drama" && settings.getSettings().assistantScreenAccess !== "deny" });
@@ -76,7 +84,9 @@ export function createAssistantSessionService(dependencies: AssistantSessionDepe
       });
     }
     if (request.recordInHistory === false) return;
-    const savedReferences = request.referenceImages.length ? await assets.saveReferenceImageBytes(
+    const savedReferences = request.creationWorkflow && request.referenceImages.every((image) => image.imagePath)
+      ? request.referenceImages.map((image) => ({ id: crypto.randomUUID(), name: image.name, path: image.imagePath! }))
+      : request.referenceImages.length ? await assets.saveReferenceImageBytes(
       request.referenceImages.map((image) => ({
         id: crypto.randomUUID(), name: image.name, mimeType: image.mimeType,
         bytes: Buffer.from(image.dataBase64, "base64")

@@ -97,3 +97,13 @@ describe("Pi Agent resources", () => {
     expect(loader.getExtensions().extensions.flatMap((item) => [...item.tools.keys()])).toContain("fixture_tool");
   });
 });
+
+ it("classifies Tuda built-in guides separately from user-owned skills", async () => {
+    const { cwd, agentDir } = await fixture();
+    const builtin = path.join(cwd, "builtin", "guide", "SKILL.md");
+    await mkdir(path.dirname(builtin), { recursive: true });
+    await writeFile(builtin, "---\nname: builtin-guide\ndescription: Built-in fixture\n---\nGuide");
+    const inventory = await discoverPiAgentResources(cwd, agentDir, settings(), [builtin]);
+    expect(inventory.skills.find((skill) => skill.name === "builtin-guide")).toMatchObject({ skillCategory: "system", canDelete: false });
+    expect(inventory.skills.find((skill) => skill.name === "system-skill")).toMatchObject({ skillCategory: "user", canDelete: true });
+  });

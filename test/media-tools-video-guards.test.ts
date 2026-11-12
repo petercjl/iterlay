@@ -1,3 +1,4 @@
+import { pathToFileURL } from "node:url";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -243,7 +244,7 @@ describe("video component submission and recovery guards", () => {
   it("exposes an explicit install IPC without downloading during status queries", async () => {
     const { registerMediaToolsIpc } = await import("../electron/media/media-tools-ipc.js");
     const manager = { getState: vi.fn().mockResolvedValue({ status: "missing" }), install: vi.fn().mockResolvedValue({ status: "ready" }), cancel: vi.fn() };
-    const frame = { url: "file:///app/dist/index.html" };
+    const frame = { url: pathToFileURL(path.resolve("/app/dist/index.html")).href };
     const event = { senderFrame: frame, sender: { mainFrame: frame } };
     const dispose = registerMediaToolsIpc(manager as never, { appFile: "/app/dist/index.html" });
     await handlers.get("mediaTools:getState")!(event);

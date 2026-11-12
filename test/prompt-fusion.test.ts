@@ -10,7 +10,7 @@ import { ASSISTANT_WIDTH_KEY, ASSISTANT_WIDTHS, readAssistantWidth, setAssistant
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe("production prompt fusion", () => {
-  it("keeps the direct composer and draft when disabling planning, without a mode switch or assistant", async () => {
+  it("keeps the Agent composer for saved legacy mode flags and never falls back to direct generation", async () => {
     const container = document.createElement("div");
     const root = createRoot(container);
     const generate = vi.fn();
@@ -28,20 +28,17 @@ describe("production prompt fusion", () => {
     try {
       await act(async () => root.render(createElement(PromptFusionDock, props)));
       expect(container.querySelector('[role="switch"]')).toBeNull();
-      await act(async () => root.render(createElement(PromptFusionDock, { ...props, assistantEnabled: false })));
-      expect(container.querySelector(".prompt-fusion")?.getAttribute("data-fusion-mode")).toBe("generate");
-      expect(container.querySelector(".prompt-fusion")?.getAttribute("data-fusion-expanded")).toBe("false");
+      await act(async () => root.render(createElement(PromptFusionDock, { ...props, assistantModeEnabled: false, onAssistantModeChange: vi.fn() })));
+      expect(container.querySelector(".prompt-fusion")?.getAttribute("data-fusion-mode")).toBe("chat");
       expect(container.querySelector('[role="switch"]')).toBeNull();
-      expect(container.querySelector(".prompt-fusion-conversation")).toBeNull();
-      expect(container.querySelector(".prompt-fusion-expand-handle")).toBeNull();
-      expect(container.querySelector<HTMLTextAreaElement>('[aria-label="图片提示词"]')?.value).toBe("图片草稿");
-      expect(container.querySelector('.prompt-fusion-context img')?.getAttribute("src")).toBe("reference.png");
-      await act(async () => container.querySelector<HTMLButtonElement>(".prompt-fusion-action button")!.click());
-      expect(generate).toHaveBeenCalledOnce();
-      expect(props.onSubmit).not.toHaveBeenCalled();
-      await act(async () => root.render(createElement(PromptFusionDock, props)));
-      expect(container.querySelector('[role="switch"]')).toBeNull();
+      expect(container.querySelector('[aria-label="图片提示词"]')).toBeNull();
       expect(container.querySelector<HTMLTextAreaElement>('[aria-label="对话规划输入"]')?.value).toBe("对话草稿");
+      await act(async () => root.render(createElement(PromptFusionDock, { ...props, assistantEnabled: false })));
+      const send = container.querySelector<HTMLButtonElement>('[aria-label="发送"]')!;
+      expect(send.disabled).toBe(true);
+      await act(async () => send.click());
+      expect(generate).not.toHaveBeenCalled();
+      expect(props.onSubmit).not.toHaveBeenCalled();
     } finally { await act(async () => root.unmount()); }
   });
 

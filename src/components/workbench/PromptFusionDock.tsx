@@ -81,11 +81,9 @@ export function PromptFusionDock(props: Props): React.ReactElement {
 
   const width = useAssistantWidth();
   const assistantEnabled = props.assistantEnabled ?? true;
-  // Keep the standalone component's historical default for callers that do
-  // not provide persisted mode state; the production dock passes this value
-  // explicitly so the user's setting controls the initial mode.
-  const assistantModeEnabled = assistantEnabled && (props.assistantModeEnabled ?? true);
-  const mode = assistantModeEnabled ? "chat" : "generate";
+  // A single Agent composer; persisted legacy mode flags do not change execution.
+  const assistantModeEnabled = true;
+  const mode: string = "chat";
   const [dirty, setDirty] = useState(false);
   const [contextPrompt, setContextPrompt] = useState<string | null>(null);
   const [preview, setPreview] = useState<AiAssistantContextImage | null>(null);
@@ -272,6 +270,7 @@ export function PromptFusionDock(props: Props): React.ReactElement {
       aria-hidden={props.collapsed || undefined}
       data-assistant-width={width}
       data-edit-dock=""
+      data-agent-skill-host=""
       data-right-rail-open={props.rightRailOpen || undefined}
       data-fusion-mode={mode}
       data-assistant-enabled={assistantEnabled}
@@ -413,7 +412,7 @@ export function PromptFusionDock(props: Props): React.ReactElement {
                   rows={2}
                   aria-label={uiText("对话规划输入")}
                   placeholder={uiText("说说你的想法，或告诉我哪里需要调整…")}
-                  disabled={props.inputDisabled}
+                  disabled={!assistantEnabled || props.inputDisabled}
                   onChange={(event) => props.onValueChange(event.target.value)}
                   onPaste={(event) => {
                     const canvasItems = extractCanvasClipboardItems(
@@ -450,25 +449,6 @@ export function PromptFusionDock(props: Props): React.ReactElement {
                 </div>
               )}
               <AssistantComposerToolbar className="prompt-fusion-toolbar">
-                {props.onAssistantModeChange ? (
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={assistantModeEnabled}
-                    aria-label={uiText(assistantModeEnabled ? "切换到普通" : "切换到 AI 对话")}
-                    title={uiText(assistantModeEnabled ? "切换到普通" : "切换到 AI 对话")}
-                    className="prompt-mode-switch"
-                    onClick={() => props.onAssistantModeChange?.(!assistantModeEnabled)}
-                  >
-                    <span className="prompt-mode-thumb" aria-hidden="true">
-                      <span className="prompt-mode-thumb-face" />
-                      <span className="prompt-mode-star">✦</span>
-                      <span className="prompt-mode-arrow"><ArrowUp /></span>
-                    </span>
-                    <span className="prompt-mode-word prompt-mode-ai">AI</span>
-                    <span className="prompt-mode-word prompt-mode-direct">{uiText("普通")}</span>
-                  </button>
-                ) : null}
                 <fieldset
                   disabled={props.busy}
                   className="prompt-fusion-controls"
@@ -483,7 +463,7 @@ export function PromptFusionDock(props: Props): React.ReactElement {
                       aria-label={props.busy ? uiText("停止") : uiText("发送")}
                       disabled={
                         !props.busy &&
-                        (props.inputDisabled || !props.value.trim())
+                        (!assistantEnabled || props.inputDisabled || !props.value.trim())
                       }
                       onClick={props.busy ? props.onStop : submit}
                     >

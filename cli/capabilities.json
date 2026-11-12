@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "name": "@petercjl/tuda",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "kind": "cli-skill",
   "skills": [
     "using-tuda"

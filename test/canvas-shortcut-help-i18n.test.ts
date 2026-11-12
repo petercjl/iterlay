@@ -36,7 +36,7 @@ describe("board shortcut help localization", () => {
       expect(dialog.textContent).toContain("画板快捷键");
       expect(dialog.textContent).toContain("Shift 点击");
       expect(dialog.textContent).toContain("单字母快捷键仅在画板前景且未输入文字时生效。");
-      expect([...dialog.querySelectorAll("kbd")].map((key) => key.textContent)).toEqual(keys.map((key) => key === "Shift click" ? "Shift 点击" : key));
+      expect([...dialog.querySelectorAll("kbd")].map((key) => key.textContent)).toEqual(keys.map((key) => key === "Shift click" ? "Shift 点击" : key === "Middle mouse drag" ? "鼠标中键拖动" : key));
       await act(async () => setLanguage!("en-US"));
       expect(dialog.textContent).not.toMatch(/[\u4e00-\u9fff]/u);
     } finally {

@@ -15,6 +15,8 @@ export interface UpdateManifest {
   /** 发布渠道，后台返回；Beta 版本在 UI 上会有标识。 */
   channel?: UpdateChannel;
   downloadUrl: string;
+  /** Ordered npm-hosted installer blocks; hashes cover the extracted payload bytes. */
+  npmPayloads?: { url: string; sha256: string; fileSize: number }[];
   /** 安装包 sha256（hex）。缺省时跳过完整性校验。 */
   sha256?: string;
   fileSize?: number;

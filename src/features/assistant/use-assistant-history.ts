@@ -4,19 +4,17 @@ import type { AssistantSurface } from "@shared/types";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { useAssistantSessionState } from "./use-assistant-session-state";
-type HistorySession = Pick<ReturnType<typeof useAssistantSessionState>, "assistantIntentSuggestionRequestRef"
+type HistorySession = Pick<ReturnType<typeof useAssistantSessionState>,
   | "assistantRequestVersionRef"
   | "assistantStreamRef"
   | "assistantClarificationRoundsRef"
-  | "assistantIntentSuggestionHistoryRef"
   | "setAssistantConversationId"
   | "setAssistantMessages"
   | "setAssistantValue"
   | "setAssistantInteraction"
   | "setAssistantStreaming"
   | "setAssistantActivity"
-  | "setAssistantIntentSuggestions"
-  | "setAssistantIntentSuggestionsLoading">;
+>;
 interface AssistantHistoryOptions { session: HistorySession;
   boardId: string;
   boardNameById?: ReadonlyMap<string, string>;
@@ -26,19 +24,15 @@ interface AssistantHistoryOptions { session: HistorySession;
   }
 export function useAssistantHistory({ session, boardId, boardNameById, assistantSurface, assetPath, onOpenAssistantConversation }: AssistantHistoryOptions) {
   const {
-    assistantIntentSuggestionRequestRef,
     assistantRequestVersionRef,
     assistantStreamRef,
     assistantClarificationRoundsRef,
-    assistantIntentSuggestionHistoryRef,
     setAssistantConversationId,
     setAssistantMessages,
     setAssistantValue,
     setAssistantInteraction,
     setAssistantStreaming,
     setAssistantActivity,
-    setAssistantIntentSuggestions,
-    setAssistantIntentSuggestionsLoading
   } = session;
   const [assistantHistory, setAssistantHistory] = useState<AssistantHistoryConversation[]>([]);
   const [assistantHistoryLoading, setAssistantHistoryLoading] = useState(false);
@@ -72,19 +66,15 @@ export function useAssistantHistory({ session, boardId, boardNameById, assistant
   }
   function restoreAssistantConversation(conversation: AssistantHistoryConversation): void {
     assistantRequestVersionRef.current += 1;
-    assistantIntentSuggestionRequestRef.current += 1;
     assistantStreamRef.current?.dispose();
     assistantStreamRef.current = null;
     assistantClarificationRoundsRef.current = 0;
-    assistantIntentSuggestionHistoryRef.current = [];
     setAssistantConversationId(conversation.id);
     setAssistantMessages(conversation.messages);
     setAssistantValue("");
     setAssistantInteraction(null);
     setAssistantStreaming(false);
     setAssistantActivity(null);
-    setAssistantIntentSuggestions([]);
-    setAssistantIntentSuggestionsLoading(false);
   }
   function selectAssistantHistory(conversation: AssistantHistoryConversation): void {
     if (conversation.boardId && conversation.boardId !== boardId && onOpenAssistantConversation) {

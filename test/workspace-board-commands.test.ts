@@ -57,3 +57,46 @@ describe("typed workspace board commands", () => {
     expect(f.emit).toHaveBeenCalledWith({ type: "board-updated", boardId: "board", reloadLayout: true });
   });
 });
+
+describe("board tool read payloads", () => {
+  it.each(["get_board", "get_active_board"])("%s preserves every semantic field without cover bytes", async (method) => {
+    const f = workspaceFixture();
+    const board = {
+      id: "board", revision: 42, name: "带封面的画板",
+      thumbnailDataUrl: "data:image/png;base64," + "A".repeat(500_000),
+      enterpriseState: Buffer.from("thumbnailDataUrl:" + "A".repeat(500_000)).toString("base64"),
+      enterpriseEpoch: "epoch",
+      nodes: [
+        { id: "image", imagePath: "/managed/source.png", x: 0, y: 0, versions: [{ imagePath: "/managed/old.png" }] },
+        { id: "text", type: "text", text: "完整文字".repeat(1000), x: 100, y: 20 },
+        { id: "canvas", type: "canvas", code: "<p>保留完整代码</p>", x: 200, y: 20 }
+      ],
+      images: { "/managed/source.png": "tuda-asset://source" },
+      connections: [{ id: "connection", source: "image", target: "text" }],
+      groups: [{ id: "group", nodeIds: ["image", "text"] }]
+    };
+    f.mocks.getBoard.mockResolvedValue(board);
+    const result = await f.commands.call(method, { boardId: "board" });
+    const { thumbnailDataUrl, enterpriseState, ...expected } = board;
+    expect(result).toEqual(expected);
+    expect(JSON.stringify(result).length).toBeLessThan(10_000);
+    expect(board.thumbnailDataUrl).toBe(thumbnailDataUrl);
+    expect(board.enterpriseState).toBe(enterpriseState);
+    expect(result).not.toBe(board);
+    expect(f.flush).not.toHaveBeenCalled();
+  });
+  it("omits cover bytes from board lists without changing stored summaries", async () => {
+    const f = workspaceFixture();
+    const summaries = [{ id: "board", name: "测试", imageCount: 2, thumbnailDataUrl: "data:image/png;base64,AA==" }];
+    f.mocks.listBoards.mockResolvedValue(summaries);
+    expect(await f.commands.call("list_boards", {})).toEqual([{ id: "board", name: "测试", imageCount: 2 }]);
+    expect(summaries[0].thumbnailDataUrl).toBeDefined();
+  });
+  it("preserves missing board and empty active-board semantics", async () => {
+    const f = workspaceFixture();
+    f.mocks.getBoard.mockResolvedValue(null);
+    expect(await f.commands.call("get_board", { boardId: "missing" })).toBeNull();
+    f.mocks.getBoardsState.mockResolvedValue({ lastOpenedBoardId: null });
+    expect(await f.commands.call("get_active_board", {})).toBeNull();
+  });
+});

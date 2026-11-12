@@ -42,6 +42,16 @@ describe("assistant session application service", () => {
     expect(memories.retrieve).toHaveBeenCalledWith({ boardId: "board" }, "balanced", "优化这张图");
   });
 
+  it("prepares managed reference paths before Agent execution and reuses them in history", async () => {
+    const { service, conversations } = await fixture(false);
+    const prepared = await service.prepareSceneCollaborationRequest({ ...request, creationWorkflow: true });
+    expect(prepared.referenceImages[0].imagePath).toBeTruthy();
+    expect((await readFile(prepared.referenceImages[0].imagePath!)).toString()).toBe("image");
+    await service.recordAssistantResult(prepared, { message: "已分析", intent: "chat", fields: [] });
+    const [record] = await conversations.list();
+    expect(record.attachments?.[0].path).toBe(prepared.referenceImages[0].imagePath);
+  });
+
   it("persists controlled attachments and generated prompt with conversation scope", async () => {
     const { service, conversations, memories } = await fixture();
     await service.recordAssistantResult(request, result, [], "判断摘要");

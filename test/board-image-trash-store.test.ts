@@ -34,7 +34,7 @@ describe("BoardImageTrashStore", () => {
       boardId: "board-a",
       expiresAt: "2026-07-28T00:00:00.000Z"
     });
-    expect(await store.referencedAssetPaths()).toEqual(new Set(["/tmp/a.png", "/tmp/a-v1.png"]));
+    expect(await store.referencedAssetPaths()).toEqual(new Set(["/tmp/a.png", "/tmp/a-v1.png"].map((file) => path.resolve(file))));
     expect(await store.purgeExpired(3, Date.parse("2026-07-27T23:59:59.000Z"))).toEqual([]);
     expect((await store.purgeExpired(3, Date.parse("2026-07-28T00:00:00.000Z"))).map((entry) => entry.id)).toEqual([item?.id]);
     expect(await store.list(3)).toEqual([]);

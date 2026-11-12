@@ -32,25 +32,26 @@ describe("covered workspace interactions", () => {
     } finally { await act(async () => root.unmount()); container.remove(); }
   });
 
-  it("shows the creation model button and applies the selected image provider/model", async () => {
+  it("shows the text model button and applies the selected shared text provider", async () => {
     const container = document.createElement("div"); document.body.append(container);
     const root = createRoot(container);
     const select = vi.fn();
     try {
       await act(async () => root.render(createElement(CreationAssistantPage, {
-        boards: [], imageProviders: [{ id: "image", name: "Image service", type: "openai-compatible", model: "model-a", models: ["model-a", "model-b"],
-          apiMode: "images", baseUrl: "http://localhost", generationEndpoint: "/images/generations", supportsReferenceImages: true }],
-        activeImageProviderId: "image", activeImageModel: "model-a", onSelectImageModel: select,
+        boards: [], textProviders: [
+          { id: "text-a", name: "model-a", type: "openai-compatible", model: "model-a", baseUrl: "http://localhost" },
+          { id: "text-b", name: "model-b", type: "openai-compatible", model: "model-b", baseUrl: "http://localhost" }
+        ], activeTextProviderId: "text-a", onSelectTextProvider: select,
         onInterpret: vi.fn(), onCreate: vi.fn(), onOpenBoard: vi.fn(), onOpenSettings: vi.fn()
       })));
-      const button = container.querySelector<HTMLButtonElement>('[aria-label="选择图片模型"]')!;
+      const button = container.querySelector<HTMLButtonElement>('[aria-label="选择文本模型"]')!;
       expect(button.textContent).toContain("model-a");
       expect(button.closest(".create-chat-composer-toolbar")).not.toBeNull();
       await act(async () => { button.focus(); button.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })); });
       const option = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find((item) => item.textContent === "model-b");
       expect(option).toBeDefined();
       await act(async () => option!.click());
-      expect(select).toHaveBeenCalledWith("image", "model-b");
+      expect(select).toHaveBeenCalledWith("text-b");
     } finally { await act(async () => root.unmount()); container.remove(); }
   });
 });

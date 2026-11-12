@@ -21,8 +21,6 @@ export function useAssistantSessionState() {
   const [assistantValue, setAssistantValue] = useState("");
   const [assistantStreaming, setAssistantStreaming] = useState(false);
   const [assistantActivity, setAssistantActivity] = useState<string | null>(null);
-  const [assistantIntentSuggestions, setAssistantIntentSuggestions] = useState<string[]>([]);
-  const [assistantIntentSuggestionsLoading, setAssistantIntentSuggestionsLoading] = useState(false);
   const [memorySuggestions, setMemorySuggestions] = useState<AssistantMemoryContextItem[]>([]);
   const [assistantMessages, setAssistantMessages] = useState<AiAssistantMessage[]>([]);
   const [assistantConversationId, setAssistantConversationId] = useState<string>(() => crypto.randomUUID());
@@ -30,8 +28,6 @@ export function useAssistantSessionState() {
   const assistantStreamRef = useRef<SceneCollaborationStreamHandle | null>(null);
   const assistantBackgroundRequestRef = useRef(false);
   const assistantRequestVersionRef = useRef(0);
-  const assistantIntentSuggestionRequestRef = useRef(0);
-  const assistantIntentSuggestionHistoryRef = useRef<string[]>([]);
   const assistantApplyTimerRef = useRef<number | null>(null);
   const assistantAutoPromptTimerRef = useRef<number | null>(null);
   const assistantReferenceSignatureRef = useRef("");
@@ -47,13 +43,9 @@ export function useAssistantSessionState() {
     showUserMessage?: boolean,
     background?: boolean
   ) => Promise<void>>(async () => { });
-  const requestAssistantIntentSuggestionsRef = useRef<(
-    mode?: AssistantIntentSuggestionMode
-  ) => Promise<void>>(async () => { });
   const assistantBranchSignatureRef = useRef<string | null>(null);
   useEffect(() => () => {
     assistantRequestVersionRef.current++;
-    assistantIntentSuggestionRequestRef.current++;
     assistantStreamRef.current?.dispose();
     assistantStreamRef.current = null;
     for (const timer of [assistantApplyTimerRef, assistantAutoPromptTimerRef]) {
@@ -70,10 +62,6 @@ export function useAssistantSessionState() {
     setAssistantStreaming,
     assistantActivity,
     setAssistantActivity,
-    assistantIntentSuggestions,
-    setAssistantIntentSuggestions,
-    assistantIntentSuggestionsLoading,
-    setAssistantIntentSuggestionsLoading,
     memorySuggestions,
     setMemorySuggestions,
     assistantMessages,
@@ -85,8 +73,6 @@ export function useAssistantSessionState() {
     assistantStreamRef,
     assistantBackgroundRequestRef,
     assistantRequestVersionRef,
-    assistantIntentSuggestionRequestRef,
-    assistantIntentSuggestionHistoryRef,
     assistantApplyTimerRef,
     assistantAutoPromptTimerRef,
     assistantReferenceSignatureRef,
@@ -96,7 +82,6 @@ export function useAssistantSessionState() {
     assistantPreviousGenerationPromptRef,
     assistantClarificationRoundsRef,
     sendAssistantInstructionRef,
-    requestAssistantIntentSuggestionsRef,
     assistantBranchSignatureRef
   };
 }

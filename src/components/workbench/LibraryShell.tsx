@@ -75,11 +75,9 @@ import { toast } from "sonner";
 export type LibraryTab = "create" | "boards" | "assets" | "scenes" | "inspiration" | "trash";
 
 interface LibraryShellProps {
-  imageProviders?: import("@shared/types").ProviderConfig[];
-  activeImageProviderId?: string;
-  activeImageModel?: string;
-  activeVideoModelLabel?: string;
-  onSelectImageModel?: (providerId: string, model: string) => void;
+  textProviders?: import("@shared/types").TextProviderConfig[];
+  activeTextProviderId?: string;
+  onSelectTextProvider?: (id: string) => void;
   boards: BoardSummary[];
   activeBoardGenerations?: ActiveBoardGeneration[];
   activeBoardId?: string;
@@ -862,11 +860,9 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
               <CreationAssistantPage
                 onExit={() => setTab("boards")}
                 scenes={props.scenes}
-                imageProviders={props.imageProviders}
-                activeImageProviderId={props.activeImageProviderId}
-                activeImageModel={props.activeImageModel}
-                activeVideoModelLabel={props.activeVideoModelLabel}
-                onSelectImageModel={props.onSelectImageModel}
+                textProviders={props.textProviders}
+                activeTextProviderId={props.activeTextProviderId}
+                onSelectTextProvider={props.onSelectTextProvider}
                 boards={boards}
                 activeBoardId={activeBoardId}
                 canUseAgent={props.canCollaborateScene}

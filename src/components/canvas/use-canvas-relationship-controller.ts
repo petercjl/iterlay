@@ -168,7 +168,9 @@ export function useCanvasRelationshipController({
   }, [applyRelationshipHighlight, hoverHighlightEnabled]);
 
   const onCanvasPointerDownCapture = useCallback((event: ReactPointerEvent<HTMLElement>): void => {
-    if (event.button === 1) event.preventDefault();
+    // XYFlow starts middle-button panning on the compatibility mousedown.
+    // Keep pointerdown uncancelled; CanvasBoard suppresses native autoscroll
+    // on mousedown without suppressing the drag event itself.
     if (commentMode || event.button !== 0 || !event.isPrimary || !(event.target instanceof Element)) return;
     if (event.target !== event.currentTarget.querySelector(".react-flow__pane")) return;
     pointerCleanupRef.current?.();

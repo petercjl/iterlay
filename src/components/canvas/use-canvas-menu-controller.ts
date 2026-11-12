@@ -44,6 +44,7 @@ interface CanvasContextMenuState {
 
 interface CanvasMenuControllerOptions {
   commentMode: boolean;
+  setCover?: (nodeId: string) => void;
   allowedCreateTypes?: readonly string[];
   getNodes: () => readonly Node[];
   getCanvasBounds: () => DOMRect | null;
@@ -74,6 +75,7 @@ export interface CanvasContextMenuViewModel {
   anchor: CanvasDropPoint;
   target: "node" | "connection";
   onCopy?: () => void;
+  onSetCover?: () => void;
   onDelete: () => void;
   onClose: () => void;
 }
@@ -273,10 +275,12 @@ export function useCanvasMenuController(options: CanvasMenuControllerOptions): C
       anchor: contextMenuState.anchor,
       target: contextMenuState.target,
       onCopy: contextMenuState.target === "node" ? duplicateContextTarget : undefined,
+      onSetCover: contextMenuState.target === "node" && options.setCover && options.getNodes().some(node => node.id === contextMenuState.id && node.type === "imageNode")
+        ? () => optionsRef.current.setCover?.(contextMenuState.id) : undefined,
       onDelete: deleteContextTarget,
       onClose: closeContextMenu
     };
-  }, [closeContextMenu, contextMenuState, deleteContextTarget, duplicateContextTarget]);
+  }, [closeContextMenu, contextMenuState, deleteContextTarget, duplicateContextTarget, options]);
 
   const source = nodeCreateMenuState?.source;
   const sourceNode = source ? options.getNodes().find((node) => node.id === source.nodeId) : undefined;

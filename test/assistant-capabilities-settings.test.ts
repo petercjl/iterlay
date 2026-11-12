@@ -17,17 +17,14 @@ function props(): ComponentProps<typeof PiAgentSettingsPanel> {
 }
 
 describe("understandable assistant capabilities", () => {
-  it("labels the switch, explains model readiness, and preserves a saved preference while unavailable", async () => {
+  it("explains model readiness and preserves tool grants while unavailable", async () => {
     const container = document.createElement("div"); const root = createRoot(container);
     const input = { ...props(), enabled: true };
     try {
       await act(async () => root.render(createElement(PiAgentSettingsPanel, input)));
-      const toggle = container.querySelector<HTMLButtonElement>('.pi-agent-mode [role="switch"]')!;
-      expect(toggle.disabled).toBe(true);
-      expect(toggle.getAttribute("aria-checked")).toBe("true");
-      expect(container.querySelector(`label[for="${toggle.id}"]`)?.textContent).toBe("允许助手执行操作");
-      expect(container.querySelector(".settings-page-header [role='switch']")).toBeNull();
-      expect(container.textContent).toContain("关闭时只进行对话");
+      expect(container.querySelector('.pi-agent-mode [role="switch"]')).toBeNull();
+      expect(container.textContent).toContain("操作范围由工具权限决定");
+      expect(input.onEnabledChange).not.toHaveBeenCalled();
       expect(container.querySelector(".pi-overview-summary")?.textContent).toContain("等待配置模型");
       const configure = [...container.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "配置对话模型")!;
       await act(async () => configure.click());
@@ -48,13 +45,13 @@ describe("understandable assistant capabilities", () => {
     } finally { await act(async () => root.unmount()); }
   });
 
-  it("can enable actions when ready and shows a recovery message instead of an endless loading state", async () => {
+  it("shows granted-tool readiness, task controls and resource-load recovery", async () => {
     const container = document.createElement("div"); const root = createRoot(container);
     const input = { ...props(), available: true, inventory: null, resourceError: "读取失败" };
     try {
       await act(async () => root.render(createElement(PiAgentSettingsPanel, input)));
-      await act(async () => container.querySelector<HTMLButtonElement>('.pi-agent-mode [role="switch"]')!.click());
-      expect(input.onEnabledChange).toHaveBeenCalledWith(true);
+      expect(container.textContent).toContain("已允许的工具会按需使用");
+      expect(input.onEnabledChange).not.toHaveBeenCalled();
       const steps = container.querySelector<HTMLSelectElement>('select[aria-label="单次任务步数"]')!;
       const references = container.querySelector<HTMLSelectElement>('select[aria-label="搜索参考数量"]')!;
       await act(async () => { steps.value = "8"; steps.dispatchEvent(new Event("change", { bubbles: true })); });

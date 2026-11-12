@@ -23,36 +23,10 @@ function extract(name: string, deps: Record<string, unknown>): (...args: unknown
 afterEach(() => vi.useRealTimers());
 
 describe("assistant turn recovery", () => {
-  it("restores recommendations after a busy opening and each completed turn without refresh loops", () => {
-    vi.useFakeTimers();
-    const request = vi.fn();
-    const deps = {
-      assistantOpen: true, assistantSurface: "canvas-prompt", assistantIntentSuggestionsEnabled: true,
-      supportsPromptEnhancement: true, assistantStreaming: true, assistantActivity: null,
-      assistantInteraction: null as null | object, assistantIntentAttemptedKeyRef: { current: null },
-      assistantIntentRefreshKey: "conversation:reply-1",
-      requestAssistantIntentSuggestionsRef: { current: request }, window: globalThis
-    };
-    const run = () => extract("refresh", deps)();
-    run();
-    vi.advanceTimersByTime(300);
-    expect(request).not.toHaveBeenCalled();
-    deps.assistantStreaming = false;
-    deps.assistantInteraction = {};
-    run();
-    vi.advanceTimersByTime(300);
-    expect(request).not.toHaveBeenCalled();
-    deps.assistantInteraction = null;
-    run();
-    vi.advanceTimersByTime(300);
-    expect(request).toHaveBeenCalledTimes(1);
-    run();
-    vi.advanceTimersByTime(300);
-    expect(request).toHaveBeenCalledTimes(1);
-    deps.assistantIntentRefreshKey = "conversation:reply-2";
-    run();
-    vi.advanceTimersByTime(300);
-    expect(request).toHaveBeenCalledTimes(2);
+  it("starts Agent work only from explicit requests", () => {
+    const text = source.getFullText();
+    expect(text).not.toContain("requestAssistantIntentSuggestions");
+    expect(text).not.toContain("assistantIntentRefreshKey");
   });
 
   it("unlocks the composer even when a confirmation action throws", () => {

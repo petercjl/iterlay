@@ -391,6 +391,7 @@ interface CanvasBoardProps {
   /** 由模板生成的图片节点，用于显示其来源模板入口。 */
   sourceTemplateImageIds?: string[];
   onOpenSourceTemplate?: (image: GeneratedImage) => void;
+  onSetBoardCover?: (nodeId: string) => void;
   onViewImageDetails?: (image: GeneratedImage) => void;
   onSwitchVersion?: (imageId: string, index: number) => void;
   onSeparateVersions?: (
@@ -501,6 +502,7 @@ export function CanvasBoard({
   sourceTemplateImageIds = [],
   onOpenSourceTemplate,
   onViewImageDetails,
+  onSetBoardCover,
   onSwitchVersion,
   onSeparateVersions,
   clipboardEnabled = true,
@@ -840,6 +842,7 @@ export function CanvasBoard({
     else toast.info(message);
   }, []);
   const menuController = useCanvasMenuController({
+    setCover: onSetBoardCover,
     commentMode: Boolean(commentMode),
     allowedCreateTypes: boardOnly ? ["textNode"] : comicDramaBoard
       ? ["textNode", "generationNode", "videoGenerationNode", "comicSettingNode", "comicCharacterNode", "comicSegmentNode"]

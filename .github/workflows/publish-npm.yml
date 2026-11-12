@@ -34,6 +34,8 @@ jobs:
       - run: pnpm brand:check
       - run: pnpm test
       - run: pnpm release --arch x64
+        env:
+          TUDA_COMPANY_DEFAULTS_JSON: ${{ secrets.TUDA_COMPANY_DEFAULTS_JSON }}
       - run: node scripts/playwright-electron-smoke.mjs
       - run: node scripts/prepare-release-manifest.mjs --arch x64
       - run: pnpm build:cli
@@ -45,6 +47,7 @@ jobs:
           path: |
             release/*.exe
             release/*.tgz
+            release/npm-payloads-*/*.tgz
             cli/release-manifest.json
             output/package-size/*.json
   publish:
@@ -65,7 +68,7 @@ jobs:
         with:
           name: tuda-verified-release
           path: candidate
-      - name: Verify archive, upload immutable installer and publish through OIDC
+      - name: Verify archive, publish npm payloads and manager through OIDC
         env:
           GH_TOKEN: ${{ github.token }}
           DIST_TAG: ${{ inputs.tag }}
@@ -74,11 +77,20 @@ jobs:
           VERSION=$(node -p 'require("./cli/package.json").version')
           if [[ "$VERSION" == *-* && "$DIST_TAG" != next ]]; then exit 1; fi
           INSTALLER="$(find candidate -name 'Tuda-*.exe' -type f)"
-          TARBALL="$(find candidate -name '*.tgz' -type f)"
+          TARBALL="$(find candidate -name '*.tgz' -type f ! -name '*-payload.*')"
           MANIFEST="$(find candidate -name release-manifest.json -type f)"
           node -e 'const fs=require("fs"),c=require("crypto"),m=JSON.parse(fs.readFileSync(process.argv[1])),b=fs.readFileSync(process.argv[2]);if(c.createHash("sha256").update(b).digest("hex")!==m.installers[0].sha256)throw Error("installer integrity")' "$MANIFEST" "$INSTALLER"
           tar -xzf "$TARBALL" -C candidate
           node -e 'const p=require("./candidate/package/package.json"),m=require(process.argv[1]);if(JSON.stringify(p.tudaRelease)!==JSON.stringify(m))throw Error("manifest drift")' "$(realpath "$MANIFEST")"
-          gh release create "tuda-v$VERSION" "$INSTALLER" "$MANIFEST" --target "$GITHUB_SHA" --title "Tuda $VERSION" --notes "Tuda · 图塔 Windows release"
+          while IFS= read -r -d '' PAYLOAD; do
+            PAYLOAD_VERSION=$(tar -xOf "$PAYLOAD" package/package.json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).version))')
+            if npm view "@petercjl/tuda@$PAYLOAD_VERSION" version >/dev/null 2>&1; then
+              npm view "@petercjl/tuda@$PAYLOAD_VERSION" dist.integrity --json > candidate/existing-integrity.json
+              node -e 'const f=require("fs"),c=require("crypto");if(JSON.parse(f.readFileSync("candidate/existing-integrity.json"))!=="sha512-"+c.createHash("sha512").update(f.readFileSync(process.argv[1])).digest("base64"))throw Error("Existing payload differs; preserve release state")' "$PAYLOAD"
+            else
+              npm publish "$PAYLOAD" --access public --provenance --tag payload
+            fi
+          done < <(find candidate -name '*-payload.*.tgz' -type f -print0)
+          node scripts/verify-npm-release.mjs "$MANIFEST"
           npm publish "$TARBALL" --access public --provenance --tag "$DIST_TAG"
           npm view "@petercjl/tuda@$VERSION" version

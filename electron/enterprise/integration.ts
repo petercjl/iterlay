@@ -3,7 +3,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { buildAssetArchive } from "../asset-archive.js";
 import { mkdir, stat, readFile, writeFile } from "node:fs/promises";
-import { executionSpace, setSelectedSpaceResolver } from "../execution-space.js";
+import { executionContext, executionSpace, setSelectedSpaceResolver } from "../execution-space.js";
 import { EnterpriseClient } from "./client.js";
 import { setCommandRouter } from "../renderer-security.js";
 import { flushWindow } from "../window-lifecycle.js";
@@ -137,7 +137,7 @@ export function registerEnterprise(client: EnterpriseClient, localBoards: BoardS
     if (channel === "asset:save" || channel === "asset:saveBatch") {
       const paths = channel === "asset:save" ? [args[0]] : args[0];
       if (!Array.isArray(paths) || !paths.length || paths.length > 1000 || paths.some(value => typeof value !== "string" || !value.startsWith(ENTERPRISE_ASSET_PREFIX))) throw new Error("请选择有效的企业图片。");
-      let directory = settings.getSettings().downloadDirectory;
+      let directory = settings.getSettings().downloadDirectory?.trim() || (executionContext().silent ? app.getPath("downloads") : undefined);
       if (!directory) {
         const choice = await dialog.showOpenDialog({ title: "选择下载文件夹", defaultPath: app.getPath("downloads"), properties: ["openDirectory", "createDirectory"] });
         if (choice.canceled || !choice.filePaths[0]) return { ok: false };

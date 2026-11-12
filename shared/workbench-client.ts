@@ -115,7 +115,7 @@ import { PI_AGENT_LOG_EVENT_CHANNEL, type PiAgentLogEntry, type PiAgentLogSnapsh
 import { UPDATE_STATE_CHANNEL, type UpdateChannel, type UpdateStateSnapshot } from "./app-update.js";
 import { TUDA_DEEP_LINK_CHANNEL, TUDA_DEEP_LINK_READY_CHANNEL } from "./deep-link.js";
 import type { AgentSkillUpgradeDetail } from "./agent-integration.js";
-import type { AssistantSkillDetail, AssistantSkillSummary, PiAgentResourceDetail, PiAgentResourceInventory } from "./types.js";
+import type { AgentSkillLibrary, AgentSkillLibraryMutation, AssistantSkillDetail, AssistantSkillSummary, PiAgentResourceDetail, PiAgentResourceInventory } from "./types.js";
 import {
   COMIC_DRAMA_APPLY_MUTATION_PLAN_CHANNEL,
   COMIC_DRAMA_BOARD_SNAPSHOT_CHANNEL,
@@ -273,6 +273,10 @@ export function createWorkbenchClient(transport: WorkbenchTransport) {
     transport.invoke("pi-agent-log:list") as Promise<PiAgentLogSnapshot>,
   getScreenAccessStatus: () => transport.invoke("assistant:screenAccess:status") as Promise<import("./screen-access.js").ScreenAccessStatus>,
   openScreenCaptureSettings: () => transport.invoke("assistant:screenAccess:openSettings") as Promise<void>,
+  getAgentSkillLibrary: () => transport.invoke("pi-agent:skill-library:get") as Promise<AgentSkillLibrary>,
+  updateAgentSkillLibrary: (operation: AgentSkillLibraryMutation) => transport.invoke("pi-agent:skill-library:update", operation) as Promise<AgentSkillLibrary>,
+  deletePiAgentSkill: (resourcePath: string) =>
+    transport.invoke("pi-agent:skills:delete", resourcePath) as Promise<boolean>,
   getPiAgentResources: () =>
     transport.invoke("pi-agent:resources:list") as Promise<PiAgentResourceInventory>,
   getPiAgentResourceDetail: (resourcePath: string) =>
@@ -401,8 +405,6 @@ export function createWorkbenchClient(transport: WorkbenchTransport) {
     };
     return transport.on(SCENE_COLLABORATION_EVENT_CHANNEL, handler);
   },
-  suggestAssistantIntents: (req: SuggestAssistantIntentsRequest) =>
-    transport.invoke("assistant:suggestIntents", req) as Promise<SuggestAssistantIntentsResult>,
   listAssistantConversations: (query?: AssistantConversationHistoryQuery) =>
     transport.invoke("assistant:history:list", query) as Promise<AssistantConversationRecord[]>,
   summarizeCreationTitle: (messages: Array<{ role: string; content: string }>) =>

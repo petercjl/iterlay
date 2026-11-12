@@ -367,12 +367,18 @@ export interface BoardData {
   viewport?: BoardViewport;
   /** 库页卡片封面，渲染层生成的小尺寸 dataUrl，随画板 JSON 一起存。 */
   thumbnailDataUrl?: string;
+  /** 用户指定的图片节点；空字符串表示自动选择。 */
+  coverNodeId?: string;
+  /** 已编码封面的源图片，用于识别图片或版本变化。 */
+  thumbnailImagePath?: string;
   /** 序列定义属于画板，但只能通过专用 sequence mutation 修改。 */
   videoSequences?: VideoSequence[];
   deliveryRecipes?: ImageDeliveryRecipe[];
 }
 
 export interface BoardSummary {
+  /** Actual acknowledged revision; unchanged CRDT writes may retain their revision. */
+  revision?: number;
   id: string;
   name: string;
   kind?: "standard" | "comic-drama";
@@ -383,6 +389,10 @@ export interface BoardSummary {
   /** 画板引用的唯一图片文件总大小（包含版本链）。 */
   storageBytes?: number;
   thumbnailDataUrl?: string;
+  /** 用户指定的图片节点；空字符串表示自动选择。 */
+  coverNodeId?: string;
+  /** 已编码封面的源图片，用于识别图片或版本变化。 */
+  thumbnailImagePath?: string;
 }
 
 export interface TrashedBoardSummary extends BoardSummary {
@@ -440,6 +450,10 @@ export interface BoardSavePayload {
   deliveryRecipes?: ImageDeliveryRecipe[];
   viewport?: BoardViewport;
   thumbnailDataUrl?: string;
+  /** 用户指定的图片节点；空字符串表示自动选择。 */
+  coverNodeId?: string;
+  /** 已编码封面的源图片，用于识别图片或版本变化。 */
+  thumbnailImagePath?: string;
 }
 
 export interface ComicDramaProjectCreateInput {

@@ -25,7 +25,7 @@ interface TemplateUseAssistantProps {
   onAttach: () => void;
   onPasteImages: (files: File[]) => void;
   onSuggestionSelect: (suggestion: string) => void;
-  onRefreshSuggestions: () => void;
+  onRefreshSuggestions?: () => void;
   onApplyPrompt: (prompt: string) => void;
   onGeneratePrompt: (prompt: string) => void;
   canGenerateImmediately?: boolean;

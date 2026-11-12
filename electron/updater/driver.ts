@@ -8,6 +8,7 @@ import { pipeline } from "node:stream/promises";
 import type { ReadableStream as WebReadableStream } from "node:stream/web";
 import type { UpdateManifest, UpdatePlatform, UpdateProgress } from "../../shared/app-update.js";
 import type { UpdateFetch } from "./api-client.js";
+import { downloadNpmPayloads } from "./npm-payload.js";
 
 export interface UpdateDownloadOptions {
   onProgress?: (progress: UpdateProgress) => void;
@@ -62,11 +63,11 @@ export class DirectDownloadDriver implements UpdateDriver {
     const headers = new Headers();
     const deviceId = await this.options.deviceIdProvider?.().catch(() => undefined);
     if (deviceId) headers.set("X-Tuda-Device-ID", deviceId);
-    const response = await this.fetcher(manifest.downloadUrl, { signal, headers });
-    if (!response.ok) throw new Error(`安装包下载失败 (${response.status})`);
-    if (!response.body) throw new Error("安装包下载失败：响应为空");
+    const response = manifest.npmPayloads ? undefined : await this.fetcher(manifest.downloadUrl, { signal, headers });
+    if (response && !response.ok) throw new Error(`安装包下载失败 (${response.status})`);
+    if (response && !response.body) throw new Error("安装包下载失败：响应为空");
 
-    const totalBytes = Number(response.headers.get("content-length")) || manifest.fileSize || undefined;
+    const totalBytes = Number(response?.headers.get("content-length")) || manifest.fileSize || undefined;
     const tempPath = `${installerPath}.download`;
     const hash = createHash("sha256");
     let transferredBytes = 0;
@@ -81,13 +82,13 @@ export class DirectDownloadDriver implements UpdateDriver {
         }
       });
       await pipeline(
-        Readable.fromWeb(response.body as unknown as WebReadableStream<Uint8Array>),
+        manifest.npmPayloads ? Readable.from(downloadNpmPayloads(manifest, this.fetcher, signal)) : Readable.fromWeb(response!.body as unknown as WebReadableStream<Uint8Array>),
         progressTap,
         createWriteStream(tempPath),
         { signal }
       );
 
-      if (manifest.sha256 && hash.digest("hex") !== manifest.sha256.toLowerCase()) {
+      if ((manifest.fileSize !== undefined && transferredBytes !== manifest.fileSize) || (manifest.sha256 && hash.digest("hex") !== manifest.sha256.toLowerCase())) {
         throw new Error("安装包校验失败，文件可能已损坏，请重新下载。");
       }
 

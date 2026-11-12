@@ -16,8 +16,8 @@ describe("prompt dock empty edit lifecycle", () => {
       needsProviderSetup: true, providerBlocksGenerateReferences: false, providers: [COMMUNITY_IMAGE_PROVIDER], activeProviderId: COMMUNITY_IMAGE_PROVIDER.id,
       creditStatus: null, creditLoading: false, officialRequiredCredits: 0, onSelectProvider: noop,
       rightRailOpen: false, autoCollapse: false, boardSmartSuggestionsEnabled: false,
-      assistantEnabled: false, assistantAwarenessEnabled: false, assistantIntentSuggestionsEnabled: false,
-      assistantIntentSuggestionCount: 3, editSmartSuggestionsEnabled: false, memoryEnabled: false, memoryUsageLevel: "balanced",
+      assistantEnabled: false,
+      editSmartSuggestionsEnabled: false, memoryEnabled: false, memoryUsageLevel: "balanced",
       editTarget: null, boardImages: [], suggestingEdits: false, suggestedEdits: [], canSuggestEdits: false,
       supportsPromptEnhancement: false, assistantShortcutEnabled: false,
       onExitEdit: noop, onOpenAdvancedEdit: noop, onApplyScene: noop, onToggleFavoriteScene: noop, onSaveScene: noop,
@@ -29,9 +29,10 @@ describe("prompt dock empty edit lifecycle", () => {
     };
     try {
       const html = renderToString(createElement(I18nProvider, null, createElement(PromptDock, props)));
-      expect(html).toContain('data-fusion-mode="generate"');
+      expect(html).toContain('data-fusion-mode="chat"');
       expect(html).toContain('data-assistant-enabled="false"');
-      expect(html).toContain("prompt-fusion-direct-editor");
+      expect(html).not.toContain("prompt-fusion-direct-editor");
+      expect(html).toContain("对话规划输入");
       expect(html).not.toContain('role="switch"');
       expect(html).not.toContain("prompt-dock-layer");
       expect(html).not.toContain("prompt-dock-assistant-button");

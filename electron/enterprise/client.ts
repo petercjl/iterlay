@@ -327,8 +327,12 @@ export class EnterpriseClient extends EventEmitter {
   async useStorageSession(serverUrl:string, refresh:()=>Promise<EnterpriseSession>) {
     const session=await refresh();
     if(this.pendingCount && (this.config.serverUrl!==serverUrl || this.session?.organizationId!==session.organizationId || this.session?.user.id!==session.user.id)) throw new Error("请先完成当前 NAS 空间的待同步修改。");
-    this.disconnect();this.documents.clear();this.versions.clear();this.boardIds.clear();this.clearHistory();
-    this.config={version:1,serverUrl:this.validateUrl(serverUrl),activeSpace:"enterprise"};this.session=session;this.storageRefresh=refresh;this.stopped=false;
+    const validatedUrl = this.validateUrl(serverUrl);
+    const sameWorkspace = this.config.serverUrl === validatedUrl && this.session?.organizationId === session.organizationId && this.session?.user.id === session.user.id;
+    this.disconnect();
+    // Reconnecting the same storage must preserve the observed CRDT baselines of unsaved edits.
+    if (!sameWorkspace) { this.documents.clear();this.versions.clear();this.boardIds.clear();this.clearHistory(); }
+    this.config={version:1,serverUrl:validatedUrl,activeSpace:"enterprise"};this.session=session;this.storageRefresh=refresh;this.stopped=false;
     await this.refreshIdentity();await this.replayPending();this.connect();this.changed();
   }
   async assetResponse(request: Request): Promise<Response> {

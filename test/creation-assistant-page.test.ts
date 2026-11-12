@@ -305,44 +305,12 @@ describe("CreationAssistantPage", () => {
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 15)); });
     expect(onInterpret).toHaveBeenCalledOnce();
   });
-  it("loads varied starter prompts from the dedicated suggestion agent and can refresh them", async () => {
-    const firstSuggestions = [
-      "拍摄一组雨夜霓虹下的透明机械花",
-      "创作一幅海底图书馆的复古科普插画",
-      "设计一组清晨集市里的非人类角色定格动画"
-    ];
-    const refreshedSuggestions = [
-      "用木刻版画表现极地邮差穿越风暴",
-      "创作一辆可信的未来公共交通工具",
-      "拍摄一组有使用痕迹的厨房器物静物"
-    ];
-    const suggestAssistantIntents = vi.fn()
-      .mockResolvedValueOnce({ suggestions: firstSuggestions })
-      .mockResolvedValueOnce({ suggestions: refreshedSuggestions });
-    Object.defineProperty(globalThis, "imageWorkbench", {
-      configurable: true,
-      value: { suggestAssistantIntents }
-    });
-
+  it("opens without recommendations or background model calls", async () => {
+    const suggestAssistantIntents = vi.fn();
+    Object.defineProperty(globalThis, "imageWorkbench", { configurable: true, value: { suggestAssistantIntents } });
     await renderPage(vi.fn());
-
-    expect(suggestAssistantIntents).toHaveBeenCalledWith(expect.objectContaining({
-      assistantSurface: "canvas-prompt",
-      suggestionCount: 3,
-      suggestionMode: "contextual",
-      variationSeed: expect.any(String)
-    }));
-    expect(container?.textContent).toContain(firstSuggestions[0]);
-
-    await act(async () => findButton("换一批灵感")?.click());
-
-    expect(suggestAssistantIntents).toHaveBeenLastCalledWith(expect.objectContaining({
-      suggestionMode: "divergent",
-      previousSuggestions: firstSuggestions,
-      variationSeed: expect.any(String)
-    }));
-    expect(container?.textContent).toContain(refreshedSuggestions[0]);
-    expect(container?.textContent).not.toContain(firstSuggestions[0]);
+    expect(suggestAssistantIntents).not.toHaveBeenCalled();
+    expect(container?.querySelector(".create-chat-starters")).toBeNull();
   });
 
   it("interprets a direct request and waits for confirmation before creating", async () => {
@@ -359,7 +327,7 @@ describe("CreationAssistantPage", () => {
     }));
     await renderPage(onCreate, onInterpret);
 
-    await act(async () => findButton("一组克制高级的香水产品摄影，深色背景与硬光")?.click());
+    await setComposer("一组克制高级的香水产品摄影，深色背景与硬光");
     await act(async () => findButton("发送给 Pi Agent")?.click());
 
     expect(onInterpret).toHaveBeenCalledOnce();

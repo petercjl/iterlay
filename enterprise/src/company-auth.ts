@@ -42,8 +42,12 @@ export class CompanyStorageAuth {
         "暂时无法验证 NAS 存储授权，请使用公司本地文件夹。",
       );
     }
+    if (response.status === 429)
+      fail(429, "STORAGE_AUTH_RATE_LIMITED", "存储授权服务繁忙，请稍后重试保存；当前修改尚未保存到 NAS。");
+    if (response.status === 401 || response.status === 403)
+      fail(503, "STORAGE_AUTH_SERVICE_REJECTED", "NAS 服务身份验证失败，请联系管理员检查存储服务配置。");
     if (!response.ok)
-      fail(503, "STORAGE_AUTH_UNAVAILABLE", "NAS 存储授权验证失败。");
+      fail(503, "STORAGE_AUTH_UNAVAILABLE", `存储授权服务暂时不可用（HTTP ${response.status}），请稍后重试保存。`);
     const envelope = (await response.json()) as {
       ok?: boolean;
       data?: {

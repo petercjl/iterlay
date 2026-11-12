@@ -1048,7 +1048,7 @@ function normalizeKnownProvider(provider: Partial<ProviderConfig>, defaults: Pro
 
 function normalizeTudaTools(value: unknown): string[] {
   const tools = normalizeStringList(value);
-  const previousDefaults = PI_AGENT_DEFAULT_TUDA_TOOLS.filter(name => name !== "create_canvas" && name !== "update_canvas");
+  const previousDefaults = PI_AGENT_DEFAULT_TUDA_TOOLS.filter(name => name !== "create_canvas" && name !== "update_canvas" && name !== "read_asset");
   // Upgrade the full former default set, preserving deliberately restricted lists.
-  return previousDefaults.every(name => tools.includes(name)) ? [...new Set([...tools, "create_canvas", "update_canvas"])] : tools;
+  return previousDefaults.every(name => tools.includes(name)) ? [...new Set([...tools, "create_canvas", "update_canvas", "read_asset"])] : tools;
 }

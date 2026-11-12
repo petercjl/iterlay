@@ -432,6 +432,7 @@ export function BoardFileManager(props: Props) {
               <FolderInput className="h-4 w-4" />
               {t("移动到…")}
             </DropdownMenuItem>
+            {one?.kind === "board" && props.onChooseBoardCover && <DropdownMenuItem disabled={readOnly || locked} onSelect={() => props.onChooseBoardCover?.(one.id)}>{t("更换封面")}</DropdownMenuItem>}
             {one?.kind === "board" && (
               <DropdownMenuItem onSelect={() => props.onExportBoard(one.id)}>
                 {t("导出 .itb")}
@@ -601,6 +602,7 @@ export function BoardFileManager(props: Props) {
     >
       <BoardLibrary
         {...props}
+        onBoardCoverSaved={readOnly ? undefined : props.onBoardCoverSaved}
         hideCreateAction
         renderItemMenu={(id) => itemMenu([{ kind: "board", id }])}
         boards={visibleBoards}
@@ -633,7 +635,7 @@ export function BoardFileManager(props: Props) {
         sidebar={
           <aside
             aria-label={t("文件夹导航")}
-            className="hidden w-44 shrink-0 overflow-y-auto border-r bg-background/50 p-2 md:block"
+            className="hidden w-44 shrink-0 overflow-y-auto border-r border-border/60 bg-background/50 p-2 md:block"
           >
             <Button
               size="sm"
@@ -660,7 +662,7 @@ export function BoardFileManager(props: Props) {
           </aside>
         }
         navigation={
-          <div className="shrink-0 border-b bg-background/60 p-3">
+          <div className="shrink-0 border-b border-border/60 bg-background/60 p-3">
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 size="icon"

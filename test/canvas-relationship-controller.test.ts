@@ -116,6 +116,30 @@ afterEach(() => {
 });
 
 describe("canvas relationship controller", () => {
+  it("leaves middle-button gestures available for viewport panning without selecting connections", () => {
+    const harness = createHarness();
+    const preventDefault = vi.fn();
+    act(() => {
+      harness.controller.onCanvasPointerDownCapture({
+        button: 1,
+        isPrimary: true,
+        target: harness.pane,
+        currentTarget: harness.container,
+        clientX: 300,
+        clientY: 40,
+        pointerId: 1,
+        preventDefault
+      } as never);
+      window.dispatchEvent(pointerEvent("pointermove", 510, 60));
+      window.dispatchEvent(pointerEvent("pointerup", 510, 60));
+    });
+    // Cancelling pointerdown suppresses the compatibility mousedown used by
+    // XYFlow/D3 to start panning. Middle drag must not enter left-drag selection.
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(harness.updateEdges).not.toHaveBeenCalled();
+    act(() => harness.root.unmount());
+  });
+
   it("keeps selection highlighting but ignores hover when the preference is off", () => {
     const harness = createHarness(false);
     const highlightedIds = (): string[] => [...harness.container.querySelectorAll(".canvas-relationship-highlighted")]

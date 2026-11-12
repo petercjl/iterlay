@@ -336,9 +336,6 @@ type PreviewPreferences = Pick<ProviderSettingsDialogProps,
   "piAgentCustomExtensionPaths" |
   "piAgentMaxTurns" |
   "piAgentWebSearchMaxResults" |
-  "boardAssistantAwarenessEnabled" |
-  "boardAssistantIntentSuggestionsEnabled" |
-  "boardAssistantIntentSuggestionCount" |
   "editSmartSuggestionsEnabled" |
   "memoryEnabled" |
   "memoryUsageLevel" |
@@ -378,9 +375,6 @@ function Preview(): React.ReactElement {
     piAgentCustomExtensionPaths: [],
     piAgentMaxTurns: 12,
     piAgentWebSearchMaxResults: 5,
-    boardAssistantAwarenessEnabled: false,
-    boardAssistantIntentSuggestionsEnabled: true,
-    boardAssistantIntentSuggestionCount: 3,
     editSmartSuggestionsEnabled: false,
     memoryEnabled: true,
     memoryUsageLevel: "balanced",
@@ -489,12 +483,6 @@ function Preview(): React.ReactElement {
           onPiAgentMaxTurnsChange={(value) => setPreference("piAgentMaxTurns", value)}
           piAgentWebSearchMaxResults={preferences.piAgentWebSearchMaxResults}
           onPiAgentWebSearchMaxResultsChange={(value) => setPreference("piAgentWebSearchMaxResults", value)}
-          boardAssistantAwarenessEnabled={preferences.boardAssistantAwarenessEnabled}
-          onBoardAssistantAwarenessEnabledChange={(value) => setPreference("boardAssistantAwarenessEnabled", value)}
-          boardAssistantIntentSuggestionsEnabled={preferences.boardAssistantIntentSuggestionsEnabled}
-          onBoardAssistantIntentSuggestionsEnabledChange={(value) => setPreference("boardAssistantIntentSuggestionsEnabled", value)}
-          boardAssistantIntentSuggestionCount={preferences.boardAssistantIntentSuggestionCount}
-          onBoardAssistantIntentSuggestionCountChange={(value) => setPreference("boardAssistantIntentSuggestionCount", value)}
           editSmartSuggestionsEnabled={preferences.editSmartSuggestionsEnabled}
           editSmartSuggestionsAvailable
           onEditSmartSuggestionsEnabledChange={(value) => setPreference("editSmartSuggestionsEnabled", value)}

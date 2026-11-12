@@ -150,6 +150,7 @@ export async function buildBoardArchive(
 
   const exportedBoard: BoardData = {
     ...board,
+    thumbnailImagePath: board.thumbnailImagePath ? pathMap.get(board.thumbnailImagePath) ?? "" : "",
     deliveryRecipes: remapImageDeliveryMetadata(board.deliveryRecipes, (value) => pathMap.get(value) ?? `missing/${path.basename(value)}`),
     nodes: board.nodes.flatMap((node): BoardNode[] => {
         if (isBoardVideoGenerationNode(node)) {

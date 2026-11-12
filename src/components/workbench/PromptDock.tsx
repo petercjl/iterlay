@@ -1,3 +1,5 @@
+import { AgentSkillPicker } from "./AgentSkillPicker";
+import { TextModelPicker } from "./TextModelPicker";
 import { useAssistantBranchLifecycle } from "@/features/assistant/use-assistant-branch-lifecycle";
 import type { GeneratedImage } from "@/components/canvas/ImageNode";
 import { Button } from "@/components/ui/button";
@@ -12,7 +14,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { createAssistantInstructionSender } from "@/features/assistant/assistant-instruction";
 import { useAssistantHistory } from "@/features/assistant/use-assistant-history";
 import { ASSISTANT_VIEWPORT_MARGIN, useAssistantPanelLayout } from "@/features/assistant/use-assistant-panel-layout";
-import { useAssistantSessionState, type AssistantIntentSuggestionMode } from "@/features/assistant/use-assistant-session-state";
+import { useAssistantSessionState } from "@/features/assistant/use-assistant-session-state";
 import { useComicAssistantContext } from "@/features/assistant/use-comic-assistant-context";
 import { requestPluginCapability } from "@/features/plugins/request-plugin-capability";
 import { useUiText } from "@/i18n";
@@ -163,20 +165,6 @@ export interface AssistantGenerationRequest {
   prepareOnly?: boolean;
 }
 
-function buildAssistantOpeningInstruction(surface: AssistantSurface): string {
-  if (surface === "canvas-edit") {
-    return "这是用户打开图片编辑助手时已经存在的编辑上下文。第一张参考图是当前正在编辑的目标图，后续参考图仅用于辅助判断。先判断现有编辑目标是否明确：明确时用 2 到 3 句自然、简短的话概括目标图与编辑重点，并给出不超过 3 条局部、可控的可选方向，不要提问；只有缺少修改对象或期望结果、确实无法继续时，才询问一个最关键的问题。不要按重新生成新图的方式扩写，不要直接返回可应用内容或确认框。";
-  }
-  return "这是用户打开画板助手时已经存在的创作上下文。若当前字段中存在“当前模板”，它是本次创作必须遵守的规则；请把模板、当前提示词和参考图结合起来理解。先判断用户更可能是在继续创作、调整现有内容、探索方向还是仅查看建议。用 2 到 3 句自然、简短的话说明你对当前上下文的具体理解；上下文足够时给出不超过 3 个有针对性的下一步方向，不要提问，只有缺少核心主体或任务类型、确实无法给出可用建议时才问一个问题。不要显示系统字段，不要假设广告、电商或营销用途，不要直接返回可应用内容或确认框。";
-}
-
-function buildAssistantIdlePromptInstruction(surface: AssistantSurface): string {
-  if (surface === "canvas-edit") {
-    return "用户已经停顿了一会儿但还没有提交编辑。请结合当前编辑目标、提示词和辅助参考图，简短说明你理解的修改意图，并给出不超过 3 条局部、可控的优化建议。不要改动未提及区域，不要自动应用提示词或发起生成。";
-  }
-  return "用户已经停顿了一会儿但还没有提交生成。请结合当前模板（如有）、提示词和参考图，用 2 到 3 句简短的话确认你理解的画面，并给出不超过 3 条真正有帮助的完善方向。不要假设广告、电商等用途，不要自动改写提示词或发起生成。";
-}
-
 interface PromptDockProps {
   boardId: string;
   boardNameById?: ReadonlyMap<string, string>;
@@ -208,9 +196,6 @@ interface PromptDockProps {
   assistantEnabled: boolean;
   assistantAgentModeEnabled?: boolean;
   onAssistantAgentModeEnabledChange?: (enabled: boolean) => void;
-  assistantAwarenessEnabled: boolean;
-  assistantIntentSuggestionsEnabled: boolean;
-  assistantIntentSuggestionCount: AssistantIntentSuggestionCount;
   editSmartSuggestionsEnabled: boolean;
   memoryEnabled: boolean;
   memoryUsageLevel: MemoryUsageLevel;
@@ -264,6 +249,9 @@ interface PromptDockProps {
   onOpenAssistantConversation?: (conversationId: string, boardId?: string) => void;
   /** 外部从图片详情恢复指定 AI 助手绘画记录。 */
   assistantConversationRequest?: { conversationId: string; nonce: number } | null;
+  textProviders?: import("@shared/types").TextProviderConfig[];
+  activeTextProviderId?: string;
+  onSelectTextProvider?: (id: string) => void;
   onOpenSettings: () => void;
   onOpenModelManagement: () => void;
   onAssistantDockLayoutChange?: (
@@ -297,11 +285,8 @@ export function PromptDock({
   rightRailOpen,
 
   assistantEnabled,
-  assistantAgentModeEnabled = false,
+  assistantAgentModeEnabled = true,
   onAssistantAgentModeEnabledChange,
-  assistantAwarenessEnabled,
-  assistantIntentSuggestionsEnabled,
-  assistantIntentSuggestionCount,
   editSmartSuggestionsEnabled,
   memoryEnabled,
   memoryUsageLevel,
@@ -337,11 +322,15 @@ export function PromptDock({
   onOpenAssistantConversation,
   assistantConversationRequest,
   onOpenSettings,
+  textProviders = [],
+  activeTextProviderId,
+  onSelectTextProvider,
   onOpenModelManagement,
   onAssistantDockLayoutChange,
   promptFocusNonce,
   onPromptFocusChange
 }: PromptDockProps): React.ReactElement {
+  const [selectedSkillPath, setSelectedSkillPath] = useState<string | undefined>();
 
   const uiText = useUiText();
 
@@ -349,7 +338,7 @@ export function PromptDock({
   const [promptHeight, setPromptHeight] = useState(DEFAULT_PROMPT_HEIGHT);
   const [maxPromptHeight, setMaxPromptHeight] = useState(360);
   const [scenePickerOpen, setScenePickerOpen] = useState(false);
-  const [assistantOpen, setAssistantOpen] = useState(assistantEnabled && assistantAgentModeEnabled && !comicDramaSnapshot);
+  const [assistantOpen, setAssistantOpen] = useState(assistantEnabled && !comicDramaSnapshot);
   const [fusionPromptContext, setFusionPromptContext] = useState<string | null>(null);
   const autoOpenedComicBoardRef = useRef<string | undefined>(undefined);
   const assistantSession = useAssistantSessionState();
@@ -362,10 +351,6 @@ export function PromptDock({
     setAssistantStreaming,
     assistantActivity,
     setAssistantActivity,
-    assistantIntentSuggestions,
-    setAssistantIntentSuggestions,
-    assistantIntentSuggestionsLoading,
-    setAssistantIntentSuggestionsLoading,
 
     setMemorySuggestions,
     assistantMessages,
@@ -377,8 +362,6 @@ export function PromptDock({
     assistantStreamRef,
     assistantBackgroundRequestRef,
     assistantRequestVersionRef,
-    assistantIntentSuggestionRequestRef,
-    assistantIntentSuggestionHistoryRef,
     assistantApplyTimerRef,
     assistantAutoPromptTimerRef,
     assistantReferenceSignatureRef,
@@ -388,7 +371,6 @@ export function PromptDock({
     assistantPreviousGenerationPromptRef,
     assistantClarificationRoundsRef,
     sendAssistantInstructionRef,
-    requestAssistantIntentSuggestionsRef,
     assistantBranchSignatureRef
   } = assistantSession;
 
@@ -438,7 +420,7 @@ export function PromptDock({
   const activeProvider = providers.find((provider) => provider.id === activeProviderId) ?? providers[0];
   const maxImageCount = getProviderMaxImageCount(activeProvider);
   const creationMode: CreationMode = input.creationMode ?? "general";
-  const isUiDesignMode = creationMode === "ui-design" && input.workflowMode === "generate" && editTarget === null;
+  const isUiDesignMode = Boolean(false);
   const assistantAvailable = assistantEnabled;
   // 漫剧子画板拥有独立的 ComicDramaWorkspace 助手。主画板上的入口卡片
   // 仍使用通用创作助手，避免把漫剧阶段引导和普通画布创作混在一起。
@@ -484,9 +466,9 @@ export function PromptDock({
   const assistantEffectActionsRef = useRef({ clearAssistantAutoPromptTimer, cancelBackgroundAssistantRequest, restoreAssistantConversation, stopAssistant });
   assistantEffectActionsRef.current = { clearAssistantAutoPromptTimer, cancelBackgroundAssistantRequest, restoreAssistantConversation, stopAssistant };
   useEffect(() => {
-    setAssistantOpen(assistantAvailable && assistantAgentModeEnabled);
+    setAssistantOpen(assistantAvailable);
     setFusionPromptContext(null);
-  }, [assistantAvailable, assistantAgentModeEnabled, boardId, assistantSurface]);
+  }, [assistantAvailable, boardId, assistantSurface]);
   const { guide: comicDramaGuide, context: comicDramaContext } = useComicAssistantContext(
     comicDramaActive, comicDramaSnapshot, comicDramaSelectedNodeIds
   );
@@ -504,8 +486,7 @@ export function PromptDock({
         content: comicDramaGuide.message,
         assistantContext: guideId
       }]);
-    setAssistantIntentSuggestions(comicDramaGuide.suggestions);
-  }, [comicDramaActive, comicDramaGuide, comicDramaSnapshot, setAssistantIntentSuggestions, setAssistantMessages]);
+  }, [comicDramaActive, comicDramaGuide, comicDramaSnapshot, setAssistantMessages]);
   const activeScene = useMemo(
     () => findSceneForMode(scenes, input.sceneId, input.workflowMode) ?? null,
     [input.sceneId, input.workflowMode, scenes]
@@ -852,63 +833,8 @@ export function PromptDock({
 
   useEffect(() => {
     sendAssistantInstructionRef.current = sendAssistantInstruction;
-    requestAssistantIntentSuggestionsRef.current = requestAssistantIntentSuggestions;
   });
 
-  useEffect(() => {
-    if (assistantIntentSuggestionsEnabled || assistantSurface === "comic-drama") return;
-    assistantIntentSuggestionRequestRef.current += 1;
-    assistantIntentSuggestionHistoryRef.current = [];
-    setAssistantIntentSuggestions([]);
-    setAssistantIntentSuggestionsLoading(false);
-  }, [
-    assistantIntentSuggestionHistoryRef,
-    assistantIntentSuggestionRequestRef,
-    assistantIntentSuggestionsEnabled,
-    assistantSurface,
-    setAssistantIntentSuggestions,
-    setAssistantIntentSuggestionsLoading
-  ]);
-
-  useEffect(() => {
-    if (assistantEnabled && assistantAwarenessEnabled) return;
-    assistantEffectActionsRef.current.clearAssistantAutoPromptTimer();
-    pendingAssistantReferenceCountRef.current = 0;
-    assistantEffectActionsRef.current.cancelBackgroundAssistantRequest();
-  }, [assistantAwarenessEnabled, assistantEnabled, pendingAssistantReferenceCountRef]);
-
-  const assistantIntentRefreshKey = `${assistantConversationId}:${assistantMessages.at(-1)?.id ?? "opening"}`;
-  const assistantIntentAttemptedKeyRef = useRef<string | null>(null);
-  // Refresh once per settled turn. Stream deltas and composer edits must not
-  // keep replacing suggestions; a busy opening must retry once it becomes idle.
-  useEffect(() => {
-    if (
-      !assistantOpen ||
-      assistantSurface === "comic-drama" ||
-      !assistantIntentSuggestionsEnabled ||
-      !supportsPromptEnhancement ||
-      assistantStreaming || assistantActivity || assistantInteraction ||
-      assistantIntentAttemptedKeyRef.current === assistantIntentRefreshKey
-    ) return;
-    const timer = window.setTimeout(() => {
-      assistantIntentAttemptedKeyRef.current = assistantIntentRefreshKey;
-      void requestAssistantIntentSuggestionsRef.current();
-    }, 300);
-    return () => window.clearTimeout(timer);
-  }, [
-    assistantIntentSuggestionsEnabled,
-    assistantOpen,
-    assistantSurface,
-    assistantIntentRefreshKey,
-    assistantStreaming,
-    assistantActivity,
-    assistantInteraction,
-    requestAssistantIntentSuggestionsRef,
-    supportsPromptEnhancement
-  ]);
-
-  const assistantOpeningReadinessRef = useRef({ assistantEnabled, assistantAwarenessEnabled, supportsPromptEnhancement, assistantOpeningContextSignature });
-  assistantOpeningReadinessRef.current = { assistantEnabled, assistantAwarenessEnabled, supportsPromptEnhancement, assistantOpeningContextSignature };
   useAssistantBranchLifecycle(assistantBranchSignature, boardId, (shouldRestoreBoardConversation) => {
     assistantBranchSignatureRef.current = assistantBranchSignature;
     // 只有首次进入或切换画板时恢复会话。同一画板的模板、模式等上下文变化
@@ -920,7 +846,6 @@ export function PromptDock({
     pendingAssistantReferenceCountRef.current = 0;
     assistantPreviousGenerationPromptRef.current = "";
     assistantClarificationRoundsRef.current = 0;
-    assistantIntentSuggestionHistoryRef.current = [];
     assistantSubmittedContextSignatureRef.current = "";
     setAssistantConversationId(crypto.randomUUID());
     setAssistantHistory([]);
@@ -938,31 +863,13 @@ export function PromptDock({
         content: comicDramaGuide.message,
         assistantContext: `comic-guide:${comicDramaSnapshot.boardId}:${comicDramaGuide.stage}`
       }]);
-      setAssistantIntentSuggestions(comicDramaGuide.suggestions);
       return;
     }
 
     let cancelled = false;
     let frame: number | null = null;
     const requestVersion = assistantRequestVersionRef.current;
-    const startOpeningAnalysis = (): void => {
-      const readiness = assistantOpeningReadinessRef.current;
-      if (!readiness.assistantEnabled || !readiness.assistantAwarenessEnabled || !readiness.supportsPromptEnhancement) return;
-      frame = window.requestAnimationFrame(() => {
-        if (cancelled || assistantRequestVersionRef.current !== requestVersion) return;
-        assistantAnalyzedContextSignatureRef.current = readiness.assistantOpeningContextSignature;
-        void sendAssistantInstructionRef.current(
-          buildAssistantOpeningInstruction(assistantSurface),
-          "",
-          false,
-          false,
-          true
-        );
-      });
-    };
-
     if (!shouldRestoreBoardConversation || !hasImageWorkbenchApi()) {
-      startOpeningAnalysis();
       return () => {
         cancelled = true;
         if (frame !== null) window.cancelAnimationFrame(frame);
@@ -988,10 +895,8 @@ export function PromptDock({
         return;
       }
 
-      startOpeningAnalysis();
     }).catch(() => {
-      // 历史读取失败时仍保留新会话与既有的上下文分析能力。
-      startOpeningAnalysis();
+      // Keep a fresh conversation if history is unavailable.
     });
 
     return () => {
@@ -999,122 +904,6 @@ export function PromptDock({
       if (frame !== null) window.cancelAnimationFrame(frame);
     };
   });
-
-  useEffect(() => {
-    const previousSignature = assistantReferenceSignatureRef.current;
-    assistantReferenceSignatureRef.current = assistantReferenceSignature;
-    if (previousSignature === assistantReferenceSignature) return;
-    if (!assistantEnabled || !assistantAwarenessEnabled) {
-      pendingAssistantReferenceCountRef.current = 0;
-      return;
-    }
-
-    const previousIds = new Set(previousSignature.split("|").filter(Boolean));
-    const addedCount = input.referenceImages.filter((image) => !previousIds.has(image.id)).length;
-    if (addedCount > 0) {
-      pendingAssistantReferenceCountRef.current += addedCount;
-      assistantEffectActionsRef.current.cancelBackgroundAssistantRequest();
-    }
-  }, [
-    assistantAwarenessEnabled,
-    assistantEnabled,
-    assistantReferenceSignature,
-    assistantReferenceSignatureRef,
-    input.referenceImages,
-    pendingAssistantReferenceCountRef
-  ]);
-
-  useEffect(() => {
-    if (
-      !assistantEnabled ||
-      !assistantAwarenessEnabled ||
-      !supportsPromptEnhancement ||
-      assistantStreaming ||
-      assistantActivity
-    ) return;
-    const addedCount = pendingAssistantReferenceCountRef.current;
-    if (addedCount === 0) return;
-    pendingAssistantReferenceCountRef.current = 0;
-    assistantAnalyzedContextSignatureRef.current = assistantOpeningContextSignature;
-    void sendAssistantInstructionRef.current(
-      assistantSurface === "canvas-edit"
-        ? `我刚为当前编辑任务添加了 ${addedCount} 张辅助参考图。请始终以第一张目标图为主，识别新增引用中真正可借鉴的细节，并给出 2 到 3 条不会破坏目标图主体、构图和未提及区域的编辑建议。不要把辅助参考图误认为新的编辑目标。`
-        : `我刚添加了 ${addedCount} 张参考图。请先识别新增引用的主体、风格和构图，并给出 2 到 3 条简短、可执行的通用建议。不要根据系统默认值推断广告、电商或其他具体用途；如果当前提示词为空且必须确认意图，只询问我想如何使用参考图，并提供延续风格、保留主体、参考构图、组合元素等中性选项。`,
-      `已添加 ${addedCount} 张参考图`,
-      false,
-      false,
-      true
-    );
-  }, [
-    assistantActivity,
-    assistantAwarenessEnabled,
-    assistantEnabled,
-    assistantOpeningContextSignature,
-    assistantReferenceSignature,
-    assistantSurface,
-    assistantStreaming,
-    supportsPromptEnhancement,
-    pendingAssistantReferenceCountRef,
-    assistantAnalyzedContextSignatureRef,
-    sendAssistantInstructionRef
-  ]);
-
-  useEffect(() => {
-    assistantEffectActionsRef.current.clearAssistantAutoPromptTimer();
-    const currentPrompt = promptDraft.trim();
-    if (
-      !assistantEnabled ||
-      !assistantAwarenessEnabled ||
-      !supportsPromptEnhancement ||
-      !currentPrompt ||
-      assistantActivity
-    ) return;
-    if (assistantBackgroundRequestRef.current && assistantStreaming) {
-      assistantEffectActionsRef.current.cancelBackgroundAssistantRequest();
-      return;
-    }
-    if (assistantStreaming) return;
-    if (!shouldScheduleAssistantPromptAnalysis({
-      supportsPromptEnhancement,
-      prompt: currentPrompt,
-      working: assistantStreaming || Boolean(assistantActivity),
-      contextSignature: assistantOpeningContextSignature,
-      analyzedContextSignature: assistantAnalyzedContextSignatureRef.current,
-      submittedContextSignature: assistantSubmittedContextSignatureRef.current
-    })) return;
-
-    const contextSignature = assistantOpeningContextSignature;
-    assistantAutoPromptTimerRef.current = window.setTimeout(() => {
-      assistantAutoPromptTimerRef.current = null;
-      if (
-        assistantAnalyzedContextSignatureRef.current === contextSignature
-        || assistantSubmittedContextSignatureRef.current === contextSignature
-      ) return;
-      assistantAnalyzedContextSignatureRef.current = contextSignature;
-      void sendAssistantInstructionRef.current(
-        buildAssistantIdlePromptInstruction(assistantSurface),
-        "",
-        false,
-        false,
-        true
-      );
-    }, ASSISTANT_PROMPT_IDLE_MS);
-    return assistantEffectActionsRef.current.clearAssistantAutoPromptTimer;
-  }, [
-    assistantActivity,
-    assistantAnalyzedContextSignatureRef,
-    assistantAutoPromptTimerRef,
-    assistantAwarenessEnabled,
-    assistantBackgroundRequestRef,
-    assistantEnabled,
-    assistantOpeningContextSignature,
-    assistantStreaming,
-    assistantSubmittedContextSignatureRef,
-    assistantSurface,
-    promptDraft,
-    sendAssistantInstructionRef,
-    supportsPromptEnhancement
-  ]);
 
   useEffect(() => {
     if (!input.sceneId || structuredLineCount <= 1) return;
@@ -1279,21 +1068,17 @@ export function PromptDock({
     }]);
     setAssistantValue("");
     setAssistantInteraction(null);
-    setAssistantIntentSuggestions([]);
     assistantClarificationRoundsRef.current = 0;
-    assistantIntentSuggestionHistoryRef.current = [];
     assistantAnalyzedContextSignatureRef.current = assistantOpeningContextSignature;
   }
 
   function stopAssistant(): void {
     assistantRequestVersionRef.current += 1;
-    assistantIntentSuggestionRequestRef.current += 1;
     assistantStreamRef.current?.dispose();
     assistantStreamRef.current = null;
     assistantBackgroundRequestRef.current = false;
     setAssistantStreaming(false);
     setAssistantActivity(null);
-    setAssistantIntentSuggestionsLoading(false);
     setAssistantMessages((current) => settleCancelledAssistantMessages(current).map((message) => ({
       ...message, toolCalls: settleAssistantToolCalls(message.toolCalls, "cancelled")
     })));
@@ -1904,9 +1689,6 @@ export function PromptDock({
   const sendAssistantInstruction = createAssistantInstructionSender({
     assistantStreaming,
     assistantActivity,
-    assistantIntentSuggestionRequestRef,
-    setAssistantIntentSuggestions,
-    setAssistantIntentSuggestionsLoading,
     assistantRequestVersionRef,
     setAssistantInteraction,
     setAssistantMessages,
@@ -1926,6 +1708,8 @@ export function PromptDock({
     onOpenSettings,
     boardId,
     assistantAgentModeEnabled,
+    activeTextProviderId,
+    selectedSkillPath,
     onAssistantCreditsUsed,
     editTarget,
     activeScene,
@@ -2039,79 +1823,6 @@ export function PromptDock({
 
   function submitAssistant(): void {
     void sendAssistantInstruction(assistantValue);
-  }
-
-  function selectAssistantIntentSuggestion(suggestion: string): void {
-    void sendAssistantInstruction(suggestion, suggestion, false);
-  }
-
-  async function requestAssistantIntentSuggestions(
-    mode: AssistantIntentSuggestionMode = "contextual"
-  ): Promise<void> {
-    if (
-      !assistantOpen ||
-      !assistantIntentSuggestionsEnabled ||
-      !supportsPromptEnhancement ||
-      assistantStreaming ||
-      assistantActivity ||
-      assistantInteraction
-    ) return;
-    const requestId = assistantIntentSuggestionRequestRef.current + 1;
-    assistantIntentSuggestionRequestRef.current = requestId;
-    setAssistantIntentSuggestionsLoading(true);
-    const hasCreativeContext = (
-      assistantMessages.some((message) => message.role === "user" && message.content.trim())
-      || buildCurrentAssistantFields().some((field) => field.value.trim())
-      || input.referenceImages.length > 0
-      || assistantSurface === "canvas-edit"
-    );
-    const suggestionMode = (
-      mode === "contextual"
-      && !hasCreativeContext
-      && assistantIntentSuggestionHistoryRef.current.length > 0
-    ) ? "divergent" : mode;
-    try {
-      const result = await getImageWorkbenchApi().suggestAssistantIntents({
-        assistantSurface,
-        locale,
-        conversation: assistantMessages
-          .filter((message) => !message.streaming && message.tone !== "error" && message.content.trim())
-          .slice(-12)
-          .map(({ role, content, assistantContext }) => ({ role, content: assistantContext ?? content })),
-        currentFields: buildCurrentAssistantFields(),
-        referenceImages: input.referenceImages.slice(0, 4).map(({ name, mimeType, dataBase64, sourceNodeId }) => ({
-          sourceNodeId,
-          name,
-          mimeType,
-          dataBase64
-        })),
-        referenceImageCount: input.referenceImages.length + (assistantSurface === "canvas-edit" ? 1 : 0),
-        suggestionCount: assistantIntentSuggestionCount,
-        suggestionMode,
-        previousSuggestions: suggestionMode === "divergent" ? assistantIntentSuggestionHistoryRef.current : [],
-        variationSeed: crypto.randomUUID()
-      });
-      if (assistantIntentSuggestionRequestRef.current !== requestId) return;
-      assistantIntentSuggestionHistoryRef.current = suggestionMode === "divergent"
-        ? [...assistantIntentSuggestionHistoryRef.current, ...result.suggestions].slice(-20)
-        : result.suggestions;
-      setAssistantIntentSuggestions(result.suggestions);
-      if (!assistantOpenRef.current && result.suggestions.length > 0) setAssistantHasUnreadResult(true);
-      onAssistantCreditsUsed?.();
-    } catch (error) {
-      if (assistantIntentSuggestionRequestRef.current !== requestId) return;
-      // Keep usable entry points and the refresh button even if the API fails.
-      setAssistantIntentSuggestions((current) => current.length > 0 ? current : [
-        translateSourceText("帮我探索创作方向"),
-        translateSourceText("帮我调整背景与光线"),
-        translateSourceText("帮我整理完整提示词")
-      ]);
-      toast.error(getWorkbenchErrorMessage(error, "推荐暂时无法加载，请点击“换一组”重试。"));
-    } finally {
-      if (assistantIntentSuggestionRequestRef.current === requestId) {
-        setAssistantIntentSuggestionsLoading(false);
-      }
-    }
   }
 
   function submitAssistantInteraction(values: AiAssistantInteractionValues): void {
@@ -2386,21 +2097,9 @@ export function PromptDock({
             atLimit={input.referenceImages.length >= 4} showLabel={false} materialMode={isUiDesignMode} reduceMotion={Boolean(reduceMotion)}
             onAddCanvasReference={onAddCanvasReference} onReferenceFiles={onReferenceFiles} />
           <Button type="button" variant="ghost" size="icon" className="h-8 w-8" data-tour="dock-template" aria-label={t("prompt.template.choose")} onClick={() => setScenePickerOpen(true)}><Library className="h-4 w-4" /></Button>
-          {providers.length ? <ProviderPicker providers={providers} activeProviderId={activeProviderId}
-            creditStatus={creditStatus} creditLoading={creditLoading} requiredCredits={officialRequiredCredits}
-            showLabel={false} reduceMotion={Boolean(reduceMotion)} onSelect={onSelectProvider} onManage={onOpenModelManagement} /> : null}
-          <GenerationSettingsPicker size={input.size} count={input.n} quality={input.quality} model={input.model} workflowMode={input.workflowMode} transparentBackground={input.background === "transparent"}
-            maxCount={maxImageCount} provider={activeProvider} onSizeChange={(size) => onInputChange({ size })}
-            onQualityChange={(quality) => onInputChange({ quality })}
-            onCountChange={(n) => onInputChange({ n })} onTransparentBackgroundChange={(enabled) => onInputChange({ background: enabled ? "transparent" : "auto", outputFormat: "png" })}
-          />
-          {!editTarget && input.workflowMode === "generate" ? <DropdownMenu>
-            <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={uiText("创作模式")}><LayoutTemplate /></Button></DropdownMenuTrigger>
-            <DropdownMenuContent side="top"><DropdownMenuRadioGroup value={creationMode} onValueChange={(value) => changeCreationMode(value as CreationMode)}>
-              <DropdownMenuRadioItem value="general">{t("prompt.creationMode.general")}</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="ui-design">{t("prompt.creationMode.uiDesign")}</DropdownMenuRadioItem>
-            </DropdownMenuRadioGroup></DropdownMenuContent>
-          </DropdownMenu> : null}
+          <AgentSkillPicker value={selectedSkillPath} onChange={setSelectedSkillPath} disabled={assistantStreaming || Boolean(assistantActivity)} />
+          <TextModelPicker providers={textProviders} activeProviderId={activeTextProviderId}
+            disabled={assistantStreaming} onSelect={onSelectTextProvider} onManage={onOpenSettings} />
           {activeCount > 0 ? <span role="status" className="text-xs text-muted-foreground">{activeCount} {uiText("项任务")}</span> : null}
         </>}
         directAction={<GenerateActionButton buttonStyle={generateButtonStyle} compact
@@ -2421,13 +2120,9 @@ export function PromptDock({
             }]}
             value={assistantValue} streaming={assistantStreaming} activityLabel={assistantActivity ?? undefined}
             interaction={assistantInteraction?.state} disabled={Boolean(assistantActivity)}
-            intentSuggestionsEnabled={assistantIntentSuggestionsEnabled} intentSuggestionCount={assistantIntentSuggestionCount}
-            intentSuggestions={assistantIntentSuggestions.length ? assistantIntentSuggestions : assistantMessages.length === 0 ? [uiText("帮我探索创作方向"), uiText("帮我调整背景与光线"), uiText("帮我整理完整提示词")] : []} intentSuggestionsLoading={assistantIntentSuggestionsLoading}
             history={assistantHistory} historyLoading={assistantHistoryLoading} historyScope={assistantHistoryScope}
             currentConversationId={assistantConversationId} onValueChange={setAssistantValue} onSubmit={submitAssistant} onStop={stopAssistant}
             onClose={assistantDockSide ? () => collapseDockedAssistant() : undefined}
-            onIntentSuggestionSelect={selectAssistantIntentSuggestion}
-            onRefreshIntentSuggestions={() => void requestAssistantIntentSuggestions("divergent")}
             onInteractionSubmit={submitAssistantInteraction} onInteractionDismiss={dismissAssistantInteraction}
             onInteractionRefine={refineAssistantInteraction} onInteractionGenerate={generateAssistantInteraction}
             onHistoryOpen={() => void loadAssistantHistory()} onHistoryScopeChange={changeAssistantHistoryScope}

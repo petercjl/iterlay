@@ -199,6 +199,8 @@ export async function importBoardBuffer(buffer: Buffer, dependencies: BoardImpor
         }))
       })),
       viewport: parsed.board.viewport,
+      coverNodeId: parsed.board.coverNodeId ? nodeIdMap.get(parsed.board.coverNodeId) ?? "" : "",
+      thumbnailImagePath: parsed.board.thumbnailImagePath ? pathMap.get(parsed.board.thumbnailImagePath) ?? "" : "",
       thumbnailDataUrl: parsed.board.thumbnailDataUrl
     });
 

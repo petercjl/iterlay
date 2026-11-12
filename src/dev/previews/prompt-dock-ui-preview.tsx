@@ -102,9 +102,6 @@ function Preview(): React.ReactElement {
         autoCollapse
         boardSmartSuggestionsEnabled={false}
         assistantEnabled
-        assistantAwarenessEnabled={false}
-        assistantIntentSuggestionsEnabled={false}
-        assistantIntentSuggestionCount={3}
         editSmartSuggestionsEnabled={false}
         memoryEnabled={false}
         memoryUsageLevel="balanced"

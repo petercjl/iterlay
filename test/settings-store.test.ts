@@ -406,8 +406,8 @@ describe("SettingsStore provider normalization", () => {
       expect(defaults.boardAssistantAgentModeEnabled).toBe(false);
       expect(defaults.assistantAgentModeEnabled).toBe(false);
       expect(defaults.piAgentBuiltinTools).toEqual(["read", "grep", "find", "ls"]);
-      expect(defaults.piAgentTudaTools).toHaveLength(28);
-      expect(defaults.piAgentTudaTools).toEqual(expect.arrayContaining(["create_canvas", "update_canvas"]));
+      expect(defaults.piAgentTudaTools).toHaveLength(29);
+      expect(defaults.piAgentTudaTools).toEqual(expect.arrayContaining(["create_canvas", "update_canvas", "read_asset"]));
       expect(defaults.piAgentMaxTurns).toBe(12);
       expect(defaults.piAgentWebSearchMaxResults).toBe(5);
       expect(defaults.boardAssistantAwarenessEnabled).toBe(true);

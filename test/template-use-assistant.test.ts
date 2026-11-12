@@ -118,7 +118,7 @@ describe("SceneDetail template assistant workflow", () => {
     const immediateGeneration = sourceBetween(
       sceneDetailSource,
       "function generateAssistantPrompt",
-      "async function requestTemplateAssistantSuggestions"
+      "function openTemplateAssistant"
     );
 
     expect(immediateGeneration).toContain("commitAssistantPrompt(prompt)");

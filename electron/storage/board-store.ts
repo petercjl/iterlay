@@ -1,3 +1,4 @@
+import { resolveBoardCover } from "../../shared/board-cover.js";
 import { planBoardLibraryCopy } from "../../shared/board-library-copy.js";
 import { emptyBoardLibrary, mutateBoardLibrary, type BoardLibraryState, type BoardLibraryMutation } from "../../shared/board-library.js";
 import type { BoardCanvasNode, CanvasNodeWriteInput } from "../../shared/contracts/board.js";
@@ -130,7 +131,8 @@ export class BoardStore {
   constructor(
     dataDir: string,
     private readonly resolveImageDimensions?: BoardImageDimensionsResolver,
-    private readonly persistence?: BoardPersistenceAdapter
+    private readonly persistence?: BoardPersistenceAdapter,
+    private readonly encodeCover?: (imagePath: string) => Promise<string>
   ) {
     this.boardsDir = path.join(dataDir, "boards");
     this.trashDir = path.join(dataDir, "board-trash");
@@ -659,6 +661,8 @@ export class BoardStore {
       groups: payload.groups
         ? payload.groups.map(normalizeBoardGroup).filter((group): group is NonNullable<BoardData["groups"]>[number] => group !== null)
         : current?.groups ?? [],
+      coverNodeId: payload.coverNodeId ?? current?.coverNodeId,
+      thumbnailImagePath: payload.thumbnailImagePath ?? current?.thumbnailImagePath,
       thumbnailDataUrl: payload.thumbnailDataUrl ?? current?.thumbnailDataUrl,
       videoSequences: payload.videoSequences ?? current?.videoSequences ?? [],
       deliveryRecipes: payload.deliveryRecipes?.map(validateImageDeliveryRecipe) ?? current?.deliveryRecipes ?? []
@@ -709,6 +713,7 @@ export class BoardStore {
       const copy: BoardData = {
         ...current,
         id: crypto.randomUUID(),
+        coverNodeId: current.coverNodeId ? nodeIds.get(current.coverNodeId) ?? "" : "",
         revision: 0,
         name: `${current.name} 副本`,
         createdAt: now,
@@ -1370,6 +1375,7 @@ export class BoardStore {
   }
 
   private async writeBoard(board: BoardData): Promise<void> {
+    if (this.encodeCover) Object.assign(board, await resolveBoardCover(board, this.encodeCover));
     this.boardVersions.set(board.id, (this.boardVersions.get(board.id) ?? 0) + 1);
     await this.writeJson(this.boardFile(board.id), board);
     this.rememberBoard(board);

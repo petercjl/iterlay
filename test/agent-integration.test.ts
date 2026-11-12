@@ -41,7 +41,7 @@ describe("managed CLI Skills", () => {
   it("repairs an old installation missing the entrypoint and respects opt-out", async () => {
     const f = await fixture();
     const bin = path.join(f.home, ".local/bin"); await mkdir(bin, { recursive: true });
-    await writeFile(path.join(bin, "claude"), "#!/bin/sh\nexit 0\n"); await chmod(path.join(bin, "claude"), 0o755);
+    await writeFile(path.join(bin, process.platform === "win32" ? "claude.cmd" : "claude"), "#!/bin/sh\nexit 0\n"); await chmod(path.join(bin, process.platform === "win32" ? "claude.cmd" : "claude"), 0o755);
     await installAgentSkill("claude-code", f.home, f.bundle);
     const entry = path.join(f.home, ".claude/skills/using-tuda");
     await rm(entry, { recursive: true });
@@ -84,7 +84,7 @@ describe("managed CLI Skills", () => {
   });
   it("upgrades managed content, reports changed files and respects opt-out", async () => {
     const f = await fixture(); const bin = path.join(f.home, ".local/bin"); await mkdir(bin, { recursive: true });
-    await writeFile(path.join(bin, "claude"), "#!/bin/sh\nexit 0\n"); await chmod(path.join(bin, "claude"), 0o755);
+    await writeFile(path.join(bin, process.platform === "win32" ? "claude.cmd" : "claude"), "#!/bin/sh\nexit 0\n"); await chmod(path.join(bin, process.platform === "win32" ? "claude.cmd" : "claude"), 0o755);
     await syncAgentSkills(f.home, f.bundle, { userDataPath: f.data, selectedAgents: ["claude-code"] });
     await writeFile(path.join(f.bundle, "SKILL.md"), "---\nname: using-tuda\ndescription: CLI workflow\n---\nCLI v2");
     const upgraded = await syncAgentSkills(f.home, f.bundle, { userDataPath: f.data, selectedAgents: ["claude-code"] });

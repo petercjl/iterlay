@@ -23,7 +23,7 @@ describe("assistant instruction execution", () => {
     const deps = options();
     await createAssistantInstructionSender(deps)("  帮我完善  ", "显示内容", false, false, true);
     const request = start.mock.calls[0]?.[0] as unknown as CollaborateSceneRequest;
-    expect(request).toMatchObject({ instruction: "帮我完善", locale: "en-US", conversationId: "conversation", recordInHistory: false, generationSettings: { count: 2, maxCount: 8 }, memoryQuery: { boardId: "board", sceneId: "scene" }, agentMode: true });
+    expect(request).toMatchObject({ instruction: "帮我完善", locale: "en-US", conversationId: "conversation", recordInHistory: false, generationSettings: { count: 1, maxCount: 1 }, memoryQuery: { boardId: "board", sceneId: "scene" }, agentMode: true, creationWorkflow: true });
     expect(request.referenceImages).toHaveLength(4);
     expect(request.conversation).toEqual([{ role: "user", content: "已有对话" }]);
     expect(request.currentFields?.at(-1)).toEqual({ label: "当前提示词上下文", value: "用户选择的上下文" });
@@ -37,9 +37,22 @@ describe("assistant instruction execution", () => {
     const request = start.mock.calls[0]?.[0] as unknown as CollaborateSceneRequest;
     expect(request.workflowMode).toBe("edit");
     expect(request.referenceImages).toHaveLength(4);
-    expect(request.referenceImages[0]).toEqual({ name: "当前编辑目标图", mimeType: "image/png", dataBase64: "target" });
+    expect(request.referenceImages[0]).toEqual({ name: "当前编辑目标图", mimeType: "image/png", dataBase64: "target", imagePath: "/target.png" });
     expect(request.memoryQuery?.assetPath).toBe("/target.png");
-    expect(request.agentMode).toBe(false);
+    expect(request.agentMode).toBe(true);
+    expect(request.creationWorkflow).toBe(true);
+  });
+  it("always uses the shared Agent and displays its final reply without applying generation actions", async () => {
+    start.mockClear();
+    const deps = options({ assistantAgentModeEnabled: false });
+    await createAssistantInstructionSender(deps)("只给方案，不要生成");
+    const request = start.mock.calls[0]?.[0] as CollaborateSceneRequest;
+    expect(request).toMatchObject({ agentMode: true, creationWorkflow: true });
+    const handlers = start.mock.calls[0]?.[1] as { onResult: (result: unknown) => void };
+    handlers.onResult({ message: "这里只讨论方案。", intent: "chat", fields: [{ label: "提示词", value: "不能自动生成" }], actions: [{ type: "generate" }] });
+    expect(deps.receivePromptAssistantResult).not.toHaveBeenCalled();
+    expect(deps.setAssistantStreaming).toHaveBeenLastCalledWith(false);
+    expect(deps.setAssistantInteraction).toHaveBeenCalledTimes(1); // cleared at submission; no new confirmation
   });
   it("does not start a stream when cancellation occurs during async target loading", async () => {
     start.mockClear();

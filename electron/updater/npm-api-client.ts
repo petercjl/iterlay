@@ -1,8 +1,9 @@
 import type { UpdateApiClient, UpdateCheckQuery, UpdateFetch } from "./api-client.js";
 import { isUpdateManifest, type UpdateManifest } from "../../shared/app-update.js";
 import { BRAND } from "../../shared/brand.js";
+import { validNpmPayloads } from "./npm-payload.js";
 
-/** npm publishes version discovery; immutable release assets supply the installer bytes. */
+/** npm supplies version discovery and immutable installer payloads. */
 export class NpmUpdateApiClient implements UpdateApiClient {
   constructor(private readonly fetcher: UpdateFetch = fetch, private readonly packageName = BRAND.packageName) {}
   async fetchLatest(query: UpdateCheckQuery): Promise<UpdateManifest | null> {
@@ -14,13 +15,15 @@ export class NpmUpdateApiClient implements UpdateApiClient {
     });
     if (response.status === 404) return null;
     if (!response.ok) throw new Error(`无法读取 Tuda npm 版本（${response.status}）。`);
-    const pkg = await response.json() as { version?: string; tudaRelease?: { schemaVersion?: number; installers?: UpdateManifest[] } };
+    const pkg = await response.json() as { version?: string; tudaRelease?: { schemaVersion?: number; applicationVersion?: string; installers?: UpdateManifest[] } };
     if (pkg.tudaRelease?.schemaVersion !== 1 || !Array.isArray(pkg.tudaRelease.installers)) return null;
     const manifest = pkg.tudaRelease.installers.find((item) => item.platform === query.platform && item.arch === query.arch);
     if (!manifest) return null;
     if (!isUpdateManifest(manifest) || !/^[a-f0-9]{64}$/i.test(manifest.sha256 ?? "")
       || !Number.isSafeInteger(manifest.fileSize) || (manifest.fileSize ?? 0) <= 0
-      || !manifest.downloadUrl.startsWith("https://") || manifest.version !== pkg.version
+      || !validNpmPayloads(manifest)
+      || manifest.downloadUrl !== manifest.npmPayloads?.[0]?.url
+      || manifest.version !== pkg.tudaRelease.applicationVersion
       || (tag === "latest" && (manifest.channel === "beta" || manifest.version.includes("-")))) {
       throw new Error("Tuda 更新清单无效，已保留当前版本。");
     }

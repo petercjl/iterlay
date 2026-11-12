@@ -2,7 +2,7 @@ import * as Y from "yjs";
 import type { BoardData, BoardNode, BoardSavePayload } from "./types.js";
 
 const collections = ["nodes", "connections", "groups"] as const;
-const metadata = ["name", "kind", "parentBoardId", "thumbnailDataUrl", "videoSequences", "deliveryRecipes"] as const;
+const metadata = ["name", "kind", "parentBoardId", "thumbnailDataUrl", "coverNodeId", "thumbnailImagePath", "videoSequences", "deliveryRecipes"] as const;
 const equal = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 

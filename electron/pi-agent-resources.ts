@@ -1,5 +1,6 @@
 import { access, readFile, readdir, stat } from "node:fs/promises";
 import os from "node:os";
+import { localSkillFolder } from "./agent-skills.js";
 import path from "node:path";
 import type { DefaultResourceLoader, InlineExtension, Skill } from "./agents/coding-runtime.js";
 import type { AppSettings, PiAgentResourceEntry, PiAgentResourceInventory } from "../shared/types.js";
@@ -20,15 +21,19 @@ const EXTENSION_FILE_PATTERN = /\.(?:[cm]?[jt]s)$/iu;
 export async function discoverPiAgentResources(
   cwd: string,
   agentDir: string,
-  settings: AppSettings
+  settings: AppSettings,
+  additionalSkillPaths: string[] = []
 ): Promise<PiAgentResourceInventory> {
   const { loadSkills } = await import("./agents/coding-runtime.js");
   const packageResources = await discoverPackageResources(agentDir);
   const configured = await readPiSettings(agentDir);
+  const sharedSkills = path.join(path.dirname(path.dirname(agentDir)), ".agents", "skills");
   const skillPaths = [
-    path.join(path.dirname(path.dirname(agentDir)), ".agents", "skills"),
+    ...await stat(sharedSkills).then(() => [sharedSkills], () => []),
+    ...additionalSkillPaths,
     ...packageResources.skillPaths,
     ...configured.skills,
+    ...(settings.piAgentSkillPaths ?? []),
     ...(settings.piAgentCustomSkillPaths ?? [])
   ];
   const loadedSkills = loadSkills({ cwd, agentDir, skillPaths, includeDefaults: true });
@@ -50,7 +55,8 @@ export async function discoverPiAgentResources(
       name: typeof tool.name === "string" ? tool.name : "",
       description: typeof tool.description === "string" ? tool.description : ""
     })).filter((tool) => tool.name),
-    skills: dedupeResources(skills),
+    skillDirectory: path.join(agentDir, "skills"),
+    skills: await Promise.all(dedupeResources(skills).map(async (skill) => ({ ...skill, skillCategory: additionalSkillPaths.some((item) => path.resolve(item) === path.resolve(skill.path)) ? "system" as const : "user" as const, canDelete: Boolean(await localSkillFolder(agentDir, skill.path)) }))),
     extensions: dedupeResources(extensions),
     warnings: loadedSkills.diagnostics.map((item) => item.message)
   };
@@ -77,9 +83,15 @@ export async function createPiAgentResourceLoader(
     extensionFactories,
     noExtensions: true,
     noSkills: true,
-    noPromptTemplates: true,
+    noPromptTemplates: false,
     noThemes: true,
-    noContextFiles: true,
+    noContextFiles: false,
+    // Load workspace/app instructions, not developer instructions from ancestor folders.
+    agentsFilesOverride: ({ agentsFiles }) => ({ agentsFiles: agentsFiles.filter((file) =>
+      [cwd, agentDir].some((root) => {
+        const relative = path.relative(root, file.path);
+        return relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
+      })) }),
     systemPrompt
   });
   await loader.reload();

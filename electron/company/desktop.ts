@@ -1,3 +1,4 @@
+import { defaultTudaTextProvider } from "../../shared/tuda-models.js";
 import { BrowserWindow, dialog, safeStorage } from "electron";
 import { createHash, randomUUID } from "node:crypto";
 import {
@@ -15,6 +16,8 @@ import type { CompanyDefaults } from "./defaults.js";
 import { comicBoardSnapshot } from "../domain/comic-board-snapshot.js";
 import {
   executionContext,
+  storedExecutionContext,
+  inExecutionContext,
   executionSpace,
   setExecutionDetailsResolver,
   setSelectedSpaceResolver,
@@ -56,6 +59,7 @@ export class CompanyDesktop {
     readonly userData: string,
     readonly legacy: EnterpriseClient,
     private readonly defaults: CompanyDefaults = {},
+    private readonly connectionOnly = false,
   ) {
     this.preferences = {
       version: 1,
@@ -69,7 +73,7 @@ export class CompanyDesktop {
       this.preferences.origin,
       async (value) => {
         // Embedded sessions are short-lived grants from the live host, not independent logins.
-        if (process.env.TUDA_EMBEDDED_HOST) return;
+        if (this.connectionOnly || process.env.TUDA_EMBEDDED_HOST) return;
         if (!safeStorage.isEncryptionAvailable())
           throw new Error("系统安全存储不可用，未保存公司登录凭据。");
         const encrypted = safeStorage
@@ -104,11 +108,11 @@ export class CompanyDesktop {
           );
       },
     );
-    this.account.on("state", () => {
+    if (!this.connectionOnly) this.account.on("state", () => {
       this.changed();
       void this.prepareImage();
     });
-    this.legacy.on("state", () => {
+    if (!this.connectionOnly) this.legacy.on("state", () => {
       if (this.enabled) this.changed();
     });
   }
@@ -223,6 +227,7 @@ export class CompanyDesktop {
     };
   }
   private changed() {
+    if (this.connectionOnly) return;
     for (const w of BrowserWindow.getAllWindows())
       if (!w.isDestroyed()) w.webContents.send("enterprise:state", this.status);
   }
@@ -284,8 +289,10 @@ export class CompanyDesktop {
       );
       if (p.version !== 1 || !p.folders || !p.selections)
         throw new Error("公司空间配置版本无效。");
-      this.preferences = p;
-      await this.account.configure(p.origin, false);
+      const origin = typeof p.origin === "string" && p.origin.trim()
+        ? p.origin.trim() : this.preferences.origin;
+      this.preferences = { ...p, origin };
+      await this.account.configure(origin, false);
     } catch (e) {
       if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
     }
@@ -380,6 +387,27 @@ export class CompanyDesktop {
     await this.save();
     this.reload();
     return { ...result, space: "enterprise" };
+  }
+  /** A connection gets its own in-memory account and storage client. UI preferences stay untouched. */
+  async createPluginConnection(value: unknown, legacy: EnterpriseClient) {
+    const connection = new CompanyDesktop(this.userData, legacy, this.defaults, true);
+    connection.preferences = structuredClone(this.preferences);
+    await connection.account.configure(this.account.origin, false);
+    try {
+      await connection.account.acceptHostHandoff(value);
+      if (connection.account.bootstrap?.text.enabled || connection.account.bootstrap?.image.enabled)
+        throw new Error("PLUGIN_SESSION_SCOPE_INVALID");
+      if (!connection.namespace) throw new Error("COMPANY_AUTH_REQUIRED");
+      if (!connection.preferences.storage?.[connection.namespace]) {
+        connection.preferences.folders[connection.namespace] ??= path.join(this.userData, "plugin-board-workspace");
+        connection.preferences.storage ??= {};
+        connection.preferences.storage[connection.namespace] = {kind:"local"};
+      }
+      if (connection.usesNas) await inExecutionContext({space:"enterprise",account:connection.namespace,workspace:connection.workspace,storage:connection.storage,pluginCompany:connection}, () => connection.connectNas());
+      else await mkdir(connection.workspace!, {recursive:true,mode:0o700});
+      connection.preferences.activeSpace = "enterprise";
+      return connection;
+    } catch (error) { legacy.stop(); throw error; }
   }
   async pollLogin() {
     if (!this.enabled) return this.legacy.pollLogin();
@@ -643,12 +671,7 @@ export class CompanyDesktop {
           })),
         )
       : [];
-    const selectedText =
-      textProviders.find((p) => p.id === s?.text)?.id ??
-      textProviders.find((p) => p.id === `company-text/${b?.text.defaultModel}`)
-        ?.id ??
-      textProviders[0]?.id ??
-      "";
+    const selectedText = defaultTudaTextProvider(textProviders, s?.text, b?.text.defaultModel ?? undefined);
     return {
       ...settings,
       providers,
@@ -715,4 +738,13 @@ export class CompanyDesktop {
   stop() {
     if (this.refreshTimer) clearInterval(this.refreshTimer);
   }
+}
+
+/** Existing service adapters capture this facade, so scoped async calls resolve their own account. */
+export function scopedCompany(desktop: CompanyDesktop): CompanyDesktop {
+  const active = () => storedExecutionContext()?.pluginCompany as CompanyDesktop | undefined ?? desktop;
+  return new Proxy(desktop, {
+    get(_target, key, receiver) { const value = Reflect.get(active(), key, receiver); return typeof value === "function" ? value.bind(receiver) : value; },
+    set(_target, key, value) { return Reflect.set(active(), key, value); }
+  });
 }

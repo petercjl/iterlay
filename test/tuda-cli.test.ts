@@ -37,7 +37,7 @@ describe("CLI installation and Skill migration", () => {
     vi.stubEnv("SHELL", shell);
     const f = await fixture(); const scriptPath = path.join(f.home, "App's Resources/main.js");
     await mkdir(path.dirname(scriptPath)); await writeFile(scriptPath, "console.log('ok')");
-    const options = { homeDir: f.home, executable: "/Applications/Tuda App/Tuda", scriptPath };
+    const options = { platform: "darwin" as const, homeDir: f.home, executable: "/Applications/Tuda App/Tuda", scriptPath };
     expect((await installCli(options)).installed).toBe(true);
     await installCli(options);
     const profile = await readFile(path.join(f.home, profileName), "utf8");
@@ -48,7 +48,7 @@ describe("CLI installation and Skill migration", () => {
   it("does not replace a command from another installation", async () => {
     const f = await fixture(); await mkdir(path.join(f.home, ".local/bin"), { recursive: true });
     const target = path.join(f.home, ".local/bin/tuda"); await writeFile(target, "unrelated");
-    const result = await installCli({ homeDir: f.home, executable: "app", scriptPath: path.join(f.skill, "SKILL.md") });
+    const result = await installCli({ platform: "darwin", homeDir: f.home, executable: "app", scriptPath: path.join(f.skill, "SKILL.md") });
     expect(result.error).toContain("同名"); expect(await readFile(target, "utf8")).toBe("unrelated");
   });
   it("protects an unmanaged Skill from installation and removal", async () => {

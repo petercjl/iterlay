@@ -287,10 +287,6 @@ export function SceneCreator({
   const [assistantExampleReferences, setAssistantExampleReferences] = useState<SceneCreatorReference[]>([]);
   const [assistantExamplesOpen, setAssistantExamplesOpen] = useState(false);
   const [loadingAssistantExampleIds, setLoadingAssistantExampleIds] = useState<Set<string>>(() => new Set());
-  const [assistantIntentSuggestions, setAssistantIntentSuggestions] = useState<string[]>(
-    hasRestoredAssistantConversation ? [] : templateAssistantStarterSuggestions(draft.extractionScenario)
-  );
-  const [assistantIntentSuggestionsLoading, setAssistantIntentSuggestionsLoading] = useState(false);
   const [assistantHasSubmitted, setAssistantHasSubmitted] = useState(hasRestoredAssistantConversation);
   const [assistantInteraction, setAssistantInteraction] = useState<{
     state: AiAssistantInteractionState;
@@ -307,11 +303,6 @@ export function SceneCreator({
   const assistantExampleReferencesRef = useRef<SceneCreatorReference[]>([]);
   const assistantApplyTimerRef = useRef<number | null>(null);
   const assistantClarificationRoundsRef = useRef(0);
-  const assistantIntentSuggestionRequestRef = useRef(0);
-  const assistantIntentSuggestionHistoryRef = useRef<string[]>([]);
-  const requestAssistantIntentSuggestionsRef = useRef<(
-    mode?: "contextual" | "divergent"
-  ) => Promise<void>>(async () => undefined);
   const reduceMotion = Boolean(useReducedMotion());
   const completion = sceneDraftCompletion(draft);
   const canSave = draft.name.trim().length > 0 && completion.filled > 0;
@@ -371,38 +362,9 @@ export function SceneCreator({
 
   useEffect(() => () => {
     requestVersionRef.current += 1;
-    assistantIntentSuggestionRequestRef.current += 1;
     assistantStreamRef.current?.dispose();
     if (assistantApplyTimerRef.current !== null) window.clearTimeout(assistantApplyTimerRef.current);
   }, []);
-
-  useEffect(() => {
-    requestAssistantIntentSuggestionsRef.current = requestAssistantIntentSuggestions;
-  });
-
-  useEffect(() => {
-    if (
-      !assistantHasSubmitted ||
-      !canCollaborate ||
-      assistantLoading ||
-      assistantActivity ||
-      assistantInteraction
-    ) return;
-    const timer = window.setTimeout(() => {
-      void requestAssistantIntentSuggestionsRef.current();
-    }, 300);
-    return () => window.clearTimeout(timer);
-  }, [
-    assistantActivity,
-    assistantHasSubmitted,
-    assistantInteraction,
-    assistantLoading,
-    assistantMessages,
-    assistantReferences.length,
-    assistantExampleReferences.length,
-    canCollaborate,
-    draft.revision
-  ]);
 
   function updateDraft(patch: Partial<SceneDraft>): void {
     setDraft((current) => ({ ...current, ...patch, revision: current.revision + 1 }));
@@ -496,7 +458,6 @@ export function SceneCreator({
       assistantReferencesRef.current = next;
       setAssistantReferences(next);
       if (!assistantHasSubmitted && current.length === 0 && next.length > 0) {
-        setAssistantIntentSuggestions(templateAssistantReferenceSuggestions(draftRef.current.extractionScenario));
       }
       if (files.length > available) {
         toast(`已添加 ${added.length} 张，最多支持 ${SCENE_CREATOR_MAX_REFERENCE_COUNT} 张参考图。`);
@@ -511,7 +472,6 @@ export function SceneCreator({
     assistantReferencesRef.current = next;
     setAssistantReferences(next);
     if (!assistantHasSubmitted && next.length === 0 && assistantExampleReferencesRef.current.length === 0) {
-      setAssistantIntentSuggestions(templateAssistantStarterSuggestions(draftRef.current.extractionScenario));
     }
   }
 
@@ -520,7 +480,6 @@ export function SceneCreator({
     assistantExampleReferencesRef.current = next;
     setAssistantExampleReferences(next);
     if (!assistantHasSubmitted && next.length === 0 && assistantReferencesRef.current.length === 0) {
-      setAssistantIntentSuggestions(templateAssistantStarterSuggestions(draftRef.current.extractionScenario));
     }
   }
 
@@ -565,7 +524,6 @@ export function SceneCreator({
       assistantExampleReferencesRef.current = next;
       setAssistantExampleReferences(next);
       if (!assistantHasSubmitted && next.length === 1 && assistantReferencesRef.current.length === 0) {
-        setAssistantIntentSuggestions(templateAssistantReferenceSuggestions(draftRef.current.extractionScenario));
       }
     } catch (error) {
       toast.error(getWorkbenchErrorMessage(error, "无法把这张示例提供给 AI 助手。"));
@@ -580,53 +538,6 @@ export function SceneCreator({
 
   function currentAssistantReferences(): SceneCreatorReference[] {
     return [...assistantReferencesRef.current, ...assistantExampleReferencesRef.current];
-  }
-
-  async function requestAssistantIntentSuggestions(
-    mode: "contextual" | "divergent" = "contextual"
-  ): Promise<void> {
-    if (
-      !assistantHasSubmitted ||
-      !canCollaborate ||
-      assistantLoading ||
-      assistantActivity ||
-      assistantInteraction
-    ) return;
-
-    const requestId = assistantIntentSuggestionRequestRef.current + 1;
-    assistantIntentSuggestionRequestRef.current = requestId;
-    setAssistantIntentSuggestionsLoading(true);
-    try {
-      const currentDraft = draftRef.current;
-      const result = await getImageWorkbenchApi().suggestAssistantIntents({
-        assistantSurface: "scene-template",
-        templateWorkflow: "create",
-        conversation: assistantMessages
-          .filter((message) => !message.streaming && message.tone !== "error" && message.content.trim())
-          .slice(-12)
-          .map(({ role, content, assistantContext }) => ({ role, content: assistantContext ?? content })),
-        currentFields: currentDraft.fields
-          .map(({ label, value }) => ({ label: label.trim(), value: value.trim() }))
-          .filter((field) => field.label),
-        templateScenario: currentDraft.extractionScenario,
-        referenceImageCount: currentAssistantReferences().length,
-        suggestionCount: TEMPLATE_INTENT_SUGGESTION_COUNT,
-        suggestionMode: mode,
-        previousSuggestions: mode === "divergent" ? assistantIntentSuggestionHistoryRef.current : []
-      });
-      if (assistantIntentSuggestionRequestRef.current !== requestId) return;
-      assistantIntentSuggestionHistoryRef.current = mode === "divergent"
-        ? [...assistantIntentSuggestionHistoryRef.current, ...result.suggestions].slice(-20)
-        : result.suggestions;
-      setAssistantIntentSuggestions(result.suggestions);
-    } catch {
-      if (assistantIntentSuggestionRequestRef.current !== requestId) return;
-      if (mode === "contextual") setAssistantIntentSuggestions([]);
-    } finally {
-      if (assistantIntentSuggestionRequestRef.current === requestId) {
-        setAssistantIntentSuggestionsLoading(false);
-      }
-    }
   }
 
   function applyAssistantResult(
@@ -752,11 +663,7 @@ export function SceneCreator({
     }
     if (!instruction || assistantLoading || assistantActivity) return;
 
-    assistantIntentSuggestionRequestRef.current += 1;
-    assistantIntentSuggestionHistoryRef.current = [];
     setAssistantHasSubmitted(true);
-    setAssistantIntentSuggestions([]);
-    setAssistantIntentSuggestionsLoading(false);
 
     const requestVersion = requestVersionRef.current + 1;
     requestVersionRef.current = requestVersion;
@@ -855,10 +762,6 @@ export function SceneCreator({
       currentAssistantReferences().length
     );
     sendTemplateAssistantInstruction(instruction);
-  }
-
-  function selectAssistantIntentSuggestion(suggestion: string): void {
-    sendTemplateAssistantInstruction(suggestion);
   }
 
   function sendTemplateAssistantInstruction(instruction: string): void {
@@ -981,9 +884,7 @@ export function SceneCreator({
     const requestDraft = draftRef.current;
     const previousBrief = exampleBrief;
     const assistantMessageId = crypto.randomUUID();
-    assistantIntentSuggestionRequestRef.current += 1;
     setAssistantHasSubmitted(true);
-    setAssistantIntentSuggestions([]);
     setAssistantInteraction(null);
     setRecommendingExample(true);
     setAssistantLoading(true);
@@ -1107,9 +1008,7 @@ export function SceneCreator({
     requestVersionRef.current = requestVersion;
     const requestDraft = draftRef.current;
     const assistantMessageId = crypto.randomUUID();
-    assistantIntentSuggestionRequestRef.current += 1;
     setAssistantHasSubmitted(true);
-    setAssistantIntentSuggestions([]);
     setAssistantInteraction(null);
     setReviewingExample(true);
     setAssistantLoading(true);
@@ -1795,18 +1694,12 @@ export function SceneCreator({
                 )}
                 intentSuggestionsEnabled={!assistantLoading && !assistantInteraction}
                 intentSuggestionCount={TEMPLATE_INTENT_SUGGESTION_COUNT}
-                intentSuggestions={assistantIntentSuggestions}
-                intentSuggestionsLoading={assistantIntentSuggestionsLoading}
                 className="max-lg:border-l-0 max-lg:border-t"
                 onValueChange={setAssistantPrompt}
                 onSubmit={fillWithAssistant}
                 onStop={stopAssistant}
                 onAttach={() => assistantReferenceInputRef.current?.click()}
                 onPasteImages={(files) => void addAssistantReferences(files)}
-                onIntentSuggestionSelect={selectAssistantIntentSuggestion}
-                onRefreshIntentSuggestions={assistantHasSubmitted
-                  ? () => void requestAssistantIntentSuggestions("divergent")
-                  : undefined}
                 onInteractionSubmit={submitAssistantInteraction}
                 onInteractionDismiss={dismissAssistantInteraction}
             />

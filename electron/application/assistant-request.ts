@@ -40,6 +40,9 @@ export function validateSceneCollaborationRequest(input: unknown): CollaborateSc
   if (request.textProviderId !== undefined && typeof request.textProviderId !== "string") {
     throw new ProviderError("INVALID_REQUEST", "图片场景大师收到无效的 Provider ID。");
   }
+  if (request.selectedSkillPath !== undefined && (typeof request.selectedSkillPath !== "string" || !request.selectedSkillPath.trim() || request.selectedSkillPath.length > 4096)) {
+    throw new ProviderError("INVALID_REQUEST", "所选 Skill 路径无效。");
+  }
   if (request.agentMode !== undefined && typeof request.agentMode !== "boolean") {
     throw new ProviderError("INVALID_REQUEST", "AI 助手收到无效的 Agent 模式设置。");
   }
@@ -203,6 +206,7 @@ export function validateSceneCollaborationRequest(input: unknown): CollaborateSc
     ...(request.creationWorkflow === true ? { creationWorkflow: true } : {}),
     workflowMode: request.workflowMode,
     ...(typeof request.useCase === "string" ? { useCase: request.useCase as CollaborateSceneRequest["useCase"] } : {}),
+    ...(typeof request.selectedSkillPath === "string" ? { selectedSkillPath: request.selectedSkillPath } : {}),
     ...(typeof request.textProviderId === "string" && request.textProviderId.trim()
       ? { textProviderId: request.textProviderId.trim() }
       : {}),

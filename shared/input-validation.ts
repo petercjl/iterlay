@@ -28,5 +28,7 @@ export function assertBoardSavePayload(value: unknown): asserts value is BoardSa
   if (value.nodes !== undefined && (!Array.isArray(value.nodes) || value.nodes.length > 50_000)) throw new Error("画板节点参数无效。");
   if (value.connections !== undefined && (!Array.isArray(value.connections) || value.connections.length > 200_000)) throw new Error("画板连线参数无效。");
   if (value.expectedRevision !== undefined && (!Number.isInteger(value.expectedRevision) || Number(value.expectedRevision) < -1)) throw new Error("画板版本参数无效。");
+  if (value.coverNodeId !== undefined && !text(value.coverNodeId, 200)) throw new Error("封面图片节点无效。");
+  if (value.thumbnailImagePath !== undefined && !text(value.thumbnailImagePath, 10_000)) throw new Error("封面图片路径无效。");
   if (value.name !== undefined && !text(value.name, 10_000)) throw new Error("画板名称无效。");
 }

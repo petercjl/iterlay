@@ -290,6 +290,8 @@ export function normalizeStoredBoard(value: unknown): BoardData | null {
       : [],
     viewport: parsed.viewport,
     thumbnailDataUrl: parsed.thumbnailDataUrl,
+    coverNodeId: parsed.coverNodeId,
+    thumbnailImagePath: parsed.thumbnailImagePath,
     videoSequences: Array.isArray(parsed.videoSequences) ? structuredClone(parsed.videoSequences) : [],
     deliveryRecipes: Array.isArray(parsed.deliveryRecipes) ? structuredClone(parsed.deliveryRecipes) : []
   };
@@ -305,6 +307,8 @@ export function toSummary(board: BoardData, storageBytes?: number): BoardSummary
     updatedAt: board.updatedAt,
     imageCount: board.nodes.filter(isBoardImageNode).length,
     storageBytes,
+    coverNodeId: board.coverNodeId,
+    thumbnailImagePath: board.thumbnailImagePath,
     thumbnailDataUrl: board.thumbnailDataUrl
   };
 }

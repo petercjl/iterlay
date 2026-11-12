@@ -1,3 +1,5 @@
+import { resolveBoardCover } from "@shared/board-cover";
+import { encodeCoverThumbnail } from "@/lib/board-cover";
 import { CANVAS_EDITOR_FLUSH_EVENT } from "@shared/types";
 import { translateSourceText } from "@/i18n/ui-text";
 import { rebaseBoardSnapshot } from "@shared/board-snapshot-merge";
@@ -33,27 +35,6 @@ interface BoardPersistenceOptions {
   onRebased?: (saved: BoardDetail, submitted: BoardSavePayload) => void;
 }
 
-async function coverThumbnail(url: string): Promise<string> {
-  return new Promise((resolve) => {
-    const image = new Image();
-    image.crossOrigin = "anonymous";
-    image.onload = () => {
-      try {
-        const scale = Math.min(1, 480 / image.naturalWidth);
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-        canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-        const context = canvas.getContext("2d");
-        if (!context) return resolve("");
-        context.drawImage(image, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/jpeg", 0.75));
-      } catch { resolve(""); }
-    };
-    image.onerror = () => resolve("");
-    image.src = url;
-  });
-}
-
 export function useBoardPersistence(options: BoardPersistenceOptions) {
   const latest = useRef(options);
   latest.current = options;
@@ -82,17 +63,16 @@ export function useBoardPersistence(options: BoardPersistenceOptions) {
       const ids = new Set(nodes.map((node) => node.id));
       const connections = o.layout.current.connections.filter((c) => ids.has(c.source) && ids.has(c.target));
       const viewport = o.layout.current.viewport;
-      const cover = images[0];
-      const key = cover ? `${cover.path}:${cover.activeVersion ?? -1}` : "";
-      const thumbnailDataUrl = key === o.thumbnail.current.key
-        ? o.thumbnail.current.dataUrl
-        : cover ? await coverThumbnail(cover.dataUrl) : "";
-      if (o.activeBoard.current?.id === board.id) o.thumbnail.current = { key, dataUrl: thumbnailDataUrl };
       if (o.deletedBoardIds.current.has(board.id)) return;
       let base = observed.current.get(board.id) ?? await api.getBoard(board.id);
       if (!base) throw new Error("画板不存在，无法保存。");
+      const cover = await resolveBoardCover({ ...base, nodes }, path => {
+        const image = images.find(item => item.path === path);
+        return encodeCoverThumbnail(image?.dataUrl ?? "");
+      });
+      if (o.deletedBoardIds.current.has(board.id)) return;
       let payload: BoardSavePayload = {
-        id: board.id, name: board.name, replaceManagedNodes: true, nodes, connections, viewport, thumbnailDataUrl,
+        id: board.id, name: board.name, replaceManagedNodes: true, nodes, connections, viewport, ...cover,
         expectedRevision: base.revision ?? 0
       };
       let summary: BoardSummary;
@@ -109,7 +89,7 @@ export function useBoardPersistence(options: BoardPersistenceOptions) {
           didRebase = true;
         }
       }
-      observed.current.set(board.id, { ...base, ...payload, revision: (payload.expectedRevision ?? 0) + 1, nodes: payload.nodes ?? base.nodes });
+      observed.current.set(board.id, { ...base, ...payload, revision: summary.revision ?? (payload.expectedRevision ?? 0) + 1, nodes: payload.nodes ?? base.nodes });
       if (didRebase && o.activeBoard.current?.id === board.id) {
         const saved = await api.getBoard(board.id);
         if (saved) {

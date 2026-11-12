@@ -10,7 +10,7 @@ const ipc = readFileSync(new URL("../electron/ipc.ts", import.meta.url), "utf8")
 
 describe("comic drama Agent routing", () => {
   it("uses the internal Agent stream instead of the local planner in the dedicated workspace", () => {
-    expect(promptAssistant).toContain('agentMode: assistantSurface === "comic-drama"');
+    expect(promptAssistant).toContain('agentMode: true');
     expect(host).toContain("startSceneCollaborationStream({");
     expect(workspace).not.toContain("attachAgentPlan");
     expect(workspace).not.toContain("comicDramaPlan");

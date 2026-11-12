@@ -22,6 +22,8 @@ type VersionSeparationPlacement
 } from "@/components/canvas/image-node-model";
 import { copyImageVersions,createDetachedVersionImage,extractImageVersion,separateImageVersions } from "@/components/canvas/image-versions";
 import type { SliceSelection } from "@/components/canvas/ImageSliceDialog";
+import { BoardCoverDialog } from "@/components/workbench/BoardCoverDialog";
+import { saveBoardCover } from "@/lib/board-cover";
 import { ParticleBurst,type ParticleBurstTrigger } from "@/components/canvas/ParticleBurst";
 import { getSliceResultCell } from "@/components/canvas/slice-result-layout";
 import { type GeneratedVideo } from "@/components/canvas/video-node-model";
@@ -95,7 +97,6 @@ import { getProviderMaxImageCount } from "@/lib/provider-image-count";
 import { startSceneCollaborationStream } from "@/lib/scene-collaboration-stream";
 import { isSendEnter } from "@/lib/send-on-enter";
 import { resolveEditSmartSuggestionsEnabled } from "@/lib/smart-suggestions";
-import { selectStartupBoard } from "@/lib/startup-board";
 import { generateTemplateVerification } from "@/lib/template-verification";
 import { canUseTextAgent,resolveTextProviderReadiness } from "@/lib/text-provider-readiness";
 import { reconcileRecoveredVideoCanvas } from "@/lib/video-generation-recovery";
@@ -203,9 +204,6 @@ const ComicDramaWorkspace = lazy(() =>
 );
 const EditLightbox = lazy(() =>
   import("@/components/canvas/EditLightbox").then((module) => ({ default: module.EditLightbox }))
-);
-const FeedbackWidget = lazy(() =>
-  import("@/components/feedback/FeedbackWidget").then((module) => ({ default: module.FeedbackWidget }))
 );
 const AdvancedImageEditor = lazy(() =>
   import("@/components/canvas/AdvancedImageEditor").then((module) => ({ default: module.AdvancedImageEditor }))
@@ -530,12 +528,6 @@ export default function App(): React.ReactElement {
   setPiAgentMaxTurns,
   piAgentWebSearchMaxResults,
   setPiAgentWebSearchMaxResults,
-  boardAssistantAwarenessEnabled,
-  setBoardAssistantAwarenessEnabled,
-  boardAssistantIntentSuggestionsEnabled,
-  setBoardAssistantIntentSuggestionsEnabled,
-  boardAssistantIntentSuggestionCount,
-  setBoardAssistantIntentSuggestionCount,
   memoryEnabled,
   setMemoryEnabled,
   memoryUsageLevel,
@@ -644,12 +636,13 @@ export default function App(): React.ReactElement {
   const [promptFocusNonce, setPromptFocusNonce] = useState(0);
   const [promptFocused, setPromptFocused] = useState(false);
   const [particleBurst, setParticleBurst] = useState<ParticleBurstTrigger | null>(null);
+  const [coverBoardId, setCoverBoardId] = useState<string | null>(null);
   const [boards, setBoards] = useState<BoardSummary[]>([]);
   const topLevelBoards = useMemo(() => boards.filter((board) => board.kind !== "comic-drama"), [boards]);
   const boardNameById = useMemo(() => new Map(boards.map((board) => [board.id, board.name])), [boards]);
   const [activeBoard, setActiveBoard] = useState<ActiveBoard | null>(null);
   const [shortDramaAvailable, setShortDramaAvailable] = useState(false);
-  const [libraryOpen, setLibraryOpen] = useState(readLibraryOpenPref);
+  const [libraryOpen, setLibraryOpen] = useState(true);
   // 素材库整批进场每次应用启动只播放一次；库页卸载后仍保留已播放状态。
   const assetLibraryEntrancePlayedRef = useRef(false);
   const markAssetLibraryEntrancePlayed = useCallback((): void => {
@@ -657,7 +650,7 @@ export default function App(): React.ReactElement {
   }, []);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [gallerySceneMounted, setGallerySceneMounted] = useState(false);
-  const [libraryInitialTab, setLibraryInitialTab] = useState<LibraryInitialTab | undefined>();
+  const [libraryInitialTab, setLibraryInitialTab] = useState<LibraryInitialTab | undefined>("boards");
   const [libraryInitialSceneRequest, setLibraryInitialSceneRequest] = useState<{
     id: string;
     nonce: number;
@@ -791,7 +784,6 @@ export default function App(): React.ReactElement {
   const historyOpenBeforeEditRef = useRef(false);
   const editSuggestionRequestRef = useRef(0);
   // 启动时"上次是否停留在库页"：首帧读一次，后续启动流程始终以这个快照为准。
-  const restoreLibraryOpenRef = useRef(libraryOpen);
   const startupTaskRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => () => boardDetailCacheRef.current.clear(), []);
@@ -1012,6 +1004,30 @@ export default function App(): React.ReactElement {
       }).catch(() => undefined);
     }
   });
+  const acceptBoardCover = useCallback(async (summary: BoardSummary) => {
+    boardDetailCacheRef.current.delete(summary.id);
+    setBoards(current => current.map(item => item.id === summary.id ? summary : item));
+    if (activeBoardRef.current?.id === summary.id) {
+      const detail = await getWorkbenchApi()?.getBoard(summary.id);
+      if (detail && activeBoardRef.current?.id === summary.id) observeBoard(detail);
+    }
+  }, [getWorkbenchApi, observeBoard]);
+  async function chooseBoardCover(id: string): Promise<void> {
+    try { if (activeBoardRef.current?.id === id) await persistBoard(); setCoverBoardId(id); }
+    catch (error) { reportWorkbenchError(error); }
+  }
+  async function setImageAsBoardCover(nodeId: string): Promise<void> {
+    const id = activeBoardRef.current?.id;
+    const api = getWorkbenchApi();
+    if (!id || !api) return;
+    try {
+      await persistBoard();
+      const summary = await saveBoardCover(api, id, nodeId);
+      if (summary) await acceptBoardCover(summary);
+      toast.success(translateSourceText("已设置画板封面"));
+    } catch (error) { reportWorkbenchError(error); }
+  }
+  const coverDialog = coverBoardId ? <BoardCoverDialog key={coverBoardId} boardId={coverBoardId} onClose={() => setCoverBoardId(null)} onSaved={acceptBoardCover} /> : null;
   const flushWindowBoardState = useCallback(async (): Promise<void> => {
     await Promise.all([...pendingExternalBoardSync.current]);
     // Let any layout report queued by the committed external snapshot settle before saving.
@@ -1627,7 +1643,7 @@ export default function App(): React.ReactElement {
             // focus event can arrive before the asynchronous reload finishes.
             const nodeIds = Array.isArray(detail.nodeIds)
               ? detail.nodeIds.filter((id): id is string => typeof id === "string") : [];
-            if (nodeIds.length && activeBoardRef.current?.id === boardId) {
+            if (detail.preserveView !== true && nodeIds.length && activeBoardRef.current?.id === boardId) {
               setSelectionTarget({ ids: nodeIds, nonce: Date.now() });
             }
           }
@@ -1717,13 +1733,12 @@ export default function App(): React.ReactElement {
 
       try {
         performance.mark("tuda:workspace-start");
-        // 恢复库页时立即加载其分包，并在撤下启动页前等待它就绪，避免先露出底层画板。
-        const restoredLibraryPromise = restoreLibraryOpenRef.current ? loadLibraryShell() : null;
+        // Load the home screen before removing the startup screen.
+        const startupLibraryPromise = loadLibraryShell();
         await initializeOnboardingPersistence(api);
         firstDemoStartVisitRef.current = !hasSeenDemoStart();
         const settingsPromise = api.getSettings();
         const boardsPromise = api.listBoards();
-        const boardStatePromise = api.getBoardsState();
         const commentsPromise = api.listComments().catch(() => [] as AssetComment[]);
         void refreshHistory();
 
@@ -1763,9 +1778,6 @@ export default function App(): React.ReactElement {
         setPiAgentCustomExtensionPaths(settings.piAgentCustomExtensionPaths ?? []);
         setPiAgentMaxTurns(settings.piAgentMaxTurns ?? 12);
         setPiAgentWebSearchMaxResults(settings.piAgentWebSearchMaxResults ?? 5);
-        setBoardAssistantAwarenessEnabled(settings.boardAssistantAwarenessEnabled ?? true);
-        setBoardAssistantIntentSuggestionsEnabled(settings.boardAssistantIntentSuggestionsEnabled ?? true);
-        setBoardAssistantIntentSuggestionCount(settings.boardAssistantIntentSuggestionCount ?? 3);
         setEditSmartSuggestionsPreference(settings.editSmartSuggestionsEnabled ?? true);
         setMemoryEnabled(settings.memoryEnabled ?? true);
         setMemoryUsageLevel(settings.memoryUsageLevel ?? "balanced");
@@ -1779,28 +1791,16 @@ export default function App(): React.ReactElement {
         if (active) setInput((current) => ({ ...current, model: active.model }));
         void commentsPromise.then(setComments);
 
-        // 启动进入上次打开的画板；没有记录时进第一个（主进程迁移保证至少存在一个）。
-        let [summaries, state] = await Promise.all([boardsPromise, boardStatePromise]);
+        // Start at the library. Opening a board is an explicit navigation action;
+        // startup does not load, observe or save the previously opened board.
+        let summaries = await boardsPromise;
         if (summaries.length === 0) {
           await api.createBoard("画板 1");
           summaries = await api.listBoards();
         }
-        const firstDemoStartVisit = firstDemoStartVisitRef.current;
-        let selection = selectStartupBoard(summaries, state.lastOpenedBoardId, firstDemoStartVisit);
-        if (selection.needsStarterBoard) {
-          await api.createBoard("画板 1");
-          summaries = await api.listBoards();
-          selection = selectStartupBoard(summaries, state.lastOpenedBoardId, firstDemoStartVisit);
-        }
         setBoards(summaries);
-        if (selection.target) {
-          await openBoard(selection.target.id, undefined, {
-            deferImagePreload: true,
-            keepLibraryOpen: restoreLibraryOpenRef.current
-          });
-        }
-        if (firstDemoStartVisit) markDemoStartSeen();
-        if (restoredLibraryPromise) await restoredLibraryPromise;
+        if (firstDemoStartVisitRef.current) markDemoStartSeen();
+        await startupLibraryPromise;
       } catch (error) {
         reportWorkbenchError(error);
       }
@@ -1825,10 +1825,7 @@ export default function App(): React.ReactElement {
     setActiveVideoProviderId,
     setAdvancedVideoModesEnabled,
     setBoardAssistantAgentModeEnabled,
-    setBoardAssistantAwarenessEnabled,
     setBoardAssistantEnabled,
-    setBoardAssistantIntentSuggestionCount,
-    setBoardAssistantIntentSuggestionsEnabled,
     setBoardSmartSuggestionsEnabled,
     setCanvasImageToolbarOnHover,
     setCanvasMinimapVisible,
@@ -2073,8 +2070,6 @@ export default function App(): React.ReactElement {
   changeWechatStickerExportEnabled,
   changeOnlineImageSharingEnabled,
   changeCopyImageFormat,
-  changeBoardAssistantIntentSuggestionsEnabled,
-  changeBoardAssistantAwarenessEnabled,
   changeBoardAssistantEnabled,
   changeBoardAssistantAgentModeEnabled,
   changePiAgentBuiltinTools,
@@ -2085,7 +2080,6 @@ export default function App(): React.ReactElement {
   changePiAgentCustomExtensionPaths,
   changePiAgentMaxTurns,
   changePiAgentWebSearchMaxResults,
-  changeBoardAssistantIntentSuggestionCount,
   changeEditSmartSuggestionsEnabled,
   changeMemoryEnabled,
   changeMemoryUsageLevel,
@@ -3387,6 +3381,19 @@ export default function App(): React.ReactElement {
     },
     [refreshCreditStatus, locale]
   );
+
+  const selectAgentTextProvider = useCallback(async (id: string): Promise<void> => {
+    if (!textProviders.some((provider) => provider.id === id)) return;
+    try {
+      const api = getWorkbenchApi();
+      if (!api) throw new Error("工作台连接不可用。");
+      await api.updateSettings({ activeTextProviderId: id });
+      const fresh = await api.getSettings();
+      setTextProviders(fresh.textProviders);
+      setActiveTextProviderId(fresh.activeTextProviderId);
+      setProviderKeyStatus(fresh.providerKeyStatus);
+    } catch (error) { reportWorkbenchError(error); }
+  }, [textProviders, getWorkbenchApi, reportWorkbenchError, setTextProviders, setActiveTextProviderId, setProviderKeyStatus]);
 
   const interpretCreateChat = useCallback(
     async (request: CollaborateSceneRequest, stream?: import("@/components/workbench/CreationAssistantPage").CreationAssistantStreamOptions): Promise<CollaborateSceneResult> => {
@@ -5496,6 +5503,7 @@ export default function App(): React.ReactElement {
         onSaveAsTemplate={BOARD_ONLY_MODE ? undefined : (openTemplateExtraction)}
         sourceTemplateImageIds={templateSourceImageIds}
         onOpenSourceTemplate={BOARD_ONLY_MODE ? undefined : (openImageSourceTemplate)}
+        onSetBoardCover={enterpriseStatus?.activeSpace === "enterprise" && enterpriseStatus.user?.role === "viewer" ? undefined : nodeId => void setImageAsBoardCover(nodeId)}
         onViewImageDetails={BOARD_ONLY_MODE ? undefined : (viewCanvasImageDetails)}
         onSwitchVersion={switchImageVersion}
         onSeparateVersions={separateVersions}
@@ -5555,6 +5563,7 @@ export default function App(): React.ReactElement {
       <main className="relative min-h-0 flex-1">
         <Suspense fallback={null}><CanvasRoot>
           {libraryOpen || !activeBoard ? <EmbeddedBoardFileManager
+            onChooseBoardCover={id => void chooseBoardCover(id)} onBoardCoverSaved={acceptBoardCover}
             boards={topLevelBoards} activeBoardId={activeBoard?.id} openingBoardId={openingBoardId}
             onOpenBoard={(id, origin) => void openBoard(id, origin)} onPrefetchBoard={prefetchBoard}
             onCreateBoard={folderId => void createBoardAndOpen(folderId)}
@@ -5591,6 +5600,7 @@ export default function App(): React.ReactElement {
         </DialogContent>
       </Dialog>
 
+      {coverDialog}
       <Toaster theme={effectiveTheme} position="top-center" />
     </div>;
   }
@@ -5616,7 +5626,8 @@ export default function App(): React.ReactElement {
           onCancel={cancelGenerationConfirmation}
           onConfirm={confirmGenerationSubmission}
         />
-        <Toaster theme={effectiveTheme} position="top-center" />
+        {coverDialog}
+      <Toaster theme={effectiveTheme} position="top-center" />
       </div>
     );
   }
@@ -5918,7 +5929,7 @@ export default function App(): React.ReactElement {
         }} /></Suspense> : null}
         {/* 隐藏时保留 Dock 实例，避免丢失草稿、助手会话和进行中的请求。 */}
         <div hidden={historyOpen} data-prompt-dock-container="">
-        {!advancedEditOpen ? <Suspense fallback={null}><PromptDock
+        {activeBoard && !advancedEditOpen ? <Suspense fallback={null}><PromptDock
           boardId={activeBoard?.id ?? ""}
           boardNameById={boardNameById}
           input={input}
@@ -5936,6 +5947,9 @@ export default function App(): React.ReactElement {
           creditLoading={creditLoading}
           officialRequiredCredits={Math.max(1, input.n) * IMAGE_CREDIT_COST}
           onSelectProvider={selectActiveProvider}
+          textProviders={textProviders}
+          activeTextProviderId={activeTextProviderId}
+          onSelectTextProvider={(id) => void selectAgentTextProvider(id)}
           comicDramaSnapshot={comicDramaSnapshot}
           comicDramaSelectedNodeIds={selectedCanvasNodeIds}
           onApplyComicDramaPlan={applyComicDramaPlan}
@@ -5947,9 +5961,6 @@ export default function App(): React.ReactElement {
              boardAssistantAgentModeEnabled && canUseTextAgent(activeTextProvider, providerKeyStatus)
            }
            onAssistantAgentModeEnabledChange={changeBoardAssistantAgentModeEnabled}
-          assistantAwarenessEnabled={boardAssistantEnabled && boardAssistantAwarenessEnabled}
-          assistantIntentSuggestionsEnabled={boardAssistantEnabled && boardAssistantIntentSuggestionsEnabled}
-          assistantIntentSuggestionCount={boardAssistantIntentSuggestionCount}
           editSmartSuggestionsEnabled={editSmartSuggestionsEnabled}
           memoryEnabled={memoryEnabled}
           memoryUsageLevel={memoryUsageLevel}
@@ -6068,11 +6079,9 @@ export default function App(): React.ReactElement {
           {libraryOpen ? (
             <Suspense key="library" fallback={null}>
               <LibraryShell
-                imageProviders={providers}
-                activeImageProviderId={activeProviderId}
-                activeImageModel={input.model}
-                activeVideoModelLabel={(videoProviders.find((provider) => provider.id === activeVideoProviderId) ?? videoProviders[0])?.model}
-                onSelectImageModel={selectActiveProvider}
+                textProviders={textProviders}
+                activeTextProviderId={activeTextProviderId}
+                onSelectTextProvider={(id) => void selectAgentTextProvider(id)}
                 initialTab={libraryInitialTab}
                 initialSceneRequest={libraryInitialSceneRequest}
                 playAssetLibraryEntrance={!assetLibraryEntrancePlayedRef.current}
@@ -6290,12 +6299,6 @@ export default function App(): React.ReactElement {
              onPiAgentMaxTurnsChange={changePiAgentMaxTurns}
              piAgentWebSearchMaxResults={piAgentWebSearchMaxResults}
              onPiAgentWebSearchMaxResultsChange={changePiAgentWebSearchMaxResults}
-            boardAssistantAwarenessEnabled={boardAssistantAwarenessEnabled}
-            onBoardAssistantAwarenessEnabledChange={changeBoardAssistantAwarenessEnabled}
-            boardAssistantIntentSuggestionsEnabled={boardAssistantIntentSuggestionsEnabled}
-            onBoardAssistantIntentSuggestionsEnabledChange={changeBoardAssistantIntentSuggestionsEnabled}
-            boardAssistantIntentSuggestionCount={boardAssistantIntentSuggestionCount}
-            onBoardAssistantIntentSuggestionCountChange={changeBoardAssistantIntentSuggestionCount}
             editSmartSuggestionsEnabled={editSmartSuggestionsEnabled}
             editSmartSuggestionsAvailable={editSmartSuggestionsAvailable}
             onEditSmartSuggestionsEnabledChange={changeEditSmartSuggestionsEnabled}
@@ -6482,30 +6485,8 @@ export default function App(): React.ReactElement {
         </Suspense>
       ) : null}
 
+      {coverDialog}
       <Toaster theme={effectiveTheme} position="top-center" />
-      <Suspense fallback={null}>
-        <FeedbackWidget
-          boardId={activeBoard?.id}
-          boardName={activeBoard?.name}
-          view={
-            settingsOpen
-              ? "settings"
-              : libraryOpen
-                ? "library"
-                : galleryOpen
-                  ? "gallery"
-                  : imageDetailsTargetId
-                    ? "asset-detail"
-                    : editTargetId
-                      ? "image-editor"
-                      : sliceTargetId
-                        ? "image-slicing"
-                        : activeBoard
-                          ? "board"
-                          : "home"
-          }
-        />
-      </Suspense>
       <AnimatePresence>
         {activeTour ? (
           <Suspense fallback={null}>
@@ -6593,14 +6574,6 @@ function CommentComposer({
       </div>
     </div>
   );
-}
-
-function readLibraryOpenPref(): boolean {
-  try {
-    return (localStorage.getItem("tuda.libraryOpen") ?? localStorage.getItem("ir.libraryOpen")) === "1";
-  } catch {
-    return false;
-  }
 }
 
 function readFileAsDataUrl(file: File): Promise<string> {

@@ -2,17 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 import { Sub2ApiImageProvider } from "../electron/providers/sub2api.js";
 import {
   analyzeSliceSubjectsWith,
-  buildAssistantIntentSuggestionMessages,
-  buildBlankCreativeExplorationCues,
   buildEditSuggestionMessages,
   buildSceneCollaborationMessages,
   collaborateSceneStreamWith,
   extractStreamingSceneFields,
   collaborateSceneWith,
   OpenAICompatibleTextTransport,
-  parseAssistantIntentSuggestions,
   shouldReviewSceneCollaboration,
-  suggestAssistantIntentsWith,
   suggestImageEditsWith
 } from "../electron/providers/text-assistant.js";
 import type { TextProviderConfig } from "../shared/types.js";
@@ -83,62 +79,6 @@ describe("Sub2ApiImageProvider", () => {
     ]);
   });
 
-  it("uses a separate agent prompt to generate the configured number of contextual intent suggestions", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
-      choices: [{
-        message: {
-          content: '{"suggestions":["把主体改成玻璃材质","保留构图并换成夜景","再给我三个不同风格方向","直接生成两张"]}'
-        }
-      }]
-    })));
-    const transport = makeTransport(fetchMock);
-    const request = {
-      assistantSurface: "canvas-prompt" as const,
-      conversation: [{ role: "assistant" as const, content: "我可以继续完善这个画面。" }],
-      currentFields: [{ label: "当前提示词", value: "桌面上的白色台灯" }],
-      referenceImageCount: 1,
-      suggestionCount: 4 as const
-    };
-
-    const messages = buildAssistantIntentSuggestionMessages(request);
-    expect(String(messages[0].content)).toContain("独立的用户意图建议 agent");
-    expect(String(messages[0].content)).toContain("恰好 4 条");
-    expect(JSON.parse(String((messages[1].content as Array<{ type: string; text?: string }>)[0]?.text))).toMatchObject({
-      assistantSurface: "canvas-prompt",
-      referenceImageCount: 1,
-      suggestionCount: 4
-    });
-
-    await expect(suggestAssistantIntentsWith(transport, request)).resolves.toEqual([
-      "把主体改成玻璃材质",
-      "保留构图并换成夜景",
-      "再给我三个不同风格方向",
-      "直接生成两张"
-    ]);
-  });
-
-  it("passes reference images to the intent suggestion agent for visual grounding", () => {
-    const messages = buildAssistantIntentSuggestionMessages({
-      assistantSurface: "canvas-prompt",
-      conversation: [],
-      currentFields: [],
-      referenceImages: [{
-        name: "elephant.png",
-        mimeType: "image/png",
-        dataBase64: "aW1hZ2UtYnl0ZXM="
-      }],
-      referenceImageCount: 1
-    });
-
-    expect(String(messages[0].content)).toContain("必须先观察图片");
-    expect(messages[1].content).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        type: "image_url",
-        image_url: expect.objectContaining({ url: "data:image/png;base64,aW1hZ2UtYnl0ZXM=" })
-      })
-    ]));
-  });
-
   it("passes an explicit template factory entry intent to the collaboration agent", () => {
     const messages = buildSceneCollaborationMessages({
       instruction: "检查当前模板哪些规则还不清楚",
@@ -152,84 +92,6 @@ describe("Sub2ApiImageProvider", () => {
     const task = JSON.parse(String((messages[1].content as Array<{ text: string }>)[0]?.text));
     expect(task.templateIntent).toBe("audit");
     expect(String(messages[0].content)).toContain("本轮入口意图为“审查规则”");
-  });
-
-  it("defaults intent suggestions to three items", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
-      choices: [{
-        message: {
-          content: '{"suggestions":["建议一","建议二","建议三","建议四","建议五"]}'
-        }
-      }]
-    })));
-    const transport = makeTransport(fetchMock);
-
-    await expect(suggestAssistantIntentsWith(transport, {
-      assistantSurface: "canvas-prompt",
-      conversation: [],
-      currentFields: [],
-      referenceImageCount: 0
-    })).resolves.toEqual(["建议一", "建议二", "建议三"]);
-  });
-
-  it("varies blank-canvas inspiration from a per-request seed", () => {
-    const firstCues = buildBlankCreativeExplorationCues("blank-start-a");
-    const secondCues = buildBlankCreativeExplorationCues("blank-start-b");
-    expect(firstCues).toHaveLength(3);
-    expect(secondCues).toHaveLength(3);
-    expect(secondCues).not.toEqual(firstCues);
-
-    const messages = buildAssistantIntentSuggestionMessages({
-      assistantSurface: "canvas-prompt",
-      conversation: [{ role: "assistant", content: "告诉我你想生成什么画面。" }],
-      currentFields: [],
-      referenceImageCount: 0,
-      variationSeed: "blank-start-a"
-    });
-    expect(String(messages[0].content)).toContain("本轮随机创作起点");
-    expect(String(messages[0].content)).toContain("每条建议只建立一个清晰画面");
-    expect(String(messages[0].content)).toContain("不要把多个无关物件并列成清单");
-    expect(JSON.parse(String((messages[1].content as Array<{ text?: string }>)[0]?.text)).explorationCues).toEqual(firstCues);
-  });
-
-  it("keeps template follow-up suggestions focused on reusable template decisions", () => {
-    const messages = buildAssistantIntentSuggestionMessages({
-      assistantSurface: "scene-template",
-      conversation: [{ role: "assistant", content: "我已经整理了主体和构图字段。" }],
-      currentFields: [{ label: "主体", value: "【商品主体】" }],
-      referenceImageCount: 1,
-      templateScenario: "design-language"
-    });
-
-    expect(String(messages[0].content)).toContain("当前界面正在共创可复用模板");
-    expect(String(messages[0].content)).toContain("模板用途、可变字段、固定约束、参考图拆解、推荐验证示例和生成后的模板复盘");
-    expect(String(messages[0].content)).toContain("不要把建议写成只服务当前单张图片");
-    expect(String(messages[0].content)).toContain("缺失视觉维度");
-    expect(JSON.parse(String((messages[1].content as Array<{ text?: string }>)[0]?.text)).templateScenario).toBe("design-language");
-  });
-
-  it("recommends concrete completion and validation tasks when using an existing template", () => {
-    const messages = buildAssistantIntentSuggestionMessages({
-      assistantSurface: "scene-template",
-      templateWorkflow: "use",
-      conversation: [{ role: "assistant", content: "请告诉我这次要生成什么。" }],
-      currentFields: [
-        { label: "模板规则", value: "保持固定构图与服装造型" },
-        { label: "人物主体", value: "【人物主体】" },
-        { label: "场记板文案", value: "【场记板文案】" }
-      ],
-      referenceImageCount: 0
-    });
-
-    const systemPrompt = String(messages[0].content);
-    expect(systemPrompt).toContain("使用一个已经存在的模板完成本次生成");
-    expect(systemPrompt).toContain("补全具体内容");
-    expect(systemPrompt).toContain("2 到 3 组主体、文案或内容有明显差异的验证方案");
-    expect(systemPrompt).toContain("是否与模板固定规则冲突");
-    expect(systemPrompt).toContain("不要建议用户询问模板会保留什么");
-    expect(JSON.parse(String((messages[1].content as Array<{ text?: string }>)[0]?.text))).toMatchObject({
-      templateWorkflow: "use"
-    });
   });
 
   it("uses attached images to fill an existing template instead of redesigning it", () => {
@@ -286,55 +148,6 @@ describe("Sub2ApiImageProvider", () => {
     expect(String(messages[0].content)).toContain("禁止把规则合并成");
     expect(JSON.parse(String((messages[1].content as Array<{ text: string }>)[0].text)).templateScenario)
       .toBe("design-language");
-  });
-
-  it("treats a manual refresh as a divergent exploration round", async () => {
-    const messages = buildAssistantIntentSuggestionMessages({
-      assistantSurface: "canvas-prompt",
-      conversation: [],
-      currentFields: [{ label: "当前提示词", value: "月夜下的仙山宫殿" }],
-      referenceImageCount: 0,
-      suggestionMode: "divergent",
-      previousSuggestions: [
-        "加入一位御剑飞行的主角",
-        "改成月夜下的仙山宫殿",
-        "强化云海和月光氛围"
-      ]
-    });
-
-    expect(String(messages[0].content)).toContain("新建议必须切换核心创作方向");
-    expect(String(messages[0].content)).toContain("不能只是同义改写、参数微调、细节润色");
-    expect(JSON.parse(String((messages[1].content as Array<{ text?: string }>)[0]?.text))).toMatchObject({
-      suggestionMode: "divergent",
-      previousSuggestions: [
-        "加入一位御剑飞行的主角",
-        "改成月夜下的仙山宫殿",
-        "强化云海和月光氛围"
-      ]
-    });
-
-    const complete = vi.fn().mockResolvedValue('{"suggestions":["改成微观昆虫视角","尝试水墨长卷构图","加入时间循环叙事"]}');
-    await suggestAssistantIntentsWith({
-      complete,
-      completeStream: vi.fn()
-    }, {
-      assistantSurface: "canvas-prompt",
-      conversation: [],
-      currentFields: [],
-      suggestionMode: "divergent",
-      previousSuggestions: ["加入御剑主角"]
-    });
-    expect(complete).toHaveBeenCalledWith(
-      expect.any(Array),
-      expect.objectContaining({ temperature: 0.95, maxTokens: 512 })
-    );
-  });
-
-  it("validates and caps intent suggestions at five unique items", () => {
-    expect(parseAssistantIntentSuggestions(JSON.stringify({
-      suggestions: ["建议一", "建议二", "建议三", "建议四", "建议五", "建议六", "建议一"]
-    }))).toEqual(["建议一", "建议二", "建议三", "建议四", "建议五"]);
-    expect(() => parseAssistantIntentSuggestions('{"suggestions":["只有一条"]}')).toThrow(/不足 3 条/);
   });
 
   it("treats retrieved memory as bounded untrusted context", () => {

@@ -33,9 +33,6 @@ function dataUrlToAssistantReference(dataUrl: string, name: string): SceneAssist
 type AssistantInstructionOptions = Pick<ReturnType<typeof useAssistantSessionState>,
   | "assistantStreaming"
   | "assistantActivity"
-  | "assistantIntentSuggestionRequestRef"
-  | "setAssistantIntentSuggestions"
-  | "setAssistantIntentSuggestionsLoading"
   | "assistantRequestVersionRef"
   | "setAssistantInteraction"
   | "setAssistantMessages"
@@ -56,6 +53,8 @@ type AssistantInstructionOptions = Pick<ReturnType<typeof useAssistantSessionSta
   onOpenSettings: () => void;
   boardId: string;
   assistantAgentModeEnabled?: boolean;
+  activeTextProviderId?: string;
+  selectedSkillPath?: string;
   onAssistantCreditsUsed?: () => void;
   editTarget: { path: string; dataUrl: string } | null;
   activeScene: SceneDefinition | null;
@@ -80,9 +79,6 @@ type AssistantInstructionOptions = Pick<ReturnType<typeof useAssistantSessionSta
 export function createAssistantInstructionSender({
   assistantStreaming,
   assistantActivity,
-  assistantIntentSuggestionRequestRef,
-  setAssistantIntentSuggestions,
-  setAssistantIntentSuggestionsLoading,
   assistantRequestVersionRef,
   setAssistantInteraction,
   setAssistantMessages,
@@ -102,6 +98,8 @@ export function createAssistantInstructionSender({
   onOpenSettings,
   boardId,
   assistantAgentModeEnabled,
+  activeTextProviderId,
+  selectedSkillPath,
   onAssistantCreditsUsed,
   editTarget,
   activeScene,
@@ -137,9 +135,6 @@ export function createAssistantInstructionSender({
       return;
     }
 
-    assistantIntentSuggestionRequestRef.current += 1;
-    setAssistantIntentSuggestions([]);
-    setAssistantIntentSuggestionsLoading(false);
 
     const requestVersion = assistantRequestVersionRef.current + 1;
     assistantRequestVersionRef.current = requestVersion;
@@ -181,18 +176,18 @@ export function createAssistantInstructionSender({
         const targetReference = dataUrlToAssistantReference(targetDataUrl, "当前编辑目标图");
         if (!targetReference) throw new Error("无法读取当前编辑图片，请重新打开图片后重试。");
         referenceImages = [
-          targetReference,
-          ...input.referenceImages.slice(0, 3).map(({ name, mimeType, dataBase64 }) => ({
+          { ...targetReference, imagePath: editTarget.path },
+          ...input.referenceImages.slice(0, 3).map(({ name, mimeType, dataBase64, sourceNodeId }) => ({
             name,
             mimeType,
-            dataBase64
+            dataBase64, sourceNodeId
           }))
         ];
       } else {
-        referenceImages = input.referenceImages.slice(0, 4).map(({ name, mimeType, dataBase64 }) => ({
+        referenceImages = input.referenceImages.slice(0, 4).map(({ name, mimeType, dataBase64, sourceNodeId }) => ({
           name,
           mimeType,
-          dataBase64
+          dataBase64, sourceNodeId
         }));
       }
 
@@ -214,10 +209,10 @@ export function createAssistantInstructionSender({
           ...buildCurrentAssistantFields(),
           ...(fusionPromptContext ? [{ label: "当前提示词上下文", value: fusionPromptContext }] : [])
         ],
-        generationSettings: {
-          count: input.n,
-          maxCount: maxImageCount
-        },
+        textProviderId: activeTextProviderId,
+        selectedSkillPath,
+        generationSettings: assistantSurface === "comic-drama"
+          ? { count: input.n, maxCount: maxImageCount } : { count: 1, maxCount: 1 },
         clarificationRounds: assistantClarificationRoundsRef.current,
         conversation: assistantMessages
           .filter((message) => !message.streaming && message.tone !== "error" && message.content.trim())
@@ -233,14 +228,21 @@ export function createAssistantInstructionSender({
           ...(input.sceneId ? { sceneId: input.sceneId } : {})
         },
         workflowMode: assistantSurface === "canvas-edit" ? "edit" : input.workflowMode,
-        agentMode: assistantSurface === "comic-drama"
-          || (assistantAgentModeEnabled && assistantSurface === "canvas-prompt")
+        creationWorkflow: assistantSurface !== "comic-drama",
+        agentMode: true
       } satisfies CollaborateSceneRequest;
 
       assistantStreamRef.current = startSceneCollaborationStream(request, createAssistantStreamHandlers({
         assistantRequestVersionRef, setAssistantMessages, setAssistantActivity, assistantBackgroundRequestRef, setAssistantHasUnreadResult, setAssistantInteraction, setAssistantValue, setAssistantStreaming, assistantStreamRef, requestVersion, assistantMessageId, instruction, assistantOpenRef, onAssistantCreditsUsed, t, onResult: (result) => {
           if (assistantSurface === "comic-drama") receiveComicDramaAgentResult(result, assistantMessageId, instruction);
-          else receivePromptAssistantResult(result, assistantMessageId, previous);
+          else {
+            // The Agent executes operations through tools. Final text is display-only.
+            setAssistantMessages((current) => current.map((message) => message.id === assistantMessageId
+              ? { ...message, content: result.message, streaming: false } : message));
+            setAssistantValue("");
+            setAssistantStreaming(false);
+            assistantStreamRef.current = null;
+          }
         }
       }));
     } catch (error) {

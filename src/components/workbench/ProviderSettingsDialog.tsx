@@ -130,12 +130,6 @@ export function ProviderSettingsDialog({
   onPiAgentMaxTurnsChange,
   piAgentWebSearchMaxResults,
   onPiAgentWebSearchMaxResultsChange,
-  boardAssistantAwarenessEnabled,
-  onBoardAssistantAwarenessEnabledChange,
-  boardAssistantIntentSuggestionsEnabled,
-  onBoardAssistantIntentSuggestionsEnabledChange,
-  boardAssistantIntentSuggestionCount,
-  onBoardAssistantIntentSuggestionCountChange,
   editSmartSuggestionsEnabled,
   editSmartSuggestionsAvailable,
   onEditSmartSuggestionsEnabledChange,
@@ -872,54 +866,6 @@ export function ProviderSettingsDialog({
                       description={uiText("在画板输入区显示 AI 助手入口，并启用对应快捷键。")}
                       control={<Switch checked={boardAssistantEnabled} onCheckedChange={onBoardAssistantEnabledChange} />}
                     />
-                    <SettingRow
-                      interactive
-                      disabled={!boardAssistantEnabled}
-                      title={uiText("自动理解输入")}
-                      description={uiText("添加引用或输入文字后，自动识别上下文、解析意图并给出建议。")}
-                      control={
-                        <Switch
-                          checked={boardAssistantAwarenessEnabled}
-                          disabled={!boardAssistantEnabled}
-                          onCheckedChange={onBoardAssistantAwarenessEnabledChange}
-                        />
-                      }
-                    />
-                    <SettingRow
-                      interactive
-                      disabled={!boardAssistantEnabled}
-                      title={uiText("后续问题推荐")}
-                      description={uiText("在助手对话底部显示可继续追问的推荐问题。")}
-                      control={
-                        <Switch
-                          checked={boardAssistantIntentSuggestionsEnabled}
-                          disabled={!boardAssistantEnabled}
-                          onCheckedChange={onBoardAssistantIntentSuggestionsEnabledChange}
-                        />
-                      }
-                    />
-                    <SettingRow
-                      disabled={!boardAssistantEnabled || !boardAssistantIntentSuggestionsEnabled}
-                      title={uiText("推荐问题数量")}
-                      description={uiText("控制每次显示的后续问题数量。")}
-                    >
-                      <ChoiceGrid
-                        columns={3}
-                        disabled={!boardAssistantEnabled || !boardAssistantIntentSuggestionsEnabled}
-                        ariaLabel={uiText("推荐问题数量")}
-                        value={String(boardAssistantIntentSuggestionCount) as "3" | "4" | "5"}
-                        onChange={(value) => {
-                          onBoardAssistantIntentSuggestionCountChange(
-                            Number(value) as AssistantIntentSuggestionCount
-                          );
-                        }}
-                        options={[
-                          { value: "3", title: uiText("3 条"), description: uiText("默认") },
-                          { value: "4", title: uiText("4 条") },
-                          { value: "5", title: uiText("5 条"), description: uiText("最多") }
-                        ]}
-                      />
-                    </SettingRow>
                   </SettingsGroup>
 
                   <SettingsGroup title={uiText("图片编辑")}>

@@ -11,6 +11,10 @@ on:
         type: choice
         options: [next, latest]
         default: next
+      desktop:
+        description: Build and verify the Windows desktop and npm installer payloads
+        type: boolean
+        default: false
       verify_only:
         description: Verify an existing publication without publishing again
         type: boolean
@@ -34,8 +38,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    timeout-minutes: 40
     steps:
+      - run: git config --global core.autocrlf false
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -55,30 +60,141 @@ jobs:
       - run: node scripts/test-board-plugin.mjs
       - run: npm pack ./cli --pack-destination .
       - uses: actions/upload-artifact@v4
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && !inputs.desktop
         with:
           name: tuda-verified-npm
           path: petercjl-tuda-*.tgz
           if-no-files-found: error
+      - uses: pnpm/action-setup@v4
+        if: runner.os == 'Windows' && inputs.desktop
+      - name: Install desktop build dependencies
+        shell: pwsh
+        if: runner.os == 'Windows' && inputs.desktop
+        run: |
+          pnpm install --frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pnpm exec install-electron
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pnpm plugins:build
+      - name: Verify the complete Windows source
+        shell: pwsh
+        if: runner.os == 'Windows' && inputs.desktop
+        run: |
+          pnpm typecheck
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pnpm exec vitest run --maxWorkers=4 --minWorkers=1
+      - name: Build Windows with company deployment defaults
+        shell: pwsh
+        if: runner.os == 'Windows' && inputs.desktop
+        env:
+          TUDA_COMPANY_DEFAULTS_JSON: ${{ secrets.TUDA_COMPANY_DEFAULTS_JSON }}
+        run: |
+          pnpm release --arch x64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $prepared = node scripts/prepare-company-defaults.mjs --staging-root "$env:RUNNER_TEMP/tuda-expected-defaults" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "TUDA_E2E_COMPANY_DEFAULTS_FILE=$($prepared.file)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Install the actual Windows release
+        shell: pwsh
+        if: runner.os == 'Windows' && inputs.desktop
+        env:
+          PACKAGE_VERSION: ${{ inputs.release }}
+        run: |
+          $target = Join-Path $env:RUNNER_TEMP 'Tuda-installed'
+          if (Test-Path $target) { throw 'Install target exists' }
+          $installer = Join-Path $PWD "release/Tuda-$env:PACKAGE_VERSION-x64.exe"
+          $process = Start-Process $installer -ArgumentList @('/S', '/CURRENTUSER', "/D=$target") -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw 'Installer failed' }
+          "TUDA_E2E_ELECTRON=$target/Tuda.exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          'TUDA_E2E_PACKAGED=1' | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Verify installed Pi runtime, defaults and workspace persistence
+        if: runner.os == 'Windows' && inputs.desktop
+        run: node scripts/playwright-electron-smoke.mjs
+      - name: Verify standalone company connection defaults
+        if: runner.os == 'Windows' && inputs.desktop
+        env:
+          TUDA_E2E_STANDALONE: '1'
+        run: node scripts/playwright-electron-smoke.mjs
+      - name: Prepare the verified desktop npm binding
+        shell: pwsh
+        if: runner.os == 'Windows' && inputs.desktop
+        run: |
+          node scripts/prepare-release-manifest.mjs --arch x64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pnpm build:cli
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/test-cli-package.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm pack ./cli --pack-destination release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (Test-Path release/release-manifest.json) { throw 'Manifest target exists' }
+          Copy-Item cli/release-manifest.json release/release-manifest.json
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Windows' && inputs.desktop
+        with:
+          name: tuda-verified-desktop
+          if-no-files-found: error
+          path: |
+            release/*.exe
+            release/*.tgz
+            release/release-manifest.json
+            release/npm-payloads-*/*.tgz
+      - uses: actions/upload-artifact@v4
+        if: always() && runner.os == 'Windows' && inputs.desktop
+        with:
+          name: tuda-windows-evidence
+          path: |
+            output/package-size/*.json
+            output/playwright/tuda-smoke-*/**
   publish:
     if: ${{ always() && (inputs.verify_only || needs.verify.result == 'success') }}
     needs: verify
-    timeout-minutes: 20
+    timeout-minutes: 35
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
       - run: npm install --global npm@11
       - uses: actions/download-artifact@v4
-        if: ${{ !inputs.verify_only }}
+        if: ${{ !inputs.verify_only && !inputs.desktop }}
         with:
           name: tuda-verified-npm
           path: candidate
+      - uses: actions/download-artifact@v4
+        if: ${{ !inputs.verify_only && inputs.desktop }}
+        with:
+          name: tuda-verified-desktop
+          path: candidate
+      - name: Publish and verify immutable Windows payloads through OIDC
+        if: ${{ !inputs.verify_only && inputs.desktop }}
+        env:
+          PACKAGE_VERSION: ${{ inputs.release }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          INSTALLER="$PWD/candidate/Tuda-$PACKAGE_VERSION-x64.exe"
+          MANIFEST="$PWD/candidate/release-manifest.json"
+          TARBALL="$PWD/candidate/petercjl-tuda-$PACKAGE_VERSION.tgz"
+          node -e 'const f=require("fs"),c=require("crypto"),m=JSON.parse(f.readFileSync(process.argv[1])),b=f.readFileSync(process.argv[2]);if(c.createHash("sha256").update(b).digest("hex")!==m.installers[0].sha256||b.length!==m.installers[0].fileSize)throw Error("Installer integrity mismatch")' "$MANIFEST" "$INSTALLER"
+          mkdir candidate-metadata
+          tar -xzf "$TARBALL" -C candidate-metadata
+          node -e 'const p=require("./candidate-metadata/package/package.json"),m=require(process.argv[1]);if(JSON.stringify(p.tudaRelease)!==JSON.stringify(m))throw Error("Release binding mismatch")' "$MANIFEST"
+          while IFS= read -r -d '' PAYLOAD; do
+            PAYLOAD_VERSION=$(tar -xOf "$PAYLOAD" package/package.json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).version))')
+            if npm view "@petercjl/tuda@$PAYLOAD_VERSION" version >/dev/null 2>&1; then
+              EXPECTED_INTEGRITY=$(npm view "@petercjl/tuda@$PAYLOAD_VERSION" dist.integrity --json)
+              EXPECTED_INTEGRITY="$EXPECTED_INTEGRITY" node -e 'const f=require("fs"),c=require("crypto");if(JSON.parse(process.env.EXPECTED_INTEGRITY)!=="sha512-"+c.createHash("sha512").update(f.readFileSync(process.argv[1])).digest("base64"))throw Error("Existing immutable payload differs")' "$PAYLOAD"
+            else
+              npm publish "$PAYLOAD" --access public --provenance --tag payload
+            fi
+          done < <(find candidate -name '*-payload.*.tgz' -type f -print0)
+          node scripts/verify-npm-release.mjs "$MANIFEST"
       - name: Publish verified package with OIDC
         if: ${{ !inputs.verify_only }}
         env:

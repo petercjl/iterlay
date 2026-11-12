@@ -626,7 +626,7 @@ describe("AI assistant composer", () => {
 });
 
 describe("AI assistant i18n", () => {
-  it("renders its default chrome and loading state in English", async () => {
+  it("renders its default controls in English", async () => {
     const container = document.createElement("div");
     document.body.append(container);
     const root = createRoot(container);
@@ -636,8 +636,6 @@ describe("AI assistant i18n", () => {
         variant: "floating",
         messages: [],
         value: "",
-        intentSuggestionsEnabled: true,
-        intentSuggestionsLoading: true,
         onValueChange: vi.fn(),
         onSubmit: vi.fn(),
         onStop: vi.fn(),
@@ -646,7 +644,7 @@ describe("AI assistant i18n", () => {
     });
 
     expect(container.textContent).toContain("Template Copilot");
-    expect(container.textContent).toContain("Generating next-step suggestions…");
+    expect(container.textContent).not.toContain("Generating next-step suggestions…");
     expect(container.querySelector("textarea")?.getAttribute("placeholder")).toBe("Keep describing, or ask the assistant to refine it…");
     expect(container.querySelector('[aria-label="Send a message to the AI assistant"]')).not.toBeNull();
     expect(container.querySelector('[aria-label="Close AI assistant"]')).not.toBeNull();

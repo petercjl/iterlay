@@ -53,7 +53,7 @@ export function listWorkspaceTools(): JsonObject[] {
         tool("list_boards", "List Tuda boards."),
         tool("resolve_generation_board", "Resolve the configured CLI default board, or reuse/create CLI 创作 when unset. An explicit boardId takes priority. Missing configured boards fail before generation.", { boardId: stringField("Optional target board ID") }),
         tool("get_active_board", "Read the board currently active in the Tuda workspace, if any."),
-        tool("get_board", "Read a board including its nodes and image URLs.", { boardId: stringField("Board ID") }, ["boardId"]),
+        tool("get_board", "Read a board with complete nodes, text, revision and asset URLs. UI cover thumbnail bytes are omitted.", { boardId: stringField("Board ID") }, ["boardId"]),
         tool("get_board_layout", "Inspect a board's rendered bounds and report overlapping image nodes.", { boardId: stringField("Board ID") }, ["boardId"]),
         tool("open_board", "Open a board in Tuda without changing its viewport.", { boardId: stringField("Board ID") }, ["boardId"]),
         tool("fit_board_view", "Open a board in Tuda and fit all of its image nodes into the visible canvas.", { boardId: stringField("Board ID") }, ["boardId"]),
@@ -110,8 +110,13 @@ export function listWorkspaceTools(): JsonObject[] {
 
 export function buildToolContent(result: unknown): ToolContent[] {
   if (!isRecord(result)) return [{ type: "text", text: JSON.stringify(result) }];
-  const imageDataUrls = Array.isArray(result.previewImageDataUrls) ? result.previewImageDataUrls : [];
+  const imageDataUrls = [...(Array.isArray(result.previewImageDataUrls) ? result.previewImageDataUrls : [])];
   const summary = { ...result };
+  if (typeof result.dataUrl === "string" && parseImageDataUrl(result.dataUrl)) {
+    imageDataUrls.push(result.dataUrl);
+    delete summary.dataUrl;
+    summary.imageAvailable = true;
+  }
   delete summary.previewImageDataUrls;
   const content: ToolContent[] = [{ type: "text", text: JSON.stringify(summary) }];
   for (const value of imageDataUrls) {

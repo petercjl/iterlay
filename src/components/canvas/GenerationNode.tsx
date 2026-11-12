@@ -211,6 +211,7 @@ function GenerationNodeComponent({ id, data, selected }: NodeProps): React.React
       onPointerEnter={connectionPoints.showConnectionPoints}
       onPointerLeave={connectionPoints.scheduleConnectionPointsHide}
     >
+      <Handle type="source" position={Position.Right} id="system-output" className="canvas-programmatic-handle" />
       <NodeHandles nodeId={id} onConnectionHandlePointerDown={onConnectionHandlePointerDown} />
       <header className="canvas-workflow-node__header">
         <span className="canvas-workflow-node__icon canvas-workflow-node__icon--generation">

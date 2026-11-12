@@ -20,6 +20,8 @@ jobs:
       - run: npm ci --prefix cli
       - run: pnpm exec install-electron
       - run: pnpm release --arch x64
+        env:
+          TUDA_COMPANY_DEFAULTS_JSON: ${{ secrets.TUDA_COMPANY_DEFAULTS_JSON }}
       - run: node scripts/test-cli-package.mjs
       - run: node scripts/playwright-electron-smoke.mjs
       - uses: actions/upload-artifact@v4

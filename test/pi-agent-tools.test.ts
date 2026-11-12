@@ -2,6 +2,15 @@ import { describe, expect, it, vi } from "vitest";
 import { createTudaAgentTools } from "../electron/pi-agent-tools.js";
 
 describe("Tuda Pi Agent tools", () => {
+  it("returns managed image pixels as visual tool content rather than base64 text", async () => {
+    const bridge = vi.fn(async () => ({ dataUrl: "data:image/png;base64,aW1hZ2U=" }));
+    const tool = createTudaAgentTools("/tmp/tuda", {}, bridge).find((tool) => tool.name === "read_asset")!;
+    const result = await tool.execute("read", { path: "managed/image.png" });
+    expect(result.content).toEqual([
+      { type: "text", text: JSON.stringify({ imageAvailable: true }) },
+      { type: "image", mimeType: "image/png", data: "aW1hZ2U=" }
+    ]);
+  });
   it("exposes the complete Tuda workspace tool catalog", () => {
     const tools = createTudaAgentTools("/tmp/tuda", {}, vi.fn());
     expect(tools.map((tool) => tool.name)).toEqual(expect.arrayContaining([

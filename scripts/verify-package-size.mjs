@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { access, lstat, mkdir, readdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { parseCompanyDefaults } from "./prepare-company-defaults.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 const argument = (name) => {
@@ -13,6 +16,13 @@ const reportPath = path.resolve(argument("--report") ?? path.join(root, "output/
 const isMacApp = appPath.endsWith(".app");
 const resources = path.join(appPath, isMacApp ? "Contents/Resources" : "resources");
 const asarPath = path.join(resources, "app.asar");
+const expectedDefaults = argument("--company-defaults");
+if (expectedDefaults) {
+  const expected = await readFile(expectedDefaults);
+  const installed = await readFile(path.join(resources, "company-defaults.json"));
+  parseCompanyDefaults(JSON.parse(installed.toString("utf8")));
+  assert.equal(createHash("sha256").update(installed).digest("hex"), createHash("sha256").update(expected).digest("hex"), "Company deployment defaults must be included in the packaged resources");
+}
 // Resolve through electron-builder's declared dependency rather than relying on hoisting.
 const builderRequire = createRequire(import.meta.resolve("electron-builder/package.json"));
 const appBuilderRequire = createRequire(builderRequire.resolve("app-builder-lib/package.json"));

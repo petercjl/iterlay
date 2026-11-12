@@ -1,3 +1,5 @@
+import { AgentSkillPicker } from "./AgentSkillPicker";
+import { TextModelPicker } from "./TextModelPicker";
 import "../assistant/assistant-chat.css";
 import { useUiText } from "@/i18n";
 import {
@@ -45,12 +47,9 @@ import type {
   CollaborateSceneRequest,
   CollaborateSceneResult,
   SceneAssistantInteraction,
-  ProviderConfig,
   AssetLibraryItem,
 } from "@shared/types";
 import type { SceneDefinition } from "@/lib/scene-library";
-import { getProviderModels } from "@shared/provider-models";
-import { getProviderMaxImageCount } from "@shared/provider-capabilities";
 import { settleAssistantToolCalls, type AssistantToolCall } from "@shared/assistant-display";
 import type { CreationArtifact, CreationEvent, CreationReference, CreationSession, CreationSessionMessage } from "@shared/creation-session";
 import type { ReferenceImagePayload } from "@shared/types";
@@ -132,12 +131,10 @@ interface CreationAssistantPageProps {
   boards: BoardSummary[];
   activeBoardId?: string;
   canUseAgent?: boolean;
-  imageProviders?: ProviderConfig[];
+  textProviders?: import("@shared/types").TextProviderConfig[];
+  activeTextProviderId?: string;
+  onSelectTextProvider?: (id: string) => void;
   scenes?: SceneDefinition[];
-  activeImageProviderId?: string;
-  activeImageModel?: string;
-  activeVideoModelLabel?: string;
-  onSelectImageModel?: (providerId: string, model: string) => void;
   onInterpret: (
     request: CollaborateSceneRequest,
     stream?: CreationAssistantStreamOptions,
@@ -198,22 +195,14 @@ export function isComicDramaIdea(value: string): boolean {
   return /漫剧|漫画短剧|动态漫|分镜|片段脚本|角色卡|连续剧情/u.test(value);
 }
 
-const FALLBACK_STARTER_PROMPTS = [
-  "一组克制高级的香水产品摄影，深色背景与硬光",
-  "为一款独立咖啡品牌设计三张社交媒体视觉",
-  "创建一组未来感建筑概念图，清晨薄雾与自然材质",
-] as const;
-
 export function CreationAssistantPage({
   boards,
   activeBoardId,
   canUseAgent = true,
-  imageProviders = [],
+  textProviders = [],
+  activeTextProviderId,
+  onSelectTextProvider,
   scenes = [],
-  activeImageProviderId,
-  activeImageModel,
-  activeVideoModelLabel,
-  onSelectImageModel,
   onInterpret,
   onCreate,
   onOpenBoard,
@@ -249,6 +238,7 @@ export function CreationAssistantPage({
   const [queued, setQueued] = useState<string[]>([]);
   const [canSteer, setCanSteer] = useState(false);
   const [mediaToolStarted, setMediaToolStarted] = useState(false);
+  const [selectedSkillPath, setSelectedSkillPath] = useState<string | undefined>();
   const steerRef = useRef<((instruction: string) => Promise<boolean>) | null>(null);
   const [queuePaused, setQueuePaused] = useState(false);
   const [editingQueueIndex, setEditingQueueIndex] = useState<number | null>(null);
@@ -301,16 +291,11 @@ export function CreationAssistantPage({
     null,
   );
   const [activeDecisionId, setActiveDecisionId] = useState<string | null>(null);
-  const [starterPrompts, setStarterPrompts] = useState<string[]>([
-    ...FALLBACK_STARTER_PROMPTS,
-  ]);
-  const [starterPromptsLoading, setStarterPromptsLoading] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [copyFailed, setCopyFailed] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const followScrollRef = useRef(true);
   const requestVersionRef = useRef(0);
-  const starterPromptsRequestRef = useRef(0);
   const restoreWithoutScrollAnimationRef = useRef(false);
   const skipNextSmoothScrollRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -628,55 +613,9 @@ export function CreationAssistantPage({
     return () => window.clearTimeout(timer);
   }, [copiedMessageId]);
 
-  const loadStarterPrompts = useCallback(
-    async (
-      suggestionMode: "contextual" | "divergent",
-      previousSuggestions: string[] = [],
-    ): Promise<void> => {
-      if (!canUseAgent) {
-        setStarterPrompts([...FALLBACK_STARTER_PROMPTS]);
-        return;
-      }
-      const requestId = starterPromptsRequestRef.current + 1;
-      starterPromptsRequestRef.current = requestId;
-      setStarterPromptsLoading(true);
-      try {
-        const result = await getImageWorkbenchApi().suggestAssistantIntents({
-          assistantSurface: "canvas-prompt",
-          conversation: [],
-          currentFields: [],
-          referenceImageCount: 0,
-          suggestionCount: 3,
-          suggestionMode,
-          previousSuggestions,
-          variationSeed: crypto.randomUUID(),
-        });
-        if (starterPromptsRequestRef.current !== requestId) return;
-        const suggestions = [
-          ...new Set(
-            result.suggestions
-              .map((suggestion) => suggestion.trim())
-              .filter(Boolean),
-          ),
-        ].slice(0, 3);
-        if (suggestions.length === 3) setStarterPrompts(suggestions);
-      } catch {
-        // Keep the local starters when the dedicated suggestion agent is unavailable.
-      } finally {
-        if (starterPromptsRequestRef.current === requestId)
-          setStarterPromptsLoading(false);
-      }
-    },
-    [canUseAgent],
-  );
-
   useEffect(() => {
     if (targetBoardId && !selectedBoard) setTargetBoardId(null);
   }, [selectedBoard, targetBoardId]);
-
-  useEffect(() => {
-    void loadStarterPrompts("contextual");
-  }, [conversationId, loadStarterPrompts]);
 
   useEffect(() => {
     const element = scrollRef.current;
@@ -947,6 +886,7 @@ export function CreationAssistantPage({
       const result = await onInterpret(
         {
           instruction,
+          selectedSkillPath,
           referenceImages: preparedReferences.map(({ id, name, mimeType, dataBase64 }) => ({ name, mimeType, dataBase64,
             imagePath: contextReferences.find((reference) => reference.id === id)?.imagePath,
             sourceNodeId: contextReferences.find((reference) => reference.id === id)?.nodeId })),
@@ -957,8 +897,7 @@ export function CreationAssistantPage({
                 ? `${selectedBoard.name} (${selectedBoard.id})`
                 : "新建画板",
             },
-            ...(activeImageProviderId ? [{ label: "图片 Provider ID", value: activeImageProviderId }] : []),
-            ...(activeImageModel ? [{ label: "图片模型", value: activeImageModel }] : []),
+
             ...preparedReferences.map((reference) => ({
               label: reference.role === "edit-target" ? "编辑主体" : "参考素材",
               value: `${reference.name}\n托管路径：${references.find((item) => item.id === reference.id)?.imagePath ?? "不可用，请勿生成"}`,
@@ -968,14 +907,8 @@ export function CreationAssistantPage({
               return scene ? [{ label: "创作模板", value: `${scene.name}\n${scene.prompt}` }] : [];
             }),
           ],
-          generationSettings: {
-            count: 1,
-            maxCount: getProviderMaxImageCount(
-              imageProviders.find(
-                (provider) => provider.id === activeImageProviderId,
-              ) ?? imageProviders[0],
-            ),
-          },
+          generationSettings: { count: 1, maxCount: 1 },
+          textProviderId: activeTextProviderId,
           clarificationRounds: editIndex < 0 ? clarificationRounds : 0,
           conversation: priorConversation,
           conversationId,
@@ -1422,6 +1355,7 @@ export function CreationAssistantPage({
     </aside>
     <section
       className="create-chat"
+      data-agent-skill-host=""
       data-empty={isEmpty}
       aria-label={uiText("AI 创作")}
     >
@@ -1996,72 +1930,9 @@ export function CreationAssistantPage({
                   ) : null}
                 </DropdownMenuContent>
               </DropdownMenu>
-              {composerMediaType === "video" ? (
-                <button
-                  type="button"
-                  className="create-chat-model"
-                  disabled={busy}
-                  onClick={onOpenSettings}
-                  aria-label={uiText("管理视频模型")}
-                >
-                  <span>{activeVideoModelLabel || uiText("配置视频模型")}</span>
-                </button>
-              ) : (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      className="create-chat-model"
-                      aria-label={uiText("选择图片模型")}
-                    >
-                      <span>
-                        {activeImageModel ||
-                          imageProviders.find(
-                            (provider) => provider.id === activeImageProviderId,
-                          )?.model ||
-                          uiText("选择图片模型")}
-                      </span>
-                      <ChevronDown size={13} aria-hidden="true" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    align="start"
-                    side="top"
-                    sideOffset={10}
-                    className="create-chat-model-menu w-64 max-h-72 overflow-y-auto"
-                  >
-                    <DropdownMenuLabel>{uiText("图片模型")}</DropdownMenuLabel>
-                    {imageProviders.map((provider) => (
-                      <DropdownMenuGroup key={provider.id}>
-                        <DropdownMenuLabel>{provider.name}</DropdownMenuLabel>
-                        {getProviderModels(provider).map((model) => (
-                          <DropdownMenuItem
-                            key={model}
-                            onSelect={() =>
-                              onSelectImageModel?.(provider.id, model)
-                            }
-                          >
-                            <span className="min-w-0 flex-1 truncate">
-                              {model}
-                            </span>
-                            {provider.id === activeImageProviderId &&
-                            model === (activeImageModel || provider.model) ? (
-                              <Check className="size-3.5" aria-hidden="true" />
-                            ) : null}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuGroup>
-                    ))}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuGroup>
-                      <DropdownMenuItem onSelect={onOpenSettings}>
-                        {uiText("管理模型")}
-                      </DropdownMenuItem>
-                    </DropdownMenuGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
+              <AgentSkillPicker value={selectedSkillPath} onChange={setSelectedSkillPath} disabled={busy} />
+              <TextModelPicker providers={textProviders} activeProviderId={activeTextProviderId}
+                disabled={busy} onSelect={onSelectTextProvider} onManage={onOpenSettings} />
               <button
                 type="button"
                 onClick={() => void submit()}
@@ -2083,46 +1954,7 @@ export function CreationAssistantPage({
           </p>
         </div>
 
-        {isEmpty ? (
-          <div
-            className="create-chat-starters"
-            aria-busy={starterPromptsLoading}
-          >
-            <div className="create-chat-starter-list">
-              {starterPrompts.map((prompt) => (
-                <button
-                  key={prompt}
-                  type="button"
-                  onClick={() => {
-                    setValue(prompt);
-                    textareaRef.current?.focus();
-                  }}
-                >
-                  {prompt}
-                  <ArrowUpRight size={15} />
-                </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={() =>
-                void loadStarterPrompts("divergent", starterPrompts)
-              }
-              disabled={starterPromptsLoading}
-              aria-label={uiText("换一批灵感")}
-              className="create-chat-refresh"
-            >
-              <RefreshCw
-                size={14}
-                className={cn(
-                  starterPromptsLoading &&
-                    "animate-spin motion-reduce:animate-none",
-                )}
-              />
-              {uiText("换一批")}
-            </button>
-          </div>
-        ) : null}
+
       </div>
 
     </section>

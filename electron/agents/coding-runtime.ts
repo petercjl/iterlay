@@ -4,6 +4,7 @@ export {
   loadSkills,
   ModelRuntime,
   SessionManager,
+  SettingsManager,
   createAgentSession
 } from "@earendil-works/pi-coding-agent";
 export type {

@@ -130,12 +130,6 @@ export interface ProviderSettingsDialogProps {
   onPiAgentMaxTurnsChange: (value: number) => void;
   piAgentWebSearchMaxResults: number;
   onPiAgentWebSearchMaxResultsChange: (value: number) => void;
-  boardAssistantAwarenessEnabled: boolean;
-  onBoardAssistantAwarenessEnabledChange: (value: boolean) => void;
-  boardAssistantIntentSuggestionsEnabled: boolean;
-  onBoardAssistantIntentSuggestionsEnabledChange: (value: boolean) => void;
-  boardAssistantIntentSuggestionCount: AssistantIntentSuggestionCount;
-  onBoardAssistantIntentSuggestionCountChange: (value: AssistantIntentSuggestionCount) => void;
   editSmartSuggestionsEnabled: boolean;
   editSmartSuggestionsAvailable: boolean;
   onEditSmartSuggestionsEnabledChange: (value: boolean) => void;

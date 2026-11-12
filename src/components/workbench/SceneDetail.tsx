@@ -847,40 +847,6 @@ export function SceneDetail({
     void generateSceneResults(false, nextPrompt);
   }
 
-  async function requestTemplateAssistantSuggestions(
-    mode: "contextual" | "divergent" = "contextual"
-  ): Promise<void> {
-    if (!canOptimize || assistantLoading) return;
-    const requestId = assistantSuggestionRequestRef.current + 1;
-    assistantSuggestionRequestRef.current = requestId;
-    setAssistantSuggestionsLoading(true);
-    try {
-      const result = await getImageWorkbenchApi().suggestAssistantIntents({
-        assistantSurface: "scene-template",
-        templateWorkflow: "use",
-        conversation: assistantMessages
-          .filter((message) => !message.streaming && message.tone !== "error" && message.content.trim())
-          .slice(-12)
-          .map(({ role, content, assistantContext }) => ({ role, content: assistantContext ?? content })),
-        currentFields: assistantFields,
-        templateScenario: activeScene.extractionScenario,
-        referenceImageCount: assistantContextImages.length,
-        suggestionCount: 3,
-        suggestionMode: mode,
-        previousSuggestions: mode === "divergent" ? assistantSuggestionHistoryRef.current : []
-      });
-      if (assistantSuggestionRequestRef.current !== requestId) return;
-      assistantSuggestionHistoryRef.current = mode === "divergent"
-        ? [...assistantSuggestionHistoryRef.current, ...result.suggestions].slice(-20)
-        : result.suggestions;
-      setAssistantSuggestions(result.suggestions);
-    } catch {
-      if (assistantSuggestionRequestRef.current === requestId && mode === "contextual") setAssistantSuggestions([]);
-    } finally {
-      if (assistantSuggestionRequestRef.current === requestId) setAssistantSuggestionsLoading(false);
-    }
-  }
-
   function openTemplateAssistant(): void {
     assistantExitFocusRef.current = null;
     setAssistantLayoutOpen(true);
@@ -891,7 +857,6 @@ export function SceneDetail({
         ? `已带入 ${assistantContextImages.length} 张参考图。描述要替换的主体、内容或场景即可。`
         : "模板规则已带入。描述要替换的主体、内容或场景即可。";
       setAssistantMessages([{ id: crypto.randomUUID(), role: "assistant", content: imageNote }]);
-      void requestTemplateAssistantSuggestions();
     }
   }
 
@@ -1579,7 +1544,6 @@ export function SceneDetail({
                   onAttach={() => assistantFileInputRef.current?.click()}
                   onPasteImages={(files) => void addReferenceImages(files)}
                   onSuggestionSelect={(suggestion) => void sendTemplateAssistantMessage(suggestion)}
-                  onRefreshSuggestions={() => void requestTemplateAssistantSuggestions("divergent")}
                   onApplyPrompt={applyAssistantPrompt}
                   onGeneratePrompt={generateAssistantPrompt}
                   canGenerateImmediately={canGenerateAssistantPrompt}

@@ -28,6 +28,26 @@ export class CodexOAuthTextTransport implements TextTransport {
     private readonly timeoutMs = 10 * 60_000
   ) {}
 
+  getAgentConnection(): import("../agents/model-connection.js").TudaModelConnection {
+    return { id: `tuda-codex-${this.providerId}`, name: "Codex OAuth", model: this.model,
+      api: "openai-codex-responses", baseUrl: "https://chatgpt.com/backend-api",
+      fetch: async (input, init) => {
+        let response = await this.fetchImpl(input, init);
+        if (response.status === 401) {
+          const refreshed = await this.auth.getAccess(this.providerId, true);
+          const headers = new Headers(init?.headers);
+          for (const [key, value] of Object.entries(codexHeaders(refreshed.accessToken, refreshed.accountId))) headers.set(key, value);
+          response = await this.fetchImpl(input, { ...init, headers });
+          if (response.status === 401) this.auth.markReauthRequired(this.providerId);
+        }
+        return response;
+      },
+      getAuth: async () => {
+        const access = await this.auth.getAccess(this.providerId);
+        return { apiKey: access.accessToken, headers: codexHeaders(access.accessToken, access.accountId) };
+      } };
+  }
+
   async complete(messages: readonly unknown[], opts: TextCompletionOptions, signal?: AbortSignal): Promise<string> {
     return this.completeStream(messages, opts, () => undefined, signal);
   }

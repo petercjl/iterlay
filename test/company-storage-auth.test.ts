@@ -74,3 +74,14 @@ it.each([
     })) as typeof fetch);
   await expect(auth.authenticate("token")).rejects.toThrow();
 });
+
+it.each([
+  [429, "STORAGE_AUTH_RATE_LIMITED", "稍后重试保存"],
+  [401, "STORAGE_AUTH_SERVICE_REJECTED", "管理员"],
+  [403, "STORAGE_AUTH_SERVICE_REJECTED", "管理员"],
+  [502, "STORAGE_AUTH_UNAVAILABLE", "HTTP 502"],
+])("classifies introspection HTTP %i without exposing credentials", async (status, code, message) => {
+  const auth = new CompanyStorageAuth(config, (async () =>
+    new Response("upstream-private-details", { status: status as number })) as typeof fetch);
+  await expect(auth.authenticate("private-user-token")).rejects.toMatchObject({ code, message: expect.stringContaining(message as string) });
+});

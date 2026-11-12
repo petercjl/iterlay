@@ -70,6 +70,6 @@ describe("generation action localization", () => {
     }
     visit(path.join(root, "src/components/workbench/PromptDock.tsx"));
     expect(visited.size).toBeGreaterThan(30);
-    expect([...visited].some((file) => file.endsWith("/ui-text.ts"))).toBe(true);
+    expect([...visited].some((file) => path.basename(file) === "ui-text.ts")).toBe(true);
   });
 });

@@ -58,10 +58,6 @@ const [piAgentCustomSkillPaths, setPiAgentCustomSkillPaths] = useState<string[]>
 const [piAgentCustomExtensionPaths, setPiAgentCustomExtensionPaths] = useState<string[]>([]);
 const [piAgentMaxTurns, setPiAgentMaxTurns] = useState(12);
 const [piAgentWebSearchMaxResults, setPiAgentWebSearchMaxResults] = useState(5);
-const [boardAssistantAwarenessEnabled, setBoardAssistantAwarenessEnabled] = useState(true);
-const [boardAssistantIntentSuggestionsEnabled, setBoardAssistantIntentSuggestionsEnabled] = useState(true);
-const [boardAssistantIntentSuggestionCount, setBoardAssistantIntentSuggestionCount] =
-    useState<AssistantIntentSuggestionCount>(3);
 const [memoryEnabled, setMemoryEnabled] = useState(true);
 const [memoryUsageLevel, setMemoryUsageLevel] = useState<MemoryUsageLevel>("balanced");
 const [editInfoMode, setEditInfoMode] = useState<EditInfoMode>("flip");
@@ -132,12 +128,6 @@ return {
     setPiAgentMaxTurns,
     piAgentWebSearchMaxResults,
     setPiAgentWebSearchMaxResults,
-    boardAssistantAwarenessEnabled,
-    setBoardAssistantAwarenessEnabled,
-    boardAssistantIntentSuggestionsEnabled,
-    setBoardAssistantIntentSuggestionsEnabled,
-    boardAssistantIntentSuggestionCount,
-    setBoardAssistantIntentSuggestionCount,
     memoryEnabled,
     setMemoryEnabled,
     memoryUsageLevel,

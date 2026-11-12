@@ -73,7 +73,7 @@ it("rejects stale concurrent operations and leaves an invalid batch entirely unc
     },
     list: async (directory) =>
       [...files.keys()]
-        .filter((f) => f.startsWith(directory + "/"))
+        .filter((f) => f.startsWith(directory + path.sep))
         .map((f) => f.slice(directory.length + 1)),
     remove: async (file) => {
       files.delete(file);
@@ -112,7 +112,7 @@ it("rejects stale concurrent operations and leaves an invalid batch entirely unc
     }),
   ).rejects.toThrow("画板不存在");
   expect(await store.getBoardLibrary()).toEqual(before);
-  expect(files.has("/enterprise/library/index.json")).toBe(true);
+  expect(files.has(path.join("/enterprise", "library", "index.json"))).toBe(true);
 });
 
 it("guards duplicate names, Windows-invalid names, cycles and non-empty deletion", () => {

@@ -453,21 +453,10 @@ describe("imageWorkbench preload", () => {
     expect(electronMocks.removeListener).toHaveBeenCalledWith("scene:collaborate:event", handler);
   });
 
-  it("exposes the dedicated assistant intent suggestion channel", async () => {
+  it("does not expose a background intent recommendation channel", async () => {
     await import("../electron/preload/preload.js");
-    const api = electronMocks.exposeInMainWorld.mock.calls[0][1] as {
-      suggestAssistantIntents: (request: unknown) => Promise<unknown>;
-    };
-    const request = {
-      assistantSurface: "canvas-prompt",
-      conversation: [],
-      currentFields: []
-    };
-    const response = { suggestions: ["创建一个新画面", "完善当前提示词", "尝试不同风格"] };
-    electronMocks.invoke.mockResolvedValueOnce(response);
-
-    await expect(api.suggestAssistantIntents(request)).resolves.toBe(response);
-    expect(electronMocks.invoke).toHaveBeenCalledWith("assistant:suggestIntents", request);
+    const api = electronMocks.exposeInMainWorld.mock.calls[0][1];
+    expect(api).not.toHaveProperty("suggestAssistantIntents");
   });
 
   it("exposes app icon switching through the appIcon:set channel", async () => {

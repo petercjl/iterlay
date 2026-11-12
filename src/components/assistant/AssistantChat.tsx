@@ -146,43 +146,6 @@ export function AssistantChat(props: Props): React.ReactElement {
     props.onHistorySelect?.(conversation);
     setHistoryOpen(false);
   }
-  const suggestions = props.intentSuggestions ?? [];
-  const suggestionContent =
-    props.intentSuggestionsEnabled &&
-    (suggestions.length || props.intentSuggestionsLoading) ? (
-      <div
-        className="assistant-chat-suggestions"
-        data-assistant-suggestions=""
-        aria-label={t("assistant.suggestions")}
-      >
-        {suggestions.map((suggestion, index) => (
-          <button
-            type="button"
-            key={suggestion}
-            className="assistant-chat-suggestion-bubble"
-            style={{ "--suggestion-delay": `${Math.min(index, 5) * 120}ms` } as CSSProperties}
-            disabled={busy}
-            onClick={() => props.onIntentSuggestionSelect?.(suggestion)}
-          >
-            {suggestion}
-            <ArrowUp size={13} aria-hidden="true" />
-          </button>
-        ))}
-        {props.intentSuggestionsLoading ? (
-          <span role="status">{t("assistant.suggestions.loading")}</span>
-        ) : props.onRefreshIntentSuggestions ? (
-          <button
-            type="button"
-            className="assistant-chat-refresh"
-            disabled={busy}
-            aria-label={t("assistant.suggestions.refresh")}
-            onClick={props.onRefreshIntentSuggestions}
-          >
-            {uiText("换一批")}
-          </button>
-        ) : null}
-      </div>
-    ) : null;
 
   return (
     <section
@@ -356,7 +319,6 @@ export function AssistantChat(props: Props): React.ReactElement {
           {props.contextImages?.length ? (
             <AssistantImageContext images={props.contextImages} />
           ) : null}
-          {suggestionContent}
           <AssistantComposer
             value={props.value}
             onValueChange={props.onValueChange}

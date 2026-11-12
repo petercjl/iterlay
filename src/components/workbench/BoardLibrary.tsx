@@ -1,3 +1,5 @@
+import { getImageWorkbenchApi } from "@/lib/image-workbench-api";
+import { saveBoardCover } from "@/lib/board-cover";
 import { translateSourceText } from "@/i18n/ui-text";
 import { useI18n, useUiText } from "@/i18n";
 import { useBoardLibraryWindow } from "@/features/boards/use-board-library-window";
@@ -39,6 +41,8 @@ import { cn } from "@/lib/utils";
 import { groupActiveBoardGenerations, type ActiveBoardGeneration } from "@/lib/active-board-generation";
 
 export interface BoardLibraryProps {
+  onChooseBoardCover?: (id: string) => void;
+  onBoardCoverSaved?: (summary: BoardSummary) => Promise<void>;
   renderItemMenu?: (id: string) => ReactNode;
   hideCreateAction?: boolean;
   navigation?: ReactNode;
@@ -71,7 +75,7 @@ type BoardView = "grid" | "list";
 const SEARCH_SHORTCUT_LABEL = /Mac|iPhone|iPad/i.test(navigator.userAgent) ? "⌘K" : "Ctrl K";
 
 export function BoardLibrary({
-  hideCreateAction = false, renderItemMenu,
+  hideCreateAction = false, renderItemMenu, onChooseBoardCover, onBoardCoverSaved,
   navigation, sidebar, selectedIds, onSelectBoard, onMoveBoard, onDragBoard, externalBusy = false,
   boards,
   activeBoardGenerations = [],
@@ -317,6 +321,7 @@ export function BoardLibrary({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          {onChooseBoardCover && <DropdownMenuItem onSelect={() => onChooseBoardCover(board.id)}>{uiText("更换封面")}</DropdownMenuItem>}
           {onMoveBoard && <DropdownMenuItem onSelect={() => onMoveBoard(board)}>{uiText("移动到…")}</DropdownMenuItem>}
           <DropdownMenuItem onSelect={() => startRename(board)}>
             <Pencil className="h-4 w-4" />
@@ -378,7 +383,7 @@ export function BoardLibrary({
             isActive && "ring-2 ring-blue-600 ring-offset-2 ring-offset-background dark:ring-blue-400"
           )}
         >
-          <BoardThumbnail board={board} isOpening={isOpening} variant="card" />
+          <BoardThumbnail onRepaired={onBoardCoverSaved} board={board} isOpening={isOpening} variant="card" />
           {isActive ? (
             <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-md bg-foreground/90 px-1.5 py-1 text-[10px] font-medium leading-none text-background shadow-sm">
               <Check className="h-3 w-3" />
@@ -614,7 +619,7 @@ export function BoardLibrary({
                 const rowContent = (
                   <>
                     <span className="flex min-w-0 items-center gap-3">
-                      <BoardThumbnail board={board} isOpening={isOpening} />
+                      <BoardThumbnail onRepaired={onBoardCoverSaved} board={board} isOpening={isOpening} />
                       <span className="min-w-0">
                         {isRenaming ? (
                           <Input
@@ -824,10 +829,12 @@ function releaseStaleBodyPointerLock(): void {
 function BoardThumbnail({
   board,
   isOpening,
+  onRepaired,
   variant = "row"
 }: {
   board: BoardSummary;
   isOpening: boolean;
+  onRepaired?: (summary: BoardSummary) => Promise<void>;
   variant?: "row" | "card";
 }): React.ReactElement {
   const uiText = useUiText();
@@ -835,6 +842,21 @@ function BoardThumbnail({
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const thumbnailUrl = board.thumbnailDataUrl;
   const showThumbnail = Boolean(thumbnailUrl && failedUrl !== thumbnailUrl);
+  useEffect(() => {
+    if (showThumbnail || board.imageCount === 0 || !onRepaired) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    let attempts = 0;
+    const repair = async () => {
+      try {
+        const summary = await saveBoardCover(getImageWorkbenchApi(), board.id, undefined, true);
+        if (!cancelled && summary) { await onRepaired(summary); return; }
+      } catch { /* The placeholder remains usable; retry transient read/conflict errors. */ }
+      if (!cancelled && ++attempts < 3) timer = setTimeout(() => void repair(), 15000);
+    };
+    timer = setTimeout(() => void repair(), 100);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [board.id, board.imageCount, showThumbnail, onRepaired]);
 
   return (
     <span

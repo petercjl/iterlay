@@ -25,6 +25,7 @@ export const PI_AGENT_DEFAULT_TUDA_TOOLS = [
   "set_image_version",
   "create_board",
   "list_assets",
+  "read_asset",
   "get_generation_status",
   "generate_image",
   "edit_image",
@@ -44,11 +45,27 @@ export interface PiAgentResourceEntry {
   description: string;
   path: string;
   source: "system" | "project" | "package" | "custom";
+  skillCategory?: "system" | "user";
+  canDelete?: boolean;
   packageName?: string;
   warning?: string;
 }
 
+export interface AgentSkillLibrary {
+  version: 1;
+  folders: Array<{ id: string; name: string; parentId: string | null }>;
+  assignments: Record<string, string>;
+  favorites: string[];
+}
+export type AgentSkillLibraryMutation =
+  | { type: "createFolder"; name: string; parentId?: string | null }
+  | { type: "renameFolder"; id: string; name: string }
+  | { type: "deleteFolder"; id: string }
+  | { type: "setFolder"; skillPath: string; folderId: string | null }
+  | { type: "setFavorite"; skillPath: string; favorite: boolean };
+
 export interface PiAgentResourceInventory {
+  skillDirectory?: string;
   builtinTools: Array<{
     name: PiAgentBuiltinToolName;
     description: string;
@@ -269,6 +286,8 @@ export type SceneAssistantInteraction =
     };
 
 export interface CollaborateSceneRequest {
+  /** Explicit Skill selection; main process validates discovery scope. */
+  selectedSkillPath?: string;
   /** 新对话创作入口：先收集需求，再确认方案，最后执行媒体任务。 */
   creationWorkflow?: boolean;
   /** 宿主填充；渲染进程提供的值不采信。 */
