@@ -55,6 +55,8 @@ Windows 关闭最后一个窗口后，托盘保留本地 CLI 服务和后台任�
 
 `latest` 用于稳定版本，`next` 用于测试渠道。npm 包和安装器版本应对应；未来管理器独立更新时，先建立明确的兼容及产物复用证据。CI 的 `npm-release` 环境负责正式发布授权，验证失败阻止发布。
 
+发布工具在仓库根目录使用 `--package-dir cli --workflow publish-npm.yml` 选择包和工作流。`npm-release-kit doctor --root <repo> --package-dir cli --workflow publish-npm.yml --json` 已通过。发布时先在源码中同步应用、包和 Skill 版本并验证，再用 `npm-release-kit publish --root <repo> --package-dir cli --workflow publish-npm.yml --ref <已推送分支> --release <已提交的精确版本> --tag <latest或next> --yes` 分发；工作流校验请求版本与已提交版本相同。
+
 新 npm 包发布前需按 `npm-release-kit` 完成一次性包初始化及 Trusted Publisher 设置。本地开发与构建不等于已发布，registry 精确版本和真实安装结果是发布完成依据。Windows 实机上的安装、点击更新、升级保留数据与恢复测试，单独记入验收记录。
 
 ## 上游同步

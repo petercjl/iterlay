@@ -2,6 +2,10 @@ name: Publish Tuda Windows and npm
 on:
   workflow_dispatch:
     inputs:
+      release:
+        description: Exact version already committed in app and CLI
+        type: string
+        required: true
       tag:
         description: npm channel
         type: choice
@@ -23,6 +27,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: npm ci --prefix cli
       - run: pnpm exec install-electron
+      - name: Verify the requested committed version
+        env:
+          RELEASE_VERSION: ${{ inputs.release }}
+        run: node -e "const p=require('./package.json'),c=require('./cli/package.json');if(process.env.RELEASE_VERSION!==p.version||c.version!==p.version)throw Error('Commit matching application and CLI versions, then request that exact version.')"
       - run: pnpm brand:check
       - run: pnpm test
       - run: pnpm release --arch x64
