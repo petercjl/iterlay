@@ -71,6 +71,15 @@
 - npm 包使用个人作用域 `@petercjl`。发布遵循当前 `npm-release-kit` Skill，通过 GitHub Actions 与 npm Trusted Publishing（OIDC）执行，并核验 registry 中的实际版本及 dist-tag。
 - 当前约定授权记录开发流程；执行正式发布时仍需具备对应发布授权。
 
+### Tuda 插件的发布与宿主更新边界
+
+- `@petercjl/tuda`（`cli/`）独立维护插件、CLI 和 Skill 版本，通过 `publish-plugin-npm.yml` 发布；`@petercjl/tuda-desktop`（`desktop-package/`）与根目录应用版本对应，通过 `publish-npm.yml` 发布桌面及其安装器分块。两者独立版本、dist-tag、发布队列、验收和授权。桌面构建不得修改插件版本或向插件包写入桌面清单；插件发布不得构建或发布桌面。
+
+- Tuda 插件的更新统一通过其 npm 包发布和分发。完成开发验证并取得发布授权后，先发布 npm 并核验目标版本；各 Agent 或宿主工具再通过自身的正式更新机制获取已发布版本。
+- Tuda 开发任务只维护插件源码、构建产物和隔离的开发验证环境。不得直接复制、替换或激活 codex-own、Codex 或其他 Agent 私有目录中的插件文件、运行时副本、缓存和版本记录，也不得以本地同步替代 npm 发布。
+- 宿主负责自己安装的插件版本、更新时机和激活过程；Tuda 项目提供已发布版本及兼容性说明，保持独立软件与插件的职责边界。
+- 用户要求“先在开发版验证、不发布 npm”时，变更保留在 Tuda 开发环境或隔离测试环境中，宿主继续使用其已安装版本。需要新版插件才能完成的宿主联调应报告待发布、待宿主更新，不直接修改宿主安装。
+
 ## 6. Windows 远程验证
 
 - Windows 验证机为 `peter-new`，已有 SSH 连接配置，同时可通过 Mac 上的 Windows 远程应用连接桌面。

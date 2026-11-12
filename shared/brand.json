@@ -12,5 +12,6 @@
   "downloadUrl": "https://github.com/petercjl/iterlay/releases",
   "blue": "#0755F5",
   "green": "#00C8AE",
-  "autoOnboarding": false
+  "autoOnboarding": false,
+  "desktopPackageName": "@petercjl/tuda-desktop"
 }

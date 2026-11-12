@@ -35,6 +35,15 @@ try {
   assert(tools.some(t => t.name === "write_board_text"));
   assert(!tools.some(t => /generate|provider|canvas/.test(t.name)));
   assert.equal(calls.length, 0, "discovery must not start desktop or authenticate");
+  for (const name of ["open_tuda", "open_board", "fit_board_view", "focus_nodes"]) {
+    const definition = tools.find(t => t.name === name);
+    assert(definition.inputSchema.required.includes("userRequestedView"));
+    for (const intent of [undefined, false, "true"]) {
+      const result = await client.callTool({ name, arguments: { boardId: "board", userRequestedView: intent } });
+      assert(result.isError && JSON.stringify(result).includes("EXPLICIT_VIEW_INTENT_REQUIRED"));
+    }
+  }
+  assert.equal(calls.length, 0, "denied foreground calls must not connect, authenticate or open a window");
   const denied = await client.callTool({ name: "generate_image", arguments: { prompt: "must not execute" } });
   assert.equal(denied.isError, true);
   assert.equal(calls.length, 0);
@@ -70,6 +79,9 @@ try {
   await writeFile(path.join(directory, "not-issued-yet.json"), JSON.stringify({ ...grant, code: "d".repeat(43), instanceId: instanceId() }), { mode: 0o600 });
   assert(!(await client.callTool({ name: "list_boards", arguments: {} })).isError);
   assert.equal(calls.filter(c => c.route === "/board-plugin/auth").length, 3, "new desktop instance requires a fresh handoff");
+  const explicit = await client.callTool({ name: "open_tuda", arguments: { userRequestedView: true } });
+  assert(!explicit.isError);
+  assert(calls.some(c => c.route === "/board-plugin/call" && c.body.method === "open_tuda" && c.body.args.userRequestedView === true));
   assert(!JSON.stringify(result).includes(grant.code));
   assert(!diagnostics.includes(grant.verifier));
   assert(!JSON.stringify(result).includes(secret));

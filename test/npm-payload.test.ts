@@ -19,7 +19,7 @@ it("reassembles npm archives in order, checks blocks and whole installer, and re
       await writeFile(path.join(folder, "package/payload.bin"), bytes, { flag: "wx" });
       await c({ file: path.join(folder, "part.tgz"), gzip: true, cwd: folder }, ["package"]);
       const sha256 = createHash("sha256").update(bytes).digest("hex");
-      const url = `https://registry.npmjs.org/@petercjl/tuda/-/tuda-0.0.0-payload.${sha256}.tgz`;
+      const url = `https://registry.npmjs.org/@petercjl/tuda-desktop/-/tuda-desktop-0.0.0-payload.${sha256}.tgz`;
       archives.set(url, await readFile(path.join(folder, "part.tgz")));
       parts.push({ url, sha256, fileSize: bytes.length });
     }

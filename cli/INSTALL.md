@@ -1,6 +1,6 @@
 # 宿主原生画板插件
 
-宿主安装 `@petercjl/tuda@next` 到自己的私有运行时目录，读取 `capabilities.json` 的 `nativePlugin` 合同，校验 contract、desktopCompatibility、prepare 与鉴权交接要求，再使用自己的 Node.js 执行 `dist/board-plugin.js`。原生入口无需安装 Skill 或全局 CLI；用户无需手动安装。Tuda 桌面应用独立安装和更新，宿主通过公开连接契约使用它；包不会隐式下载桌面或授予服务权限。首次内置包可作为离线回退。
+宿主安装 `@petercjl/tuda@latest` 到自己的私有运行时目录，读取 `capabilities.json` 的 `nativePlugin` 合同，校验 contract、desktopCompatibility、prepare 与鉴权交接要求，再使用自己的 Node.js 执行 `dist/board-plugin.js`。原生入口无需安装 Skill 或全局 CLI；用户无需手动安装。Tuda 桌面应用独立安装和更新，宿主通过公开连接契约使用它；包不会隐式下载桌面或授予服务权限。首次内置包可作为离线回退。
 
 # Install Tuda for the current Agent
 

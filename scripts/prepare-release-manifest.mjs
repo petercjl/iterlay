@@ -3,9 +3,10 @@ import { readFile, writeFile, mkdir, copyFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { c } from "tar";
-const pkgPath = path.resolve("cli/package.json");
+const pkgPath = path.resolve("desktop-package/package.json");
 const pkg = JSON.parse(await readFile(pkgPath, "utf8"));
 const app = JSON.parse(await readFile(path.resolve("package.json"), "utf8"));
+if (pkg.name !== "@petercjl/tuda-desktop" || pkg.version !== app.version) throw Error("Desktop release identity mismatch");
 const arch = process.argv.includes("--arch") ? process.argv[process.argv.indexOf("--arch") + 1] : "x64";
 if (!["x64", "arm64"].includes(arch)) throw new Error("Unsupported architecture");
 const installer = path.resolve(`release/Tuda-${app.version}-${arch}.exe`);
@@ -22,12 +23,12 @@ for (let offset = 0; offset < bytes.length; offset += 48 * 1024 * 1024) {
   await mkdir(directory, { recursive: true });
   await writeFile(path.join(directory, "payload.bin"), block, { flag: "wx" });
   await writeFile(path.join(directory, "package.json"), JSON.stringify({
-    name: pkg.name, version, description: "Internal Tuda Windows installer data. Use @petercjl/tuda@latest.",
+    name: pkg.name, version, description: "Internal Tuda Windows installer data. Use @petercjl/tuda-desktop@latest.",
     license: "MIT", repository: pkg.repository, files: ["payload.bin"], publishConfig: { access: "public" }
   }) + "\n", { flag: "wx" });
   const file = path.join(payloadRoot, `tuda-${version}.tgz`);
   await c({ gzip: true, portable: true, noMtime: true, cwd: path.dirname(directory), file }, ["package"]);
-  parts.push({ url: `https://registry.npmjs.org/@petercjl/tuda/-/tuda-${version}.tgz`, sha256, fileSize: block.length });
+  parts.push({ url: `https://registry.npmjs.org/@petercjl/tuda-desktop/-/tuda-desktop-${version}.tgz`, sha256, fileSize: block.length });
 }
 const release = { schemaVersion: 1, applicationVersion: app.version, installers: [{
   version: app.version, platform: "win32", arch, channel: app.version.includes("-") ? "beta" : "stable",
@@ -37,7 +38,7 @@ const release = { schemaVersion: 1, applicationVersion: app.version, installers:
 }] };
 const backup = path.resolve("tmp", `release-metadata-${randomUUID()}`);
 await mkdir(backup, { recursive: true });
-for (const [file, value] of [[pkgPath, { ...pkg, tudaRelease: release }], [path.resolve("cli/release-manifest.json"), release]]) {
+for (const [file, value] of [[pkgPath, { ...pkg, tudaRelease: release }], [path.resolve("desktop-package/release-manifest.json"), release]]) {
   await copyFile(file, path.join(backup, path.basename(file)));
   await writeFile(file, JSON.stringify(value, null, 2) + "\n");
 }

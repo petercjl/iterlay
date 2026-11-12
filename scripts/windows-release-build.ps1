@@ -21,9 +21,9 @@ Invoke-Pnpm release --arch x64
 & $node scripts/prepare-release-manifest.mjs --arch x64
 if ($LASTEXITCODE -ne 0) { throw 'Release manifest preparation failed' }
 Invoke-Pnpm build:cli
-& $node scripts/validate-cli-package.mjs
+& $node desktop-package/validate.mjs
 if ($LASTEXITCODE -ne 0) { throw 'Package validation failed' }
-& (Join-Path $NodeDirectory 'npm.cmd') pack ./cli --pack-destination release
+& (Join-Path $NodeDirectory 'npm.cmd') pack ./desktop-package --pack-destination release
 if ($LASTEXITCODE -ne 0) { throw 'npm pack failed' }
 & $node scripts/playwright-electron-smoke.mjs
 if ($LASTEXITCODE -ne 0) { throw 'Windows desktop smoke failed' }

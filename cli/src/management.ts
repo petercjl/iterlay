@@ -63,7 +63,7 @@ export async function installSkill(target: string, activation: { rename?: (from:
   try {
     await cp(source, staging, { recursive: true, errorOnExist: true });
     await mkdir(path.join(staging, ".runtime"));
-    for (const name of ["dist", "guard", "skills", "package.json", "capabilities.json", "release-manifest.json", "INSTALL.md", "UPDATE.md", "LICENSE", "THIRD_PARTY_NOTICES.md"]) {
+    for (const name of ["dist", "guard", "skills", "package.json", "capabilities.json", "INSTALL.md", "UPDATE.md", "LICENSE", "THIRD_PARTY_NOTICES.md"]) {
       if (await exists(path.join(root, name))) await cp(path.join(root, name), path.join(staging, ".runtime", name), { recursive: true });
     }
     if (backup && await exists(path.join(target, "agents"))) await cp(path.join(target, "agents"), path.join(staging, "agents"), { recursive: true, force: true });

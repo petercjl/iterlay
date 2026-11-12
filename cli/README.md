@@ -1,8 +1,10 @@
 # Tuda CLI 与画板插件
 
+`@petercjl/tuda` 只分发 CLI、原生画板插件和配套 Skill，独立维护版本；桌面应用由 `@petercjl/tuda-desktop` 独立发布。插件包不携带桌面安装器或更新清单。
+
 宿主内置的画板插件使用 `nativePlugin` 合同：直接以 Node.js 22.12+ 执行包内 `dist/board-plugin.js`，通过 stdio MCP 提供画板管理、导入已有图片、布局、文字标注和导出。宿主准备兼容的 Tuda 桌面运行时，完成原生注册与内部授权；用户直接在当前 Agent 中使用。此入口仅提供画板操作，生成素材由调用方自己的媒体能力完成。
 
-初始发布渠道为 `@petercjl/tuda@next`。宿主按 `capabilities.json` 的 `nativePlugin.updates` 自动检查、下载并验证兼容版本，在下一次新连接启用；离线或更新失败继续使用当前版本。具体安装和更新合同见 [INSTALL.md](INSTALL.md) 与 [UPDATE.md](UPDATE.md)。独立 CLI 与配套 Skill 的安装方法见下文。
+稳定发布渠道为 `@petercjl/tuda@latest`。宿主按 `capabilities.json` 的 `nativePlugin.updates` 自动检查、下载并验证兼容版本，在下一次新连接启用；离线或更新失败继续使用当前版本。具体安装和更新合同见 [INSTALL.md](INSTALL.md) 与 [UPDATE.md](UPDATE.md)。独立 CLI 与配套 Skill 的安装方法见下文。
 
 Tuda 把图片、视频与创作工作流放在同一张画布上。CLI 让你和 Coding Agent 通过命令生成图片、修改素材、制作视频、整理画板并导出结果，复用 App 已保存的模型服务与授权。
 

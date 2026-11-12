@@ -7,7 +7,7 @@ for (const installer of release.installers) {
   const whole = createHash("sha256");
   let total = 0;
   for (const part of installer.npmPayloads) {
-    if (part.url !== `https://registry.npmjs.org/@petercjl/tuda/-/tuda-0.0.0-payload.${part.sha256}.tgz`) throw Error("Unexpected payload origin");
+    if (part.url !== `https://registry.npmjs.org/@petercjl/tuda-desktop/-/tuda-desktop-0.0.0-payload.${part.sha256}.tgz`) throw Error("Unexpected payload origin");
     let response;
     for (let attempt = 0; attempt < 60; attempt++) {
       response = await fetch(part.url, { signal: AbortSignal.timeout(30_000), headers: { "cache-control": "no-cache" } }).catch(() => undefined);

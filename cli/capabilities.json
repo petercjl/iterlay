@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "name": "@petercjl/tuda",
-  "version": "0.1.3",
+  "version": "0.1.2",
   "kind": "cli-skill",
   "skills": [
     "using-tuda"
@@ -37,7 +37,13 @@
     "explicitDestination": true,
     "hostDiscoveryVerificationRequired": true,
     "physicalRuntimeIsolation": true,
-    "bootstrapNotice": "INSTALL.md"
+    "bootstrapNotice": "INSTALL.md",
+    "targetRequired": true,
+    "hostRegistrationRequired": true,
+    "installerIntegration": "INSTALL.md: explicit package-managed skill install and host discovery handoff",
+    "installationMode": "copy",
+    "sharedLinksAllowed": false,
+    "isolatedRuntimeRequired": true
   },
   "commandContracts": {
     "version": {
@@ -194,7 +200,10 @@
           "maximum": 180
         }
       },
-      "sideEffects": "local-process-start"
+      "sideEffects": "local-write",
+      "effects": [
+        "start-hidden-desktop-if-needed"
+      ]
     }
   },
   "discoveryContract": {
@@ -431,7 +440,7 @@
       "contract": 1,
       "owner": "host",
       "package": "@petercjl/tuda",
-      "channel": "next",
+      "channel": "latest",
       "mode": "automatic",
       "intervalHours": 24,
       "timeoutMs": 1500,

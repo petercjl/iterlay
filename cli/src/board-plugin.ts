@@ -73,6 +73,9 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
   try {
     assertBoardPluginMethod(request.params.name);
     let args = request.params.arguments ?? {};
+    if (["open_tuda", "open_board", "fit_board_view", "focus_nodes"].includes(request.params.name) && args.userRequestedView !== true) {
+      throw new Error("EXPLICIT_VIEW_INTENT_REQUIRED: Only open or focus Tuda when the user explicitly asks to view it; pass userRequestedView=true. Importing, editing, verifying and reconnecting stay silent.");
+    }
     if (fixedSpace) {
       if (args.space && args.space !== fixedSpace) throw new Error("SPACE_MISMATCH");
       args = { ...args, space: fixedSpace };

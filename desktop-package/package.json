@@ -1,0 +1,23 @@
+{
+  "name": "@petercjl/tuda-desktop",
+  "version": "0.1.3",
+  "description": "Tuda Windows desktop release manifest and immutable installer payload distribution",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "release-manifest.json",
+    "README.md",
+    "validate.mjs"
+  ],
+  "scripts": {
+    "prepack": "node validate.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/petercjl/iterlay.git",
+    "directory": "desktop-package"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

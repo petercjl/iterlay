@@ -2,7 +2,7 @@
 name: using-tuda
 description: Use Tuda for image and video creation, editing, boards and assets only when the user explicitly invokes /using-tuda or $using-tuda. Do not select this skill automatically.
 metadata:
-  version: "0.1.3"
+  version: "0.1.2"
 ---
 
 # Using Tuda
@@ -48,6 +48,8 @@ Use Tuda's local `image slice` / `slice_image` operation for cutting existing im
 - Return the managed paths/node IDs and optional exportedPaths. Export failure leaves slices on the board; recover with `assets export`, without slicing again. For ZIP delivery call `export_assets` with only the returned slice paths.
 
 ## Boards, video and assets
+
+Ordinary reads, imports, edits, exports and verification run silently. Keep the current board and viewport unchanged; verify via returned data and files. Open or focus Tuda only when the user explicitly requests viewing it. Native MCP view tools require `userRequestedView: true` for that explicit request; completing work or reconnecting is not a viewing request.
 
 - `tuda boards list|show|create|open`, `tuda assets list|import|export`, and `tuda video generate` cover common paths. See CLI help for arguments.
 - Use the exact `tools list` schemas through `tuda call` for move, resize, arrange, duplicate, version selection, recoverable trash/restore, video remix/extend and stopping video polling. These operations retain the App's validation rules.

@@ -13,7 +13,7 @@ export function validNpmPayloads(manifest: UpdateManifest): boolean {
   const parts = manifest.npmPayloads;
   return Array.isArray(parts) && parts.length > 0 && parts.length <= 128 && parts.every((part) =>
     /^[a-f0-9]{64}$/.test(part.sha256) && Number.isSafeInteger(part.fileSize) && part.fileSize > 0 && part.fileSize <= 48 * 1024 * 1024 &&
-    part.url === `https://registry.npmjs.org/@petercjl/tuda/-/tuda-0.0.0-payload.${part.sha256}.tgz`
+    part.url === `https://registry.npmjs.org/@petercjl/tuda-desktop/-/tuda-desktop-0.0.0-payload.${part.sha256}.tgz`
   ) && parts.reduce((sum, part) => sum + part.fileSize, 0) === manifest.fileSize;
 }
 
