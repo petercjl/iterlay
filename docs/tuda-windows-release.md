@@ -4,7 +4,7 @@ Mac 用于开发，日常运行固定的 Tuda Dev。正式桌面交付目标为 
 
 ## 版本和配置
 
-桌面候选版本为 `0.1.3`，由根目录与 `desktop-package/package.json` 共同校验，独立 npm 包为 `@petercjl/tuda-desktop`。插件、CLI 和 Skill 使用 `cli/` 中的 `@petercjl/tuda` 及独立版本。桌面清单和安装器分块仅进入桌面包。新桌面包首次发布前需单独完成 npm 包引导和 Trusted Publisher 配置；当前仅准备发布流程。
+桌面正式版本为 `0.1.3`，由根目录与 `desktop-package/package.json` 共同校验，独立 npm 包为 `@petercjl/tuda-desktop`。插件、CLI 和 Skill 使用 `cli/` 中的 `@petercjl/tuda` 及独立版本。桌面清单和安装器分块仅进入桌面包。桌面包已完成 npm 包引导及独立 Trusted Publisher 配置，正式版本通过 GitHub Actions 的 OIDC 发布。
 
 Pi Agent 的私有根目录为 `~/.tuda`（Windows 为 `%USERPROFILE%\.tuda`），开发使用 `dev`，正式使用 `stable`。`tuda-agent/<space>/<account-hash>/` 保存账号及空间隔离的 `auth.json`、`models.json`、`settings.json`、`sessions`、`skills`、`extensions` 与 npm 资源；文件按实际使用创建。日志在对应渠道的 `logs` 中，经验数据在 `pi-agent` 中。应用内的 Pi 设置与账号模型授权由应用设置服务管理。
 
@@ -26,4 +26,4 @@ Pi Agent 的私有根目录为 `~/.tuda`（Windows 为 `%USERPROFILE%\.tuda`）�
 - `scripts/prepare-release-manifest.mjs --arch x64` 从实际安装器生成分块与更新清单，并备份将修改的元数据。
 - 正式发布工作流为 `.github/workflows/publish-npm.yml`。Windows 构建和检查通过后，通过 GitHub Actions 的 npm Trusted Publishing 发布分块，验证 registry 中的完整安装文件，最后发布包含绑定清单的桌面包。
 
-准备完成与公开发布分别记录。公开发布以 npm 中准确版本、dist-tag、完整安装文件校验和实际安装结果为准。
+0.1.3 已通过 Windows 实装验收并发布为 npm `latest`；NAS 首装文件与 npm 完整安装器哈希一致。验收及公开核验见 [发布记录](marketing/publications.md#desktop-npm-001--tuda-windows-013-正式版)。发布恢复通过 `resume_run` 指定已成功完成 Windows 验收的原始运行，校验原生输入未变化后复用同一制品；`verify_only` 对已发布版本执行只读核验。

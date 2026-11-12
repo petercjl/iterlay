@@ -341,3 +341,15 @@ X、小红书、Hacker News、Linux.do、开源中国、少数派暂未找到已
 - 制品：21 个文件，176933 字节；SHA-256 `5415416ac350a212da4d9b5d31cb64a384fa62215bb3a7fedd77ff20e824886c`；SRI `sha512-/V626yG9JaFh2IbsiY3fk82RyvDaH20CA7QCSez670QQ3R2GV5whU6jK1Te8RCBXXDWg8MFc5+C/DeFokO3qUQ==`。
 - 历史执行：[首轮检查](https://github.com/petercjl/iterlay/actions/runs/43261339936) 因 GitHub macOS ARM64 容量不足、15 分钟内未取得执行器而终止，发布步骤未执行；采用官方 macOS Intel 执行器后以相同插件版本和完全一致的制品完成发布。没有重复升版或重复上传。
 - 指标未采集。
+
+
+### DESKTOP-NPM-001 · Tuda Windows 0.1.3 正式版
+
+- 入口：[npm 精确版本](https://www.npmjs.com/package/@petercjl/tuda-desktop/v/0.1.3)。独立桌面分发包 `@petercjl/tuda-desktop`，稳定标签 `latest`；发布日期 2026-11-13（Asia/Shanghai）。
+- 内容：企业空间内置公司账号服务与 NAS 默认地址，已保存空值回退部署默认值，自定义地址保留；包含当前冻结快照中的 Pi SDK、Skill 看板、创作助手、画板封面和交互修复。Pi 私有配置、会话与用户 Skill 使用用户主目录 `~/.tuda/stable`。插件 `@petercjl/tuda` 保持独立版本与发布流程。
+- 原生源码：`a826bf77d24be19668f7e11f82b3578eda3d7792`；[Windows 构建、完整检查和实际安装验收](https://github.com/petercjl/iterlay/actions/runs/43268982577) 的 verify 作业成功，2425 项测试通过、7 项跳过。两个默认输入值、可用登录按钮、Pi 运行时、画板关闭保存及重启恢复均通过；实装截图已目视核验。Mac Dev 独立验证 2428 项通过、4 项跳过。
+- 公开发布：[GitHub Actions OIDC](https://github.com/petercjl/iterlay/actions/runs/43273372025) 已上传正式包；[云端只读复核](https://github.com/petercjl/iterlay/actions/runs/43273985286) 全部成功。registry 精确版本与 latest、归档 SRI、真实 npm 精确安装、安装后清单验证和完整 Windows 安装器哈希均一致；本机也通过应用实际下载逻辑从公开 npm 分块重建安装器。
+- npm 归档：4 个文件，1619 字节；SRI `sha512-xo8+BJOOUaqtfg796FrUCubMTRg4pDi0KNnXdCNuoYzidmjQTV/b9qWCf/Vzn13qVud1G9uE01UNMLe7R3L/Pg==`。安装器 122088436 字节，SHA-256 `16b97eef71d46f685c9cc0d8251c3f802e3800d0036a2da6355b33ec13186060`。
+- NAS 首装文件：工具共享中的 `tuda/Tuda-0.1.3-x64.exe`，同目录提供 SHA256 与安装说明；复制后回读校验与公开 npm 一致。
+- 历史执行：首次分块上传获 npm 接收后等待 CDN 可见超时；保留原生验收制品恢复发布。正式包上传后的 npm 客户端元数据短暂滞后，由只读复核完成验证。恢复期间未重建安装器、未重复上传已接收分块、未重复升版。
+- 范围：未执行真实员工钉钉登录或付费模型生成；宿主安装与更新由宿主自身机制管理。指标未采集。
