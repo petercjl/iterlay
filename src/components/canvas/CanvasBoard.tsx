@@ -1,3 +1,4 @@
+import { CollaborationOverlay } from "@/components/enterprise/CollaborationOverlay";
 import { Code2 } from "lucide-react";
 import { CanvasToolHint, CanvasToolHintProvider, CANVAS_TOOL_HINTS } from "./CanvasToolHint";
 import { translateSourceText } from "@/i18n/ui-text";
@@ -1669,6 +1670,7 @@ export function CanvasBoard({
         fitViewOptions={CANVAS_FIT_VIEW_OPTIONS}
         wheelInteraction={wheelInteraction}
       >
+        <CollaborationOverlay />
         <CanvasViewportOverlays
           freeConnectionDrag={freeConnectionGesture.drag ?? menuController.connectionPreview}
           helperLines={helperLines}

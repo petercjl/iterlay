@@ -5,6 +5,7 @@ import { allowedExternalUrl, installRendererSecurity, isTrustedRendererUrl } fro
 import { installWindowLifecycle } from "./window-lifecycle.js";
 import { BackgroundSession, CLI_BACKGROUND_FLAG } from "./background-session.js";
 import { resolveDesktopDevelopmentUserData } from "./dev-workspace.js";
+import { createEnterpriseClient, enterpriseSettings, registerEnterprise } from "./enterprise/integration.js";
 import { app, BrowserWindow, dialog, Menu, nativeImage, nativeTheme, net, shell, Tray } from "electron";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
@@ -425,7 +426,9 @@ app.whenReady().then(async () => {
     })()
   ]);
   startupMark("business-modules-loaded");
-  const settings = new SettingsStore(dataDir);
+  const localSettings = new SettingsStore(dataDir);
+  const enterprise = await createEnterpriseClient(app.getPath("userData"));
+  const settings = enterpriseSettings(localSettings, enterprise);
   const appLocale = resolveAppLocale(settings.getSettings().language, app.getLocale());
   const onboarding = new OnboardingStore(dataDir);
   const codexAuth = new CodexOAuthService(dataDir);
@@ -613,7 +616,7 @@ app.whenReady().then(async () => {
       console.warn("授权服务暂时不可用，将按本地授权状态启动。", error);
     }),
     update.initialize(),
-    registerAssetProtocol(assets)
+    registerAssetProtocol(assets, (request) => enterprise.assetResponse(request))
   ]);
   startupMark("core-services-ready");
   registerLicenseIpc(license);
@@ -1050,6 +1053,7 @@ app.whenReady().then(async () => {
     managerApiBaseUrl: manageApiBaseUrl
   });
 
+  const disposeEnterprise = registerEnterprise(enterprise, boards, assets, localSettings);
   startupMark("ipc-ready");
   if (startupWindow.isDestroyed()) {
     await createWindow(appIcon, customAppIcons, settings.getSettings().theme);
@@ -1081,6 +1085,7 @@ app.whenReady().then(async () => {
     mediaTools.cancel();
     disposeMediaToolsIpc();
     disposeLocalApi();
+    disposeEnterprise();
     disposeIpcResources();
     videoSequenceScheduler.dispose();
     void masterGoBridge.stop();

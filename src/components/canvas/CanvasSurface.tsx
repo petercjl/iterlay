@@ -1,3 +1,4 @@
+import { useEnterpriseStatus } from "@/components/enterprise/use-enterprise";
 import { useCallback, useRef, type ReactNode, type WheelEvent as ReactWheelEvent } from "react";
 import {
   ReactFlow,
@@ -101,22 +102,26 @@ export function CanvasSurface({
     initialViewProps = { defaultViewport: EMPTY_CANVAS_VIEWPORT };
   }
 
+  const enterprise = useEnterpriseStatus();
+  const readOnly = enterprise?.activeSpace === "enterprise" && enterprise.user?.role === "viewer";
   return (
     <CanvasSelectionCountContext.Provider value={selectedNodeCount}>
       <CanvasConnectionEdgeActionsProvider actions={connectionActions}>
         <ReactFlow
           {...flowProps}
           {...initialViewProps}
+          onNodeDragStart={(...args) => { document.documentElement.dataset.canvasDragging = "true"; flowProps.onNodeDragStart?.(...args); }}
+          onNodeDragStop={(...args) => { flowProps.onNodeDragStop?.(...args); requestAnimationFrame(() => { delete document.documentElement.dataset.canvasDragging; window.dispatchEvent(new Event("tuda:canvas-interaction-ended")); }); }}
           nodeTypes={canvasNodeTypes}
           edgeTypes={canvasConnectionEdgeTypes}
           proOptions={PRO_OPTIONS}
           minZoom={0.05}
           maxZoom={4}
-          nodesConnectable={!commentMode && toolMode === "select"}
-          edgesReconnectable={!commentMode && toolMode === "select"}
+          nodesConnectable={!readOnly && !commentMode && toolMode === "select"}
+          edgesReconnectable={!readOnly && !commentMode && toolMode === "select"}
           connectionRadius={24}
           onlyRenderVisibleElements
-          nodesDraggable={!commentMode && toolMode === "select"}
+          nodesDraggable={!readOnly && !commentMode && toolMode === "select"}
           elementsSelectable={!commentMode && toolMode === "select"}
           deleteKeyCode={null}
           selectionKeyCode={null}

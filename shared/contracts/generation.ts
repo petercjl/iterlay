@@ -79,6 +79,10 @@ export interface GenerateImageInput {
   workflowMode: ImageWorkflowMode;
   /** 由画布生成节点发起时记录节点 ID，供主进程在渲染层重载后原子回写结果。 */
   generationNodeId?: string;
+  /** Stable output identities shared with the enterprise worker. */
+  outputNodeIds?: string[];
+  /** Explicit target for a version edit; independent of the current UI selection. */
+  resultTargetNodeId?: string;
   /** 图片生成的编排方式；缺省按普通生成处理，兼容旧历史记录。 */
   creationMode?: CreationMode;
   useCase?: GptImageUseCase;

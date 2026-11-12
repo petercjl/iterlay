@@ -1,3 +1,4 @@
+import { ENTERPRISE_ASSET_PREFIX } from "../../shared/enterprise.js";
 import path from "node:path";
 import {
   isBoardImageNode,
@@ -362,7 +363,7 @@ export function boardAssetCatalogFingerprint(board: BoardData): string {
 export function boardStoragePaths(board: BoardData): string[] {
   const mediaPaths = new Set<string>();
   const addMediaPath = (mediaPath: string | undefined): void => {
-    if (mediaPath) mediaPaths.add(path.resolve(mediaPath));
+    if (mediaPath) mediaPaths.add(mediaPath.startsWith(ENTERPRISE_ASSET_PREFIX) ? mediaPath : path.resolve(mediaPath));
   };
   for (const node of board.nodes) {
     if (isBoardImageNode(node)) {

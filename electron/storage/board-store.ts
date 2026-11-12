@@ -65,6 +65,13 @@ import { reconcileVideoGenerationPlaceholder } from "../../shared/video-generati
 import { MutationQueue, writeJsonAtomic } from "./atomic-json.js";
 import { resolveImageVersion, resolveDeliverySource, validateImageDeliveryRecipe, type ImageVersionIdentity, type ImageDeliveryRecipe } from "../../shared/image-delivery.js";
 
+export interface BoardPersistenceAdapter {
+  read(file: string): Promise<string>;
+  write(file: string, value: unknown): Promise<void>;
+  list(directory: string): Promise<string[]>;
+  remove(file: string): Promise<void>;
+}
+
 interface BoardsState {
   lastOpenedBoardId?: string;
   installedDemoBoardVersion?: number;
@@ -120,12 +127,18 @@ export class BoardStore {
 
   constructor(
     dataDir: string,
-    private readonly resolveImageDimensions?: BoardImageDimensionsResolver
+    private readonly resolveImageDimensions?: BoardImageDimensionsResolver,
+    private readonly persistence?: BoardPersistenceAdapter
   ) {
     this.boardsDir = path.join(dataDir, "boards");
     this.trashDir = path.join(dataDir, "board-trash");
     this.comicDramaReceiptsDir = path.join(dataDir, "comic-drama-receipts");
   }
+
+  private readText(file: string): Promise<string> { return this.persistence ? this.persistence.read(file) : readFile(file, "utf8"); }
+  private listFiles(directory: string): Promise<string[]> { return this.persistence ? this.persistence.list(directory) : readdir(directory); }
+  private writeJson(file: string, value: unknown): Promise<void> { return this.persistence ? this.persistence.write(file, value) : writeJsonAtomic(file, value); }
+  private removeFile(file: string): Promise<void> { return this.persistence ? this.persistence.remove(file) : rm(file, { force: true }); }
 
   async listBoards(): Promise<BoardData[]> {
     await this.mutations.idle();
@@ -139,7 +152,7 @@ export class BoardStore {
     }
     let files: string[];
     try {
-      files = await readdir(this.boardsDir);
+      files = await this.listFiles(this.boardsDir);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") {
         this.loadedAll = true;
@@ -381,7 +394,7 @@ export class BoardStore {
         input.toolName,
         input.idempotencyKey
       );
-      const existing = await readOptionalJson<ComicDramaMutationRecord>(receiptFile);
+      const existing = await readOptionalJson<ComicDramaMutationRecord>(receiptFile, (file) => this.readText(file));
       if (existing) {
         if (existing.receipt.inputHash !== input.inputHash) {
           throw Object.assign(new Error("相同幂等键不能用于不同的漫剧操作。"), {
@@ -436,7 +449,7 @@ export class BoardStore {
         createdAt: new Date().toISOString()
       };
       await this.writeBoard(nextBoard);
-      await writeJsonAtomic(receiptFile, {
+      await this.writeJson(receiptFile, {
         receipt,
         result,
         before: current
@@ -726,8 +739,8 @@ export class BoardStore {
       const deletedAt = new Date().toISOString();
       for (const candidate of [board, ...children]) {
         const record: TrashedBoardRecord = { board: candidate, deletedAt };
-        await writeJsonAtomic(this.trashFile(candidate.id), record);
-        await rm(this.boardFile(candidate.id), { force: true });
+        await this.writeJson(this.trashFile(candidate.id), record);
+        await this.removeFile(this.boardFile(candidate.id));
         this.boardVersions.set(candidate.id, (this.boardVersions.get(candidate.id) ?? 0) + 1);
         this.cache.delete(candidate.id);
         this.summaryIndex.delete(candidate.id);
@@ -745,7 +758,7 @@ export class BoardStore {
       for (const candidate of [record, ...childRecords]) {
         this.storageBytes.delete(candidate.board.id);
         await this.writeBoard(candidate.board);
-        await rm(this.trashFile(candidate.board.id), { force: true });
+        await this.removeFile(this.trashFile(candidate.board.id));
       }
       return cloneBoard(record.board);
     });
@@ -757,7 +770,7 @@ export class BoardStore {
       if (!record) return false;
       const childRecords = (await this.readTrashedBoards()).filter((candidate) => candidate.board.parentBoardId === id);
       for (const candidate of [record, ...childRecords]) {
-        await rm(this.trashFile(candidate.board.id), { force: true });
+        await this.removeFile(this.trashFile(candidate.board.id));
         this.storageBytes.delete(candidate.board.id);
       }
       return true;
@@ -767,7 +780,7 @@ export class BoardStore {
   async emptyTrash(): Promise<string[]> {
     return this.mutations.run(async () => {
       const records = await this.readTrashedBoards();
-      await Promise.all(records.map((record) => rm(this.trashFile(record.board.id), { force: true })));
+      await Promise.all(records.map((record) => this.removeFile(this.trashFile(record.board.id))));
       for (const record of records) this.storageBytes.delete(record.board.id);
       return records.map((record) => record.board.id);
     });
@@ -782,7 +795,7 @@ export class BoardStore {
       const records = await this.readTrashedBoards();
       const cutoff = now - retentionDays * 24 * 60 * 60 * 1_000;
       const expired = records.filter((record) => Date.parse(record.deletedAt) <= cutoff);
-      await Promise.all(expired.map((record) => rm(this.trashFile(record.board.id), { force: true })));
+      await Promise.all(expired.map((record) => this.removeFile(this.trashFile(record.board.id))));
       for (const record of expired) this.storageBytes.delete(record.board.id);
       return expired.map((record) => record.board.id);
     });
@@ -793,7 +806,7 @@ export class BoardStore {
     await this.mutations.run(async () => {
       const children = (await this.readBoards()).filter((candidate) => candidate.parentBoardId === id);
       for (const boardId of [id, ...children.map((child) => child.id)]) {
-        await rm(this.boardFile(boardId), { force: true });
+        await this.removeFile(this.boardFile(boardId));
         this.boardVersions.set(boardId, (this.boardVersions.get(boardId) ?? 0) + 1);
         this.cache.delete(boardId);
         this.summaryIndex.delete(boardId);
@@ -1235,7 +1248,7 @@ export class BoardStore {
       const state = await this.readState();
       const board = await this.readBoardFile(this.boardFile(id));
       if (board) await this.writeBoard({ ...board, updatedAt: new Date().toISOString() });
-      await writeJsonAtomic(path.join(this.boardsDir, STATE_FILE), { ...state, lastOpenedBoardId: id } satisfies BoardsState);
+      await this.writeJson(path.join(this.boardsDir, STATE_FILE), { ...state, lastOpenedBoardId: id } satisfies BoardsState);
     });
   }
 
@@ -1253,7 +1266,7 @@ export class BoardStore {
   async setInstalledDemoBoardVersion(version: number): Promise<void> {
     await this.mutations.run(async () => {
       const state = await this.readState();
-      await writeJsonAtomic(path.join(this.boardsDir, STATE_FILE), {
+      await this.writeJson(path.join(this.boardsDir, STATE_FILE), {
         ...state,
         installedDemoBoardVersion: version
       } satisfies BoardsState);
@@ -1262,7 +1275,7 @@ export class BoardStore {
 
   private async readState(): Promise<BoardsState> {
     try {
-      const raw = await readFile(path.join(this.boardsDir, STATE_FILE), "utf8");
+      const raw = await this.readText(path.join(this.boardsDir, STATE_FILE));
       return JSON.parse(raw) as BoardsState;
     } catch {
       return {};
@@ -1292,7 +1305,7 @@ export class BoardStore {
   private async readTrashedBoards(): Promise<TrashedBoardRecord[]> {
     let files: string[];
     try {
-      files = await readdir(this.trashDir);
+      files = await this.listFiles(this.trashDir);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
       throw error;
@@ -1305,7 +1318,7 @@ export class BoardStore {
 
   private async readTrashedBoardFile(filePath: string): Promise<TrashedBoardRecord | null> {
     try {
-      const parsed = JSON.parse(await readFile(filePath, "utf8")) as Partial<TrashedBoardRecord>;
+      const parsed = JSON.parse(await this.readText(filePath)) as Partial<TrashedBoardRecord>;
       const board = normalizeStoredBoard(parsed.board);
       if (!board || !parsed.deletedAt) return null;
       return { board, deletedAt: parsed.deletedAt };
@@ -1324,7 +1337,7 @@ export class BoardStore {
     }
     const version = this.boardVersions.get(id) ?? 0;
     try {
-      const raw = await readFile(filePath, "utf8");
+      const raw = await this.readText(filePath);
       const board = normalizeStoredBoard(JSON.parse(raw));
       if (!board) throw new Error("画板数据结构无效。");
       if ((this.boardVersions.get(id) ?? 0) === version) {
@@ -1341,7 +1354,7 @@ export class BoardStore {
 
   private async writeBoard(board: BoardData): Promise<void> {
     this.boardVersions.set(board.id, (this.boardVersions.get(board.id) ?? 0) + 1);
-    await writeJsonAtomic(this.boardFile(board.id), board);
+    await this.writeJson(this.boardFile(board.id), board);
     this.rememberBoard(board);
   }
 
@@ -1351,7 +1364,7 @@ export class BoardStore {
       const pending = (async () => {
         const journalPath = path.join(this.boardsDir, ".transaction.json");
         let raw: string;
-        try { raw = await readFile(journalPath, "utf8"); }
+        try { raw = await this.readText(journalPath); }
         catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return; throw error; }
         const journal = JSON.parse(raw) as { schemaVersion?: number; boards?: unknown[] };
         if (journal.schemaVersion !== 1 || !Array.isArray(journal.boards) || journal.boards.length !== 2) {
@@ -1364,7 +1377,7 @@ export class BoardStore {
         // Validate every path before replaying any writes.
         for (const board of boards) this.boardFile(board!.id);
         for (const board of boards) await this.writeBoard(board!);
-        await rm(journalPath);
+        await this.removeFile(journalPath);
       })();
       this.boardRecovery = pending;
       void pending.catch(() => { if (this.boardRecovery === pending) this.boardRecovery = undefined; });
@@ -1374,10 +1387,10 @@ export class BoardStore {
 
   private async writeBoardBatch(boards: BoardData[]): Promise<void> {
     const journalPath = path.join(this.boardsDir, ".transaction.json");
-    await writeJsonAtomic(journalPath, { schemaVersion: 1, boards });
+    await this.writeJson(journalPath, { schemaVersion: 1, boards });
     try {
       for (const board of boards) await this.writeBoard(board);
-      await rm(journalPath);
+      await this.removeFile(journalPath);
     } catch (error) {
       // Keep the intent durable and retry its complete replay on the next access.
       this.boardRecovery = undefined;
@@ -1504,9 +1517,9 @@ export class BoardStore {
   }
 }
 
-async function readOptionalJson<T>(filePath: string): Promise<T | null> {
+async function readOptionalJson<T>(filePath: string, reader: (file: string) => Promise<string> = (file) => readFile(file, "utf8")): Promise<T | null> {
   try {
-    return JSON.parse(await readFile(filePath, "utf8")) as T;
+    return JSON.parse(await reader(filePath)) as T;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
     throw error;

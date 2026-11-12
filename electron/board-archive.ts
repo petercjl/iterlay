@@ -60,7 +60,8 @@ export async function buildBoardArchive(
   comments: AssetComment[] = [],
   assetMeta: AssetTagInfo[] = [],
   videoJobs: VideoGenerationJob[] = [],
-  videoSequences: VideoSequence[] = []
+  videoSequences: VideoSequence[] = [],
+  readMedia: (sourcePath: string) => Promise<Buffer> = readFile
 ): Promise<Buffer> {
   const archiveEntries: Array<[string, Uint8Array]> = [];
   const pathMap = new Map<string, string>();
@@ -70,7 +71,7 @@ export async function buildBoardArchive(
   async function addMedia(mediaPath: string, directory: "images" | "videos" | "audios" | "posters"): Promise<void> {
     if (pathMap.has(mediaPath)) return;
     try {
-      const bytes = await readFile(mediaPath);
+      const bytes = await readMedia(mediaPath);
       const hash = createHash("sha256").update(bytes).digest("hex");
       const existing = archivedImageByHash.get(hash);
       if (existing && existing.bytes.equals(bytes)) {

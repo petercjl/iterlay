@@ -26,3 +26,16 @@ resources/native/.build-stamp
 
 # Generated offline code sandbox runtime
 /public/code-sandbox/
+
+# Enterprise service generated output
+enterprise/dist/
+enterprise/node_modules/
+enterprise-data/
+
+# Enterprise runtime secrets and deployment state
+**/runtime.env
+**/runtime.env.*
+enterprise/config/
+enterprise/storage/
+enterprise/backups/
+enterprise/versions/

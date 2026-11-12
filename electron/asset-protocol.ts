@@ -18,9 +18,10 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 /** Registers the opaque-token asset protocol after Electron is ready. */
-export async function registerAssetProtocol(assets: AssetStore): Promise<void> {
+export async function registerAssetProtocol(assets: AssetStore, enterprise?: (request: Request) => Promise<Response>): Promise<void> {
   if (protocol.isProtocolHandled(ASSET_PROTOCOL)) return;
-  protocol.handle(ASSET_PROTOCOL, (request) => (
-    createAssetResponse(request, (url) => assets.resolveAssetUrl(url))
-  ));
+  protocol.handle(ASSET_PROTOCOL, (request) => {
+    if (new URL(request.url).hostname === "enterprise") return enterprise ? enterprise(request) : new Response("Not found", { status: 404 });
+    return createAssetResponse(request, (url) => assets.resolveAssetUrl(url));
+  });
 }

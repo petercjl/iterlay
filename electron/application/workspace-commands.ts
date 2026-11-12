@@ -1,3 +1,4 @@
+import { inExecutionSpace } from "../execution-space.js";
 import { calculateSliceGrid, validateCropRect, MAX_SLICE_COUNT } from "../../shared/image-slicing.js";
 import { parseInlineMediaDataUrl } from "../../shared/media-import.js";
 import { imageDimensionsFromHeader } from "../media/image-metadata.js";
@@ -57,7 +58,8 @@ export class WorkspaceCommands {
   private readonly submissions = new Map<string, { hash: string; promise: Promise<GenerationRecord> }>();
   private defaultBoardResolution?: Promise<string>;
   constructor(private readonly dependencies: CommandDependencies) {}
-  async call(method: string, a: Record<string, unknown>): Promise<unknown> {
+  async call(method: string, a: Record<string, unknown>): Promise<unknown> { if (a.space !== undefined && a.space !== "personal" && a.space !== "enterprise") throw new Error("无效空间，请选择 personal 或 enterprise。"); return inExecutionSpace(() => this.execute(method, a), a.space); }
+  private async execute(method: string, a: Record<string, unknown>): Promise<unknown> {
     if (method === "open_iterlay") method = "open_tuda";
     const { api } = this.dependencies;
     const emit = (event: WorkbenchEvent) => this.dependencies.emit({ ...event, ...(a.preserveView === true ? { preserveView: true } : {}) });
@@ -74,6 +76,8 @@ export class WorkspaceCommands {
         const settings = await api.getSettings();
         return { protocolVersion: 1, activeProviderId: settings.activeProviderId, boardCount: (await api.listBoards()).length };
       }
+      case "get_space": return api.enterpriseStatus();
+      case "select_space": return api.selectSpace(choice(a.target, ["personal", "enterprise"] as const, "personal"));
       case "configure_provider": return api.configureProvider(a);
       case "get_provider": {
         const settings = await api.getSettings();

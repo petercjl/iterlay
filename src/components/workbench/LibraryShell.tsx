@@ -1,3 +1,4 @@
+import { SpaceControl } from "@/components/enterprise/SpaceControl";
 import { ONLINE_SHARING_AVAILABLE } from "@shared/sharing-availability";
 import { translateSourceText } from "@/i18n/ui-text";
 import { useI18n, useUiText } from "@/i18n";
@@ -565,6 +566,8 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
             </button>
           </CompactSidebarTooltip>
         </div>
+
+        <SpaceControl />
 
         <button
           type="button"

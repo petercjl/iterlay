@@ -367,6 +367,8 @@ export function createImageGenerationController(dependencies: GenerationControll
       const payload: GenerateImageInput = {
         ...generationInput,
         clientTaskId: activeGenerationId,
+        outputNodeIds: clientIds.length ? clientIds : undefined,
+        resultTargetNodeId: isEditSession ? editTargetImage.id : undefined,
         prompt: finalPrompt,
         model: options?.preserveModelOverride || (generationInput.historySourceJobId && generationInput.providerId === activeProviderId)
           ? generationInput.model

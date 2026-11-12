@@ -1,3 +1,4 @@
+import { SpaceControl } from "@/components/enterprise/SpaceControl";
 import { useUiText } from "@/i18n";
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { useReactFlow } from "@xyflow/react";
@@ -168,6 +169,7 @@ export function TopBar({
         className="workbench-page-header window-titlebar-overlay-safe window-titlebar-overlay-safe--compact sticky inset-x-0 top-0 z-20 flex h-12 items-center gap-3 bg-background/95 px-4 max-[600px]:gap-1"
         data-window-platform={IS_MAC_PLATFORM ? "macos" : "windows"}
       >
+        <SpaceControl compact />
         <div className="flex min-w-0 items-center gap-1 overflow-hidden [-webkit-app-region:no-drag]">
           {!IS_MAC_PLATFORM ? (
             <img

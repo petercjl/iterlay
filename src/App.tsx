@@ -1,3 +1,4 @@
+import { useEnterpriseStatus } from "@/components/enterprise/use-enterprise";
 import { BRAND } from "@shared/brand";
 import { automaticVideoPlacement } from "@/lib/automatic-video-placement";
 import { connectTemplatePersistence, readPersistedTemplates } from "@/lib/template-persistence";
@@ -451,6 +452,7 @@ function useStableCallback<TArgs extends unknown[], TResult>(
 }
 
 export default function App(): React.ReactElement {
+  const enterpriseStatus = useEnterpriseStatus();
   const uiText = useUiText();
 
   const { language, locale, setLanguage } = useI18n();
@@ -1127,6 +1129,10 @@ export default function App(): React.ReactElement {
   const undoCanvasChange = useCallback(
     (current?: CanvasSelectionSnapshot): void => {
       const boardId = activeBoardRef.current?.id ?? LOCAL_CANVAS_HISTORY_ID;
+      if (enterpriseStatus?.activeSpace === "enterprise") {
+        void getImageWorkbenchApi().undoEnterpriseBoard(boardId, "undo").catch(error => toast.error(getWorkbenchErrorMessage(error)));
+        return;
+      }
       const stack = canvasUndoStackRef.current;
       let snapshot = stack.pop();
       while (snapshot && snapshot.boardId !== boardId) snapshot = stack.pop();
@@ -1141,12 +1147,16 @@ export default function App(): React.ReactElement {
       applyCanvasSnapshot(snapshot);
       syncCanvasHistoryStatus();
     },
-    [applyCanvasSnapshot, captureCanvasSnapshot, syncCanvasHistoryStatus]
+    [applyCanvasSnapshot, captureCanvasSnapshot, syncCanvasHistoryStatus, enterpriseStatus?.activeSpace]
   );
 
   const redoCanvasChange = useCallback(
     (current?: CanvasSelectionSnapshot): void => {
       const boardId = activeBoardRef.current?.id ?? LOCAL_CANVAS_HISTORY_ID;
+      if (enterpriseStatus?.activeSpace === "enterprise") {
+        void getImageWorkbenchApi().undoEnterpriseBoard(boardId, "redo").catch(error => toast.error(getWorkbenchErrorMessage(error)));
+        return;
+      }
       const stack = canvasRedoStackRef.current;
       let snapshot = stack.pop();
       while (snapshot && snapshot.boardId !== boardId) snapshot = stack.pop();
@@ -1162,7 +1172,7 @@ export default function App(): React.ReactElement {
       applyCanvasSnapshot(snapshot);
       syncCanvasHistoryStatus();
     },
-    [applyCanvasSnapshot, captureCanvasSnapshot, syncCanvasHistoryStatus]
+    [applyCanvasSnapshot, captureCanvasSnapshot, syncCanvasHistoryStatus, enterpriseStatus?.activeSpace]
   );
 
   useEffect(() => {
@@ -1538,6 +1548,10 @@ export default function App(): React.ReactElement {
               const pendingIdSet = new Set(pendingIds);
               setImages((current) => current.filter((image) => !pendingIdSet.has(image.id)));
             }
+          }
+          if (detail.collaboration === true) {
+            if (document.documentElement.dataset.canvasDragging === "true") await new Promise<void>(resolve => window.addEventListener("tuda:canvas-interaction-ended", () => resolve(), { once: true }));
+            await boardSaveCoordinator.flush();
           }
           // A delayed autosave contains the pre-CLI in-memory canvas. Letting it run
           // after appendNodes would overwrite the external result with that stale snapshot.
@@ -5539,8 +5553,8 @@ export default function App(): React.ReactElement {
           onExportBoard={() => {
             if (activeBoardRef.current) void exportBoardById(activeBoardRef.current.id);
           }}
-          canUndo={canvasHistoryStatus.canUndo}
-          canRedo={canvasHistoryStatus.canRedo}
+          canUndo={enterpriseStatus?.activeSpace === "enterprise" ? enterpriseStatus.history?.canUndo === true : canvasHistoryStatus.canUndo}
+          canRedo={enterpriseStatus?.activeSpace === "enterprise" ? enterpriseStatus.history?.canRedo === true : canvasHistoryStatus.canRedo}
           onUndo={undoCanvasChange}
           onRedo={redoCanvasChange}
           onToggleHistory={() => {

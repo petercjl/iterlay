@@ -6,7 +6,9 @@ const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
 export function listWorkspaceTools(): JsonObject[] {
   return [
-        tool("status", "Read local workspace status and protocol version."),
+        tool("status", "Read workspace status and protocol version."),
+        tool("get_space", "Read selected personal/enterprise space, authenticated member, collaboration and pending-save state. No tokens returned."),
+        tool("select_space", "Switch the desktop selected space after flushing changes. Enterprise requires DingTalk login.", { target: { type: "string", enum: ["personal", "enterprise"] } }, ["target"]),
         tool("list_providers", "List saved providers without credentials.", { kind: { type: "string", enum: ["image", "video", "text", "audio"] } }),
         tool("get_provider", "Read saved Provider configuration without credentials.", { providerId: stringField("Provider ID") }, ["providerId"]),
         tool("configure_provider", "Atomically configure a video or TTS provider. Does not submit generation. Omitted fields and credentials are preserved; empty apiKey clears it.", {
@@ -120,7 +122,7 @@ function parseImageDataUrl(value: string): Extract<ToolContent, { type: "image" 
 }
 
 function tool(name: string, description: string, properties: JsonObject = {}, required: string[] = []): JsonObject {
-  return { name, description, inputSchema: { type: "object", properties, ...(required.length ? { required } : {}) } };
+  return { name, description, inputSchema: { type: "object", properties: { space: { type: "string", enum: ["personal", "enterprise"], description: "Pin this operation to a space; omitted uses the selected desktop space at task start." }, ...properties }, ...(required.length ? { required } : {}) } };
 }
 
 function stringField(description: string): JsonObject {

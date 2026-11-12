@@ -142,6 +142,21 @@ export const VIDEO_SEQUENCE_MUTATIONS = [
 
 export function createWorkbenchClient(transport: WorkbenchTransport) {
   return {
+    enterpriseStatus: () => transport.invoke("enterprise:status") as Promise<import("./enterprise.js").EnterpriseStatus>,
+    configureEnterprise: (url: string) => transport.invoke("enterprise:configure", url) as Promise<import("./enterprise.js").EnterpriseStatus>,
+    beginEnterpriseLogin: () => transport.invoke("enterprise:login") as Promise<{ expiresAt: string }>,
+    pollEnterpriseLogin: () => transport.invoke("enterprise:loginPoll") as Promise<{ status: "pending" | "authorized" }>,
+    enterpriseLogout: () => transport.invoke("enterprise:logout") as Promise<import("./enterprise.js").EnterpriseStatus>,
+    selectSpace: (space: import("./enterprise.js").SpaceKind) => transport.invoke("enterprise:selectSpace", space) as Promise<import("./enterprise.js").EnterpriseStatus>,
+    enterprisePresence: (presence: { boardId?: string; cursor?: { x: number; y: number }; selectedNodeIds?: string[] }) => transport.invoke("enterprise:presence", presence) as Promise<void>,
+    onEnterpriseState: (listener: (value: import("./enterprise.js").EnterpriseStatus) => void) => transport.on("enterprise:state", listener),
+    enterpriseProviderAccounts: (userId: string) => transport.invoke("enterprise:providerAccounts", userId) as Promise<Record<"image" | "text", import("./enterprise.js").EnterpriseProviderMetadata>>,
+    assignEnterpriseProvider: (value: import("./enterprise.js").EnterpriseProviderAssignment) => transport.invoke("enterprise:assignProvider", value) as Promise<{ ok: boolean }>,
+    enterpriseMembers: () => transport.invoke("enterprise:members") as Promise<Array<import("./enterprise.js").EnterpriseMember & { active: boolean }>>,
+    updateEnterpriseMember: (value: { id: string; role: import("./enterprise.js").EnterpriseRole; active: boolean }) => transport.invoke("enterprise:updateMember", value) as Promise<{ ok: boolean }>,
+    undoEnterpriseBoard: (boardId: string, direction: "undo" | "redo") => transport.invoke("enterprise:undo", boardId, direction) as Promise<void>,
+    retryEnterpriseSync: () => transport.invoke("enterprise:retrySync") as Promise<void>,
+    copyBoardToEnterprise: (boardId: string) => transport.invoke("enterprise:copyBoard", boardId) as Promise<import("./types.js").BoardSummary>,
     listTemplates: () => transport.invoke("templates:list") as Promise<SceneTemplateData[]>,
     getTemplate: (id: string) => transport.invoke("templates:get", id) as Promise<SceneTemplateData>,
     createTemplate: (input: Partial<SceneTemplateData>) => transport.invoke("templates:create", input) as Promise<SceneTemplateData>,

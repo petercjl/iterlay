@@ -1,0 +1,56 @@
+name: tuda-enterprise
+services:
+  db:
+    image: postgres:17.11-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tuda
+      POSTGRES_USER: tuda
+      POSTGRES_PASSWORD: ${TUDA_DB_PASSWORD:?required}
+    volumes:
+      - ./storage/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U tuda -d tuda"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [tuda]
+  server:
+    build:
+      context: ./source
+      dockerfile: enterprise/Dockerfile
+    image: tuda-enterprise:dev
+    restart: unless-stopped
+    init: true
+    env_file: ./config/runtime.env
+    environment:
+      TUDA_DATA_DIR: /data
+    volumes:
+      - ./storage/assets:/data
+    ports:
+      - "${TUDA_BIND_ADDRESS:-127.0.0.1}:${TUDA_PORT:-18473}:18473"
+    depends_on:
+      db: { condition: service_healthy }
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:18473/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks: [tuda]
+  worker:
+    image: tuda-enterprise:dev
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 16m
+    command: [node, server.js, --worker]
+    env_file: ./config/runtime.env
+    environment:
+      TUDA_DATA_DIR: /data
+    volumes:
+      - ./storage/assets:/data
+    depends_on:
+      db: { condition: service_healthy }
+      server: { condition: service_healthy }
+    networks: [tuda]
+networks:
+  tuda: {}
