@@ -328,3 +328,16 @@ X、小红书、Hacker News、Linux.do、开源中国、少数派暂未找到已
 - npm SRI：`sha512-mllszhOCcNs7DLH3H0vimtTfFKziFf6laH6ZwyJA/p1IZ+7PByFbF1Ma85uHpgS0vZBIXSAdFbGIXcemMmLsMA==`。
 - 范围：本次仅发布连接插件；Tuda桌面和codex-own主产品独立发布。宿主消费渠道和自动更新接入由宿主维护。
 - 指标未采集。
+
+
+### NPM-003 · Tuda 插件 0.1.2 独立稳定版
+
+- 入口：[npm 精确版本](https://www.npmjs.com/package/@petercjl/tuda/v/0.1.2)。包名 `@petercjl/tuda`，稳定渠道 `latest`，日期：2026-11-13（Asia/Shanghai）。
+- 内容：插件在连接桌面前校验显式查看意图，普通读取、导入、编辑、验证和重连保持静默；配套 Skill 同版本。插件包只携带 CLI、MCP 入口与 Skill，桌面更新清单及安装器分块由独立的 `@petercjl/tuda-desktop` 包负责。
+- 版本与发布边界：插件由 `cli/package.json` 和 `publish-plugin-npm.yml` 独立维护；桌面由根目录应用版本、`desktop-package/` 和 `publish-npm.yml` 维护，分别使用发布队列与 dist-tag。本次只发布插件，宿主通过自己的更新机制获取 npm 版本。
+- 源码：`36516e57e2266c912408b99e86db6543c71f815a`；核心拆分与修复提交 `e16ae67b730471927d049caade7ad879b09b0af3`。
+- 发布：[GitHub Actions OIDC](https://github.com/petercjl/iterlay/actions/runs/43264353987) 成功，Linux、Windows、macOS Intel 包级检查全部通过。本机 macOS Apple Silicon 使用隔离插件连接真实 Dev，完成新建画板、写入文字及完整读回；当前画板和前台焦点保持不变，隐式打开请求被拒绝。
+- 公开核验：精确版本、latest、tarball 完整性、真实 npm 精确安装、CLI 版本、隔离 Skill 安装/current/hash 与目标自有运行时版本均通过；公开包 stdio 入口发现 29 个工具，离线拒绝隐式打开。原版 Agent 与 codex-own 安装目录未用于候选包安装。
+- 制品：21 个文件，176933 字节；SHA-256 `5415416ac350a212da4d9b5d31cb64a384fa62215bb3a7fedd77ff20e824886c`；SRI `sha512-/V626yG9JaFh2IbsiY3fk82RyvDaH20CA7QCSez670QQ3R2GV5whU6jK1Te8RCBXXDWg8MFc5+C/DeFokO3qUQ==`。
+- 历史执行：[首轮检查](https://github.com/petercjl/iterlay/actions/runs/43261339936) 因 GitHub macOS ARM64 容量不足、15 分钟内未取得执行器而终止，发布步骤未执行；采用官方 macOS Intel 执行器后以相同插件版本和完全一致的制品完成发布。没有重复升版或重复上传。
+- 指标未采集。
