@@ -83,12 +83,13 @@ try {
     const status = await page.evaluate(() => window.imageWorkbench.enterpriseStatus());
     assert.equal(status.serverUrl, expectedAccount, "The installed account service must use its deployment default");
     assert.equal(status.storageUrl, expectedNas, "The installed NAS service must use its deployment default");
-    if (standalone) {
-      await page.locator("button[data-space]").click();
-      await page.locator("[data-company-advanced] summary").click();
-      assert.equal(await page.locator("#enterprise-server-url").inputValue(), expectedAccount);
-      assert.equal(await page.locator("#company-nas-url").inputValue(), expectedNas);
-      if (!status.authenticated) assert.equal(await page.getByRole("button", { name: /使用钉钉登录企业空间|Sign in with DingTalk/ }).isEnabled(), true);
+    if (standalone || process.env.TUDA_E2E_DEFAULTS_UI === "1") {
+      await page.locator("#library-sidebar button[data-space]").click();
+      const dialog = page.locator("[data-enterprise-dialog]:visible");
+      await dialog.locator("[data-company-advanced] summary").click();
+      assert.equal(await dialog.locator("#enterprise-server-url").inputValue(), expectedAccount);
+      assert.equal(await dialog.locator("#company-nas-url").inputValue(), expectedNas);
+      if (!status.authenticated) assert.equal(await dialog.getByRole("button", { name: /使用钉钉登录企业空间|Sign in with DingTalk/ }).isEnabled(), true);
       await page.screenshot({ path: path.join(output, "company-defaults.png") });
       await page.keyboard.press("Escape");
     }
