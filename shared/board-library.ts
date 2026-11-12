@@ -15,6 +15,7 @@ export type BoardLibraryAction =
   | { type: "createFolder"; name: string; parentId: string | null; id?: string }
   | { type: "renameFolder"; id: string; name: string }
   | { type: "move"; items: LibraryItem[]; parentId: string | null }
+  | { type: "copy"; items: LibraryItem[]; parentId: string | null }
   | { type: "deleteEmptyFolder"; id: string };
 export interface BoardLibraryMutation {
   expectedRevision: number;

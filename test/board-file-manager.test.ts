@@ -17,9 +17,48 @@ vi.mock("../src/components/enterprise/use-enterprise", () => ({
 }));
 import { BoardFileManager } from "../src/components/workbench/BoardFileManager";
 import { I18nProvider } from "../src/i18n";
+import { planBoardLibraryCopy } from "../shared/board-library-copy.js";
 (
   globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
+
+it("opens item and blank-area context menus and uses the same clipboard and deletion commands", async () => {
+  window.localStorage.setItem("tuda:language", "zh-CN");
+  let state = emptyBoardLibrary();
+  const source = { id: "board", name: "右键画板", nodes: [], createdAt: "2026-11-12T00:00:00Z", updatedAt: "2026-11-12T00:00:00Z" };
+  const update = vi.fn(async (input: BoardLibraryMutation) => {
+    state = input.action.type === "copy" ? planBoardLibraryCopy(state, input, [source], () => crypto.randomUUID()).library : mutateBoardLibrary(state, input, new Set(["board"]), "folder");
+    return structuredClone(state);
+  });
+  data.api = { getBoardLibrary: async () => structuredClone(state), updateBoardLibrary: update, onWorkbenchEvent: () => () => undefined };
+  const container = document.createElement("div"); document.body.append(container);
+  const root = createRoot(container), remove = vi.fn(async () => undefined);
+  const menu = (label: string) => [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(e => e.textContent?.startsWith(label))!;
+  const rightClick = async (target: Element) => act(async () => { target.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, clientX: 300, clientY: 200 })); });
+  try {
+    await act(async () => root.render(createElement(I18nProvider, null, createElement(BoardFileManager, {
+      boards: [{ ...source, imageCount: 0 }], onOpenBoard: vi.fn(), onCreateBoard: vi.fn(), onPrefetchBoard: vi.fn(), onRenameBoard: vi.fn(), onDuplicateBoard: vi.fn(), onDeleteBoard: remove, onExportBoard: vi.fn(), onImportBoard: vi.fn(async () => undefined), onImportBoardFiles: vi.fn(async () => undefined), onClose: vi.fn()
+    }))));
+    const board = container.querySelector('[aria-label="打开画板 右键画板"]')!;
+    await rightClick(board);
+    for (const label of ["重命名", "复制", "剪切", "粘贴", "删除"]) expect(menu(label)).toBeTruthy();
+    await act(async () => document.activeElement?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
+    expect(container.querySelector("[data-board-file-manager]")).toBeTruthy();
+    await rightClick(board);
+    await act(async () => menu("复制").click());
+    await rightClick(container.querySelector('[data-board-file-manager]')!);
+    expect(menu("新建画板")).toBeTruthy(); expect(menu("新建文件夹")).toBeTruthy();
+    await act(async () => menu("粘贴").click());
+    expect(update).toHaveBeenCalledWith({ expectedRevision: 0, action: { type: "copy", items: [{ kind: "board", id: "board" }], parentId: null } });
+    await rightClick(board);
+    await act(async () => menu("删除").click());
+    expect(document.body.textContent).toContain("删除所选项目");
+    expect(remove).not.toHaveBeenCalled();
+    const confirm = [...document.querySelectorAll<HTMLButtonElement>("button")].find(e => e.textContent === "移入回收站")!;
+    await act(async () => confirm.click());
+    expect(remove).toHaveBeenCalledWith("board");
+  } finally { await act(async () => root.unmount()); container.remove(); window.localStorage.removeItem("tuda:language"); }
+});
 
 it("navigates nested folders, scopes new boards, selects without opening, and moves using the file-manager UI", async () => {
   window.localStorage.setItem("tuda:language", "zh-CN");

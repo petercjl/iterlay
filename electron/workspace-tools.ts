@@ -42,10 +42,10 @@ export function listWorkspaceTools(): JsonObject[] {
           fields: { type: "array", items: { type: "object", required: ["id", "label", "value"], properties: { id: stringField("Field ID"), label: stringField("Label"), value: stringField("Rule") } } }
         }, name === "create_template" ? ["name", "prompt"] : ["templateId"])),
         tool("get_board_library", "Read shared folder tree, board locations and directory revision in the selected space."),
-        tool("manage_board_library", "Create/rename folders, move boards or folders, or delete an empty folder. Requires the latest expectedRevision from get_board_library. Null parentId means root; moves retain contents and asset paths.", {
+        tool("manage_board_library", "Create/rename folders, copy or move boards or folder trees, or delete an empty folder. Requires the latest expectedRevision from get_board_library. Null parentId means root; moves retain contents and asset paths.", {
           expectedRevision: { type: "integer", minimum: 0 },
           action: { type: "object", properties: {
-            type: { type: "string", enum: ["createFolder", "renameFolder", "move", "deleteEmptyFolder"] },
+            type: { type: "string", enum: ["createFolder", "renameFolder", "move", "copy", "deleteEmptyFolder"] },
             name: stringField("Folder name"), id: stringField("Existing folder ID"), parentId: { type: ["string", "null"] },
             items: { type: "array", minItems: 1, maxItems: 1000, items: { type: "object", properties: { kind: { type: "string", enum: ["board", "folder"] }, id: stringField("Item ID") }, required: ["kind", "id"] } }
           }, required: ["type"], additionalProperties: false }

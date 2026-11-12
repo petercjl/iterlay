@@ -10,6 +10,7 @@ import {
   ArrowLeft,
   ArrowUp,
   Check,
+  Copy,
   ChevronRight,
   ClipboardPaste,
   Folder,
@@ -24,7 +25,6 @@ import {
 import { toast } from "sonner";
 import {
   folderAncestors,
-  type BoardFolder,
   type BoardLibraryAction,
   type BoardLibraryState,
   type LibraryItem,
@@ -48,6 +48,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { BoardLibrary, type BoardLibraryProps } from "./BoardLibrary";
@@ -75,21 +76,35 @@ export function BoardFileManager(props: Props) {
   const [library, setLibrary] = useState<BoardLibraryState | null>(null);
   const [error, setError] = useState("");
   const [current, setCurrent] = useState<string | null>(null);
-  useEffect(() => { onFolderChange?.(current); }, [current, onFolderChange]);
+  useEffect(() => {
+    onFolderChange?.(current);
+  }, [current, onFolderChange]);
   const [selected, setSelected] = useState<LibraryItem[]>([]);
   const [cut, setCut] = useState<LibraryItem[]>([]);
+  const [copied, setCopied] = useState<LibraryItem[]>([]);
+  const [context, setContext] = useState<{
+    x: number;
+    y: number;
+    items: LibraryItem[];
+    parentId: string | null;
+  } | null>(null);
+  const [deleteItems, setDeleteItems] = useState<LibraryItem[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [childLocked, setChildLocked] = useState(false);
   const [nameDialog, setNameDialog] = useState<{
     id?: string;
     kind: "folder" | "board";
     name: string;
+    parentId?: string | null;
   } | null>(null);
   const [moveItems, setMoveItems] = useState<LibraryItem[] | null>(null);
   const [destination, setDestination] = useState<string | null>(null);
-  const [deleteFolder, setDeleteFolder] = useState<BoardFolder | null>(null);
   const [history, setHistory] = useState<Array<string | null>>([]);
   const request = useRef(0);
+  const managerRef = useRef<HTMLDivElement>(null);
+  const contextRef = useRef(context);
+  contextRef.current = context;
+  const dialogOpenRef = useRef(false);
   const drag = useRef<LibraryItem[] | null>(null);
   const readOnly =
     space?.activeSpace === "enterprise" && space.user?.role === "viewer";
@@ -120,6 +135,8 @@ export function BoardFileManager(props: Props) {
     setCurrent(null);
     setSelected([]);
     setCut([]);
+    setCopied([]);
+    setContext(null);
     setHistory([]);
     void reload();
   }, [scope, reload]);
@@ -135,7 +152,9 @@ export function BoardFileManager(props: Props) {
       stop = getImageWorkbenchApi().onWorkbenchEvent((e) => {
         if (e.type === "library-updated") void reload();
       });
-    } catch { /* Standalone previews have no desktop bridge; reload shows its connection error. */ }
+    } catch {
+      /* Standalone previews have no desktop bridge; reload shows its connection error. */
+    }
     const token = request;
     return () => {
       token.current++;
@@ -148,7 +167,8 @@ export function BoardFileManager(props: Props) {
       setSelected([]);
     }
   }, [current, library]);
-  const modal = Boolean(nameDialog || moveItems || deleteFolder);
+  const modal = Boolean(nameDialog || moveItems || deleteItems);
+  dialogOpenRef.current = modal;
   useEffect(() => {
     onInteractionLockChange?.(locked || modal);
   }, [locked, modal, onInteractionLockChange]);
@@ -268,6 +288,7 @@ export function BoardFileManager(props: Props) {
       .map((folder) => (
         <div key={folder.id}>
           <button
+            data-library-folder-id={folder.id}
             type="button"
             disabled={locked || modal}
             onClick={() => navigate(folder.id)}
@@ -281,10 +302,244 @@ export function BoardFileManager(props: Props) {
           {tree(folder.id, depth + 1)}
         </div>
       ));
+  async function paste(parentId: string | null) {
+    if (cut.length) await move(cut, parentId);
+    else if (
+      copied.length &&
+      (await mutate({ type: "copy", items: copied, parentId }))
+    )
+      setSelected([]);
+  }
+  async function confirmDelete() {
+    if (!deleteItems || !library || busy || readOnly) return;
+    setBusy(true);
+    try {
+      const selectedFolders = new Set(
+        deleteItems.filter((i) => i.kind === "folder").map((i) => i.id),
+      );
+      const removedFolders = folders.filter((f) =>
+        folderAncestors(library, f.id).some((a) => selectedFolders.has(a.id)),
+      );
+      const folderIds = new Set(removedFolders.map((f) => f.id));
+      const boardIds = new Set(
+        deleteItems.filter((i) => i.kind === "board").map((i) => i.id),
+      );
+      for (const b of props.boards)
+        if (folderIds.has(library.boardFolders[b.id])) boardIds.add(b.id);
+      for (const id of boardIds) await props.onDeleteBoard(id);
+      for (const f of removedFolders.sort(
+        (a, b) =>
+          folderAncestors(library, b.id).length -
+          folderAncestors(library, a.id).length,
+      )) {
+        const state = await getImageWorkbenchApi().getBoardLibrary();
+        await getImageWorkbenchApi().updateBoardLibrary({
+          expectedRevision: state.revision,
+          action: { type: "deleteEmptyFolder", id: f.id },
+        });
+      }
+      setDeleteItems(null);
+      setSelected([]);
+      setCut([]);
+      setCopied([]);
+      await reload();
+    } catch (e) {
+      toast.error(getWorkbenchErrorMessage(e));
+      await reload();
+    } finally {
+      setBusy(false);
+    }
+  }
+  function menuEntries(items: LibraryItem[], parentId: string | null) {
+    const one = items.length === 1 ? items[0] : undefined;
+    return (
+      <>
+        {one && (
+          <DropdownMenuItem
+            onSelect={() => {
+              if (one.kind === "folder") navigate(one.id);
+              else props.onOpenBoard(one.id);
+            }}
+          >
+            {t("打开")}
+          </DropdownMenuItem>
+        )}
+        {items.length > 0 && (
+          <>
+            <DropdownMenuItem
+              disabled={readOnly || locked}
+              onSelect={() => {
+                setCopied(items);
+                setCut([]);
+              }}
+            >
+              <Copy className="h-4 w-4" />
+              {t("复制")}
+              <span className="ml-auto text-xs text-muted-foreground">
+                ⌘ / Ctrl C
+              </span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={readOnly || locked}
+              onSelect={() => {
+                setCut(items);
+                setCopied([]);
+              }}
+            >
+              <Scissors className="h-4 w-4" />
+              {t("剪切")}
+              <span className="ml-auto text-xs text-muted-foreground">
+                ⌘ / Ctrl X
+              </span>
+            </DropdownMenuItem>
+          </>
+        )}
+        <DropdownMenuItem
+          disabled={readOnly || locked || !(cut.length || copied.length)}
+          onSelect={() => void paste(parentId)}
+        >
+          <ClipboardPaste className="h-4 w-4" />
+          {t("粘贴")}
+          <span className="ml-auto text-xs text-muted-foreground">
+            ⌘ / Ctrl V
+          </span>
+        </DropdownMenuItem>
+        {items.length > 0 && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              disabled={readOnly || locked || !one}
+              onSelect={() =>
+                one &&
+                setNameDialog({
+                  id: one.id,
+                  kind: one.kind,
+                  name: nameOf(one) ?? "",
+                })
+              }
+            >
+              <Pencil className="h-4 w-4" />
+              {t("重命名")}
+              <span className="ml-auto text-xs text-muted-foreground">F2</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={readOnly || locked}
+              onSelect={() => {
+                setMoveItems(items);
+                setDestination(current);
+              }}
+            >
+              <FolderInput className="h-4 w-4" />
+              {t("移动到…")}
+            </DropdownMenuItem>
+            {one?.kind === "board" && (
+              <DropdownMenuItem onSelect={() => props.onExportBoard(one.id)}>
+                {t("导出 .itb")}
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              disabled={readOnly || locked}
+              onSelect={() => setDeleteItems(items)}
+            >
+              <Trash2 className="h-4 w-4" />
+              {t("删除")}
+              <span className="ml-auto text-xs text-muted-foreground">
+                Delete
+              </span>
+            </DropdownMenuItem>
+          </>
+        )}
+        {(items.length === 0 || one?.kind === "folder") && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              disabled={readOnly || locked}
+              onSelect={() => props.onCreateBoard(parentId)}
+            >
+              {t("新建画板")}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={readOnly || locked}
+              onSelect={() =>
+                setNameDialog({ kind: "folder", name: "", parentId })
+              }
+            >
+              <FolderPlus className="h-4 w-4" />
+              {t("新建文件夹")}
+            </DropdownMenuItem>
+          </>
+        )}
+      </>
+    );
+  }
+  function itemMenu(items: LibraryItem[]) {
+    const item = items[0];
+    const targets = selected.some((i) => keyOf(i) === keyOf(item))
+      ? selected
+      : items;
+    const parentId = item.kind === "folder" ? item.id : current;
+    return (
+      <DropdownMenu modal={false}>
+        <DropdownMenuTrigger asChild>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 shrink-0"
+            disabled={locked}
+            aria-label={t(
+              item.kind === "folder"
+                ? "文件夹 {{ui:0}} 操作"
+                : "画板 {{ui:0}} 操作",
+              [nameOf(item) ?? ""],
+            )}
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {menuEntries(targets, parentId)}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
   return (
     <div
-      className="h-full min-h-0"
+      ref={managerRef}
+      tabIndex={-1}
+      className="h-full min-h-0 outline-none"
       data-board-file-manager
+      onContextMenu={(event) => {
+        if (
+          (event.target as HTMLElement).closest(
+            "input:not([type=checkbox]),textarea,[contenteditable=true],[role=menu]",
+          )
+        )
+          return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (locked || modal) return;
+        const target = event.target as HTMLElement;
+        const board = target.closest<HTMLElement>("[data-board-library-id]");
+        const folder = target.closest<HTMLElement>("[data-library-folder-id]");
+        const item: LibraryItem | null = board
+          ? { kind: "board", id: board.dataset.boardLibraryId! }
+          : folder?.dataset.libraryFolderId
+            ? { kind: "folder", id: folder.dataset.libraryFolderId }
+            : null;
+        const items = item
+          ? selected.some((i) => keyOf(i) === keyOf(item))
+            ? selected
+            : [item]
+          : [];
+        setSelected(items);
+        setContext({
+          x: event.clientX,
+          y: event.clientY,
+          items,
+          parentId: folder ? folder.dataset.libraryFolderId || null : current,
+        });
+      }}
       onDragEnd={() => {
         drag.current = null;
       }}
@@ -292,7 +547,7 @@ export function BoardFileManager(props: Props) {
         if (event.defaultPrevented) return;
         if (
           (event.target as HTMLElement).closest(
-            "input,textarea,select,[contenteditable=true]",
+            "input:not([type=checkbox]),textarea,select,[contenteditable=true]",
           ) ||
           modal ||
           locked
@@ -313,15 +568,25 @@ export function BoardFileManager(props: Props) {
         if (command && event.key.toLowerCase() === "x" && !readOnly) {
           event.preventDefault();
           setCut(selected);
+          setCopied([]);
+        }
+        if (command && event.key.toLowerCase() === "c" && !readOnly) {
+          event.preventDefault();
+          setCopied(selected);
+          setCut([]);
+        }
+        if (event.key === "Delete" && selected.length && !readOnly) {
+          event.preventDefault();
+          setDeleteItems(selected);
         }
         if (
           command &&
           event.key.toLowerCase() === "v" &&
-          cut.length &&
+          (cut.length || copied.length) &&
           !readOnly
         ) {
           event.preventDefault();
-          void move(cut, current);
+          void paste(current);
         }
         if (event.key === "F2" && selected.length === 1 && !readOnly) {
           event.preventDefault();
@@ -337,6 +602,7 @@ export function BoardFileManager(props: Props) {
       <BoardLibrary
         {...props}
         hideCreateAction
+        renderItemMenu={(id) => itemMenu([{ kind: "board", id }])}
         boards={visibleBoards}
         externalBusy={busy || !library || Boolean(error)}
         onInteractionLockChange={onChildLock}
@@ -382,6 +648,7 @@ export function BoardFileManager(props: Props) {
             <button
               type="button"
               disabled={locked || modal}
+              data-library-folder-id=""
               onClick={() => navigate(null)}
               {...dropTarget(null)}
               className={`mb-1 flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs ${current === null ? "bg-blue-500/10 text-blue-600" : "hover:bg-accent"}`}
@@ -495,25 +762,35 @@ export function BoardFileManager(props: Props) {
                     size="sm"
                     variant="ghost"
                     disabled={locked || readOnly}
-                    onClick={() => setCut(selected)}
+                    onClick={() => {
+                      setCut(selected);
+                      setCopied([]);
+                    }}
                   >
                     <Scissors className="mr-1 h-3.5 w-3.5" />
                     {t("剪切")}
                   </Button>
                 </>
               )}
-              {cut.length > 0 && (
+              {(cut.length > 0 || copied.length > 0) && (
                 <>
                   <Button
                     size="sm"
                     variant="ghost"
                     disabled={locked || readOnly}
-                    onClick={() => void move(cut, current)}
+                    onClick={() => void paste(current)}
                   >
                     <ClipboardPaste className="mr-1 h-3.5 w-3.5" />
-                    {t("粘贴 {{ui:0}} 项", [cut.length])}
+                    {t("粘贴 {{ui:0}} 项", [cut.length || copied.length])}
                   </Button>
-                  <button onClick={() => setCut([])}>{t("取消剪切")}</button>
+                  <button
+                    onClick={() => {
+                      setCut([]);
+                      setCopied([]);
+                    }}
+                  >
+                    {t("清空剪贴板")}
+                  </button>
                 </>
               )}
             </div>
@@ -529,6 +806,7 @@ export function BoardFileManager(props: Props) {
                   return (
                     <div
                       key={folder.id}
+                      data-library-folder-id={folder.id}
                       draggable={!locked && !readOnly}
                       onDragStart={(event) =>
                         startDrag(
@@ -564,50 +842,7 @@ export function BoardFileManager(props: Props) {
                         <span className="truncate text-xs">{folder.name}</span>
                       </button>
                       {chosen && <Check className="h-3 w-3 text-blue-500" />}
-                      <DropdownMenu modal={false}>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-6 w-6 shrink-0"
-                            aria-label={t("文件夹 {{ui:0}} 操作", [
-                              folder.name,
-                            ])}
-                            disabled={locked || readOnly}
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                          <DropdownMenuItem
-                            onSelect={() =>
-                              setNameDialog({
-                                id: folder.id,
-                                kind: "folder",
-                                name: folder.name,
-                              })
-                            }
-                          >
-                            <Pencil className="h-4 w-4" />
-                            {t("重命名")}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onSelect={() => {
-                              setMoveItems([{ kind: "folder", id: folder.id }]);
-                              setDestination(current);
-                            }}
-                          >
-                            <FolderInput className="h-4 w-4" />
-                            {t("移动到…")}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onSelect={() => setDeleteFolder(folder)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            {t("删除空文件夹")}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      {itemMenu([{ kind: "folder", id: folder.id }])}
                     </div>
                   );
                 })}
@@ -649,7 +884,10 @@ export function BoardFileManager(props: Props) {
                     }
                   : {
                       type: "createFolder",
-                      parentId: current,
+                      parentId:
+                        nameDialog.parentId === undefined
+                          ? current
+                          : nameDialog.parentId,
                       name: nameDialog.name,
                     },
               ).then((ok) => {
@@ -731,45 +969,66 @@ export function BoardFileManager(props: Props) {
         </DialogContent>
       </Dialog>
       <Dialog
-        open={Boolean(deleteFolder)}
+        open={Boolean(deleteItems)}
         onOpenChange={(open) => {
-          if (!open && !busy) setDeleteFolder(null);
+          if (!open && !busy) setDeleteItems(null);
         }}
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t("删除空文件夹")}</DialogTitle>
+            <DialogTitle>{t("删除所选项目")}</DialogTitle>
             <DialogDescription>
-              {t("仅删除空文件夹。含画板或子文件夹时，请先将内容移出。")}
+              {t("所选画板及文件夹内的画板将移入回收站，文件夹目录会被移除。")}
             </DialogDescription>
           </DialogHeader>
-          <p className="text-sm">{deleteFolder?.name}</p>
+          <p className="text-sm">{deleteItems?.map(nameOf).join("、")}</p>
           <DialogFooter>
             <Button
               variant="outline"
               disabled={busy}
-              onClick={() => setDeleteFolder(null)}
+              onClick={() => setDeleteItems(null)}
             >
               {t("取消")}
             </Button>
             <Button
               variant="destructive"
               disabled={busy}
-              onClick={() => {
-                if (deleteFolder)
-                  void mutate({
-                    type: "deleteEmptyFolder",
-                    id: deleteFolder.id,
-                  }).then((ok) => {
-                    if (ok) setDeleteFolder(null);
-                  });
-              }}
+              onClick={() => void confirmDelete()}
             >
-              {t("删除")}
+              {t("移入回收站")}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <DropdownMenu
+        open={Boolean(context)}
+        onOpenChange={(open) => {
+          if (!open) setContext(null);
+        }}
+        modal={false}
+      >
+        <DropdownMenuTrigger asChild>
+          <button
+            aria-hidden
+            tabIndex={-1}
+            style={{
+              position: "fixed",
+              left: context?.x ?? -10,
+              top: context?.y ?? -10,
+              width: 1,
+              height: 1,
+              pointerEvents: "none",
+            }}
+          />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="start"
+          sideOffset={0}
+          onCloseAutoFocus={(event) => { event.preventDefault(); if (!contextRef.current && !dialogOpenRef.current) managerRef.current?.focus({ preventScroll: true }); }}
+        >
+          {context && menuEntries(context.items, context.parentId)}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

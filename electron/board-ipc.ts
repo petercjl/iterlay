@@ -1,3 +1,4 @@
+import { flushWindow } from "./window-lifecycle.js";
 import type { CanvasNodeWriteInput } from "../shared/contracts/board.js";
 import { BrowserWindow, ipcMain } from "electron";
 import {
@@ -48,6 +49,7 @@ export function registerBoardIpc({
 }: BoardIpcDependencies): void {
   ipcMain.handle("boards:library:get", () => boards.getBoardLibrary());
   ipcMain.handle("boards:library:update", async (_event, input) => {
+    if (input?.action?.type === "copy") for (const window of BrowserWindow.getAllWindows()) await flushWindow(window);
     const result = await boards.updateBoardLibrary(input);
     for (const window of BrowserWindow.getAllWindows()) if (!window.isDestroyed()) window.webContents.send("workbench:event", { type: "library-updated" });
     return result;

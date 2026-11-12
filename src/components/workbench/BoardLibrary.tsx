@@ -39,6 +39,7 @@ import { cn } from "@/lib/utils";
 import { groupActiveBoardGenerations, type ActiveBoardGeneration } from "@/lib/active-board-generation";
 
 export interface BoardLibraryProps {
+  renderItemMenu?: (id: string) => ReactNode;
   hideCreateAction?: boolean;
   navigation?: ReactNode;
   sidebar?: ReactNode;
@@ -70,7 +71,7 @@ type BoardView = "grid" | "list";
 const SEARCH_SHORTCUT_LABEL = /Mac|iPhone|iPad/i.test(navigator.userAgent) ? "⌘K" : "Ctrl K";
 
 export function BoardLibrary({
-  hideCreateAction = false,
+  hideCreateAction = false, renderItemMenu,
   navigation, sidebar, selectedIds, onSelectBoard, onMoveBoard, onDragBoard, externalBusy = false,
   boards,
   activeBoardGenerations = [],
@@ -156,6 +157,7 @@ export function BoardLibrary({
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent): void {
+      if (event.defaultPrevented || document.querySelector('[role="menu"][data-state="open"]')) return;
       if (
         (event.metaKey || event.ctrlKey)
         && event.key.toLocaleLowerCase() === "k"
@@ -300,6 +302,7 @@ export function BoardLibrary({
   }
 
   function renderBoardMenu(board: BoardSummary): React.ReactElement {
+    if (renderItemMenu) return <>{renderItemMenu(board.id)}</>;
     return (
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
@@ -346,6 +349,7 @@ export function BoardLibrary({
       <article
         key={board.id}
         data-board-row
+        data-board-library-id={board.id}
         data-board-card-item
         draggable={Boolean(onDragBoard) && !interactionLocked}
         onDragStart={event => onDragBoard?.(board.id, event)}
@@ -666,6 +670,7 @@ export function BoardLibrary({
                   <article
                     key={board.id}
                     data-board-row
+                    data-board-library-id={board.id}
                     draggable={Boolean(onDragBoard) && !interactionLocked}
                     onDragStart={event => onDragBoard?.(board.id, event)}
                     data-selected={selectedIds?.has(board.id)}

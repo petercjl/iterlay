@@ -1,4 +1,8 @@
 export const enterpriseEnglish: Record<string, string> = {
+  "清空剪贴板": "Clear clipboard",
+  "删除所选项目": "Delete selected items",
+  "所选画板及文件夹内的画板将移入回收站，文件夹目录会被移除。": "Selected boards, including those inside selected folders, will move to Trash. Folder directories will be removed.",
+
   "移动到…": "Move to\u2026",
   "文件夹导航": "Folders",
   "根目录": "Root folder",

@@ -1430,6 +1430,7 @@ export default function App(): React.ReactElement {
       if (!detail || typeof detail.type !== "string") return;
       const boardId = typeof detail.boardId === "string" ? detail.boardId : undefined;
       const operationId = typeof detail.operationId === "string" ? detail.operationId : undefined;
+      if (detail.type === "library-updated") { void refreshBoards().catch(reportWorkbenchError); return; }
 
       if (detail.type === "board-mutation-requested" && boardId) {
         const resolve = typeof detail.resolve === "function" ? detail.resolve as () => void : undefined;
@@ -1620,7 +1621,7 @@ export default function App(): React.ReactElement {
     window.addEventListener("tuda:workspace", onWorkspaceEvent);
     const unsubscribe = getWorkbenchApi()?.onWorkbenchEvent((detail) => onWorkspaceEvent(new CustomEvent("tuda:workspace", { detail })));
     return () => { unsubscribe?.(); window.removeEventListener("tuda:workspace", onWorkspaceEvent); };
-  }, [boardSaveCoordinator, flushBoardSave, getWorkbenchApi, openBoard, refreshBoards, refreshHistory, setStatus]);
+  }, [boardSaveCoordinator, flushBoardSave, getWorkbenchApi, openBoard, refreshBoards, refreshHistory, reportWorkbenchError, setStatus]);
 
   // 生成结果可能来自已切走的画板。统一按图片路径定位，编辑版本也能命中所属原图。
   const locateGenerationResult = useCallback(async (boardId: string, imagePaths: string[]): Promise<void> => {

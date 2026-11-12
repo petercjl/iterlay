@@ -105,6 +105,7 @@ export function registerEnterprise(client: EnterpriseClient, localBoards: BoardS
     const targetBoard = typeof args[0] === "string" ? args[0] : args[0] && typeof args[0] === "object" ? (args[0] as { boardId?: string; id?: string }).boardId ?? (args[0] as { id?: string }).id : undefined;
     const companyOperation = executionSpace() === "enterprise" || hasEnterpriseAsset || client.ownsBoard(targetBoard);
     if (!companyOperation) return next();
+    if (channel === "boards:library:update" && (args[0] as { action?: { type?: string } })?.action?.type === "copy") for (const window of BrowserWindow.getAllWindows()) await flushWindow(window);
     if (routed.has(channel)) return client.command(channel, args);
     if (["settings:configureProvider", "provider:testConnection", "provider:listModels", "textProvider:testConnection", "textProvider:listModels", "videoProvider:testConnection", "videoProvider:listModels"].includes(channel)) throw new Error("企业模型由管理员在 NAS 服务端配置。");
     if (channel === "boards:export") {

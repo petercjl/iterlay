@@ -1,3 +1,4 @@
+import { planBoardLibraryCopy } from "../../shared/board-library-copy.js";
 import { emptyBoardLibrary, mutateBoardLibrary, type BoardLibraryState, type BoardLibraryMutation } from "../../shared/board-library.js";
 import type { BoardCanvasNode, CanvasNodeWriteInput } from "../../shared/contracts/board.js";
 import { comicBoardSnapshot } from "../domain/comic-board-snapshot.js";
@@ -152,8 +153,15 @@ export class BoardStore {
   async getBoardLibrary(): Promise<BoardLibraryState> { await this.mutations.idle(); return this.readLibrary(); }
   async updateBoardLibrary(input: BoardLibraryMutation): Promise<BoardLibraryState> {
     return this.mutations.run(async () => {
-      const ids = new Set((await this.readBoards()).filter(board => !board.parentBoardId).map(board => board.id));
-      const next = mutateBoardLibrary(await this.readLibrary(), input, ids, randomUUID());
+      const allBoards = await this.readBoards();
+      const current = await this.readLibrary();
+      if (input?.action?.type === "copy") {
+        const plan = planBoardLibraryCopy(current, input, allBoards, randomUUID);
+        await this.writeBoardBatch(plan.boards, plan.library);
+        return plan.library;
+      }
+      const ids = new Set(allBoards.filter(board => !board.parentBoardId).map(board => board.id));
+      const next = mutateBoardLibrary(current, input, ids, randomUUID());
       await this.writeJson(this.libraryFile, next); return next;
     });
   }
@@ -1375,8 +1383,8 @@ export class BoardStore {
         let raw: string;
         try { raw = await this.readText(journalPath); }
         catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return; throw error; }
-        const journal = JSON.parse(raw) as { schemaVersion?: number; boards?: unknown[] };
-        if (journal.schemaVersion !== 1 || !Array.isArray(journal.boards) || journal.boards.length !== 2) {
+        const journal = JSON.parse(raw) as { schemaVersion?: number; boards?: unknown[]; library?: BoardLibraryState };
+        if (!Array.isArray(journal.boards) || (journal.schemaVersion === 1 ? journal.boards.length !== 2 : journal.schemaVersion !== 2 || journal.boards.length > 1000 || journal.library?.version !== 1 || !Array.isArray(journal.library.folders) || !journal.library.boardFolders)) {
           throw new Error("画板事务日志无效，原文件已保留。");
         }
         const boards = journal.boards.map(normalizeStoredBoard);
@@ -1386,6 +1394,7 @@ export class BoardStore {
         // Validate every path before replaying any writes.
         for (const board of boards) this.boardFile(board!.id);
         for (const board of boards) await this.writeBoard(board!);
+        if (journal.schemaVersion === 2) await this.writeJson(this.libraryFile, journal.library);
         await this.removeFile(journalPath);
       })();
       this.boardRecovery = pending;
@@ -1394,11 +1403,12 @@ export class BoardStore {
     return this.boardRecovery;
   }
 
-  private async writeBoardBatch(boards: BoardData[]): Promise<void> {
+  private async writeBoardBatch(boards: BoardData[], library?: BoardLibraryState): Promise<void> {
     const journalPath = path.join(this.boardsDir, ".transaction.json");
-    await this.writeJson(journalPath, { schemaVersion: 1, boards });
+    await this.writeJson(journalPath, { schemaVersion: library ? 2 : 1, boards, ...(library ? { library } : {}) });
     try {
       for (const board of boards) await this.writeBoard(board);
+      if (library) await this.writeJson(this.libraryFile, library);
       await this.removeFile(journalPath);
     } catch (error) {
       // Keep the intent durable and retry its complete replay on the next access.

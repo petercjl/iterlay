@@ -116,6 +116,15 @@ try {
   assert.equal(sharedLibrary.boardFolders[board.id], "team-project");
   assert.equal((await call("storage-viewer", "boards:get", [board.id])).nodes[0].imagePath, asset.path);
   await call("storage-editor", "boards:library:update", [{ expectedRevision: 2, action: { type: "deleteEmptyFolder", id: "team-project" } }], 400);
+  const copied = await call("storage-editor", "boards:library:update", [{ expectedRevision: 2, action: { type: "copy", items: [{ kind: "folder", id: "team-project" }], parentId: null } }]);
+  const copiedFolder = copied.folders.find((f: { name: string }) => f.name === "团队项目 副本");
+  assert(copiedFolder);
+  const copiedBoardId = Object.keys(copied.boardFolders).find(id => id !== board.id)!;
+  assert.equal(copied.boardFolders[copiedBoardId], copiedFolder.id);
+  const copiedBoard = await call("storage-viewer", "boards:get", [copiedBoardId]);
+  assert.equal(copiedBoard.nodes[0].imagePath, asset.path);
+  assert.notEqual(copiedBoard.nodes[0].id, read.nodes[0].id);
+  await call("storage-viewer", "boards:library:update", [{ expectedRevision: 3, action: { type: "copy", items: [{ kind: "board", id: board.id }], parentId: null } }], 403);
   await call("storage-viewer", "boards:create", ["blocked"], 403);
   await call("storage-viewer", "boards:setLastOpened", [board.id]);
   await call("storage-editor", "image:generate", [{}], 403);
