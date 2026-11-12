@@ -17,6 +17,58 @@ import { CompanyDesktop } from "../electron/company/desktop.js";
 import { inExecutionSpace } from "../electron/execution-space.js";
 import type { EnterpriseClient } from "../electron/enterprise/client.js";
 import { CompanyToapis } from "../electron/company/toapis.js";
+
+it("defaults a new company account to NAS and reuses an explicitly chosen local folder", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "tuda-storage-default-"));
+  const legacy = Object.assign(new EventEmitter(), {
+    activeSpace: "personal",
+    status: { pendingWrites: 0 },
+    stop: vi.fn(),
+  }) as unknown as EnterpriseClient;
+  const company = new CompanyDesktop(root, legacy, {
+    accountOrigin: "https://company.example",
+    nasUrl: "https://nas.example",
+  });
+  try {
+    await company.initialize();
+    await company.account.restore({
+      origin: company.account.origin,
+      session: {
+        contract: 1,
+        appId: "tuda",
+        sessionId: "device",
+        token: "fixture-device",
+        expiresAt: new Date(Date.now() + 86400_000).toISOString(),
+        member: { id: "employee", name: "员工" },
+        organization: { id: "org", name: "公司" },
+      },
+    });
+    expect(company.status).toMatchObject({
+      storageKind: "nas",
+      storageUrl: "https://nas.example",
+    });
+    expect(company.workspace).toContain("company-cache");
+    expect(company.folder).toBeUndefined();
+    vi.mocked(dialog.showOpenDialog).mockClear();
+    vi.mocked(dialog.showOpenDialog).mockResolvedValue({
+      canceled: false,
+      filePaths: [path.join(root, "local")],
+    });
+    await company.chooseFolder(false);
+    expect(company.status.storageKind).toBe("local");
+    await company.chooseFolder(false, true);
+    expect(dialog.showOpenDialog).toHaveBeenCalledTimes(1);
+    expect(company.status).toMatchObject({
+      activeSpace: "enterprise",
+      storageKind: "local",
+      storageUrl: "https://nas.example",
+      localFolder: path.join(root, "local"),
+    });
+  } finally {
+    company.stop();
+    await rm(root, { recursive: true, force: true });
+  }
+});
 it("pins async store operations to the starting company folder and restores an independent account session", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "tuda-company-desktop-"));
   let company: CompanyDesktop | undefined, restored: CompanyDesktop | undefined;

@@ -63,7 +63,7 @@ export function registerEnterprise(client: EnterpriseClient, localBoards: BoardS
   ipcMain.handle("enterprise:loginPoll", () => company?.pollLogin() ?? client.pollLogin());
   ipcMain.handle("enterprise:logout", () => company?.logout() ?? client.logout());
   ipcMain.handle("enterprise:selectSpace", (_event, space) => company?.selectSpace(space) ?? client.selectSpace(space));
-  ipcMain.handle("enterprise:localFolder", () => {if(!company?.enabled) throw new Error("请先配置公司账号服务。");return company.chooseFolder();});
+  ipcMain.handle("enterprise:localFolder", (_event,reuseExisting?:boolean) => {if(!company?.enabled) throw new Error("请先配置公司账号服务。");return company.chooseFolder(true,reuseExisting===true);});
   ipcMain.handle("enterprise:nasStorage", (_event,url:string) => {if(!company?.enabled)throw new Error("请先配置公司账号服务。");return company.chooseNas(url);});
   ipcMain.handle("enterprise:refreshModels", async () => {if(!company?.enabled)throw new Error("请先配置公司账号服务。");await company.account.refresh();return company.status;});
   ipcMain.handle("enterprise:presence", (_event, value) => { if(!company?.enabled||company.usesNas)client.updatePresence(value); });

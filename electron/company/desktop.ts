@@ -11,6 +11,7 @@ import {
 import path from "node:path";
 import { CompanyAccount, type AccountSnapshot } from "./account.js";
 import { CompanyToapis } from "./toapis.js";
+import type { CompanyDefaults } from "./defaults.js";
 import {
   executionContext,
   executionSpace,
@@ -53,10 +54,12 @@ export class CompanyDesktop {
   constructor(
     readonly userData: string,
     readonly legacy: EnterpriseClient,
+    private readonly defaults: CompanyDefaults = {},
   ) {
     this.preferences = {
       version: 1,
-      origin: process.env.TUDA_COMPANY_URL?.trim() ?? "",
+      origin:
+        process.env.TUDA_COMPANY_URL?.trim() || defaults.accountOrigin || "",
       activeSpace: "personal",
       folders: {},
       selections: {},
@@ -160,8 +163,14 @@ export class CompanyDesktop {
   }
   get storage() {
     return this.namespace
-      ? this.preferences.storage?.[this.namespace]
+      ? (this.preferences.storage?.[this.namespace] ??
+          (this.defaultNasUrl
+            ? { kind: "nas" as const, url: this.defaultNasUrl }
+            : undefined))
       : undefined;
+  }
+  private get defaultNasUrl() {
+    return this.defaults.nasUrl || this.legacy.status.serverUrl;
   }
   get usesNas() {
     return this.enabled && this.storage?.kind === "nas";
@@ -201,7 +210,7 @@ export class CompanyDesktop {
       history: this.usesNas ? this.legacy.status.history : undefined,
       accountMode: "shared",
       storageKind: this.usesNas ? "nas" : "local",
-      storageUrl: this.storage?.url,
+      storageUrl: this.storage?.url ?? this.defaultNasUrl,
       localFolder: this.folder,
       textModels: a.textModels,
       imageModels: a.imageModels,
@@ -358,13 +367,16 @@ export class CompanyDesktop {
     }
     return result;
   }
-  async chooseFolder(reload = true) {
+  async chooseFolder(reload = true, reuseExisting = false) {
     this.assertAccount();
     await this.flush();
-    const choice = await dialog.showOpenDialog({
-      title: "选择公司账号的本地画板文件夹",
-      properties: ["openDirectory", "createDirectory"],
-    });
+    const choice =
+      reuseExisting && this.folder
+        ? { canceled: false, filePaths: [this.folder] }
+        : await dialog.showOpenDialog({
+            title: "选择公司账号的本地画板文件夹",
+            properties: ["openDirectory", "createDirectory"],
+          });
     if (choice.canceled || !choice.filePaths[0]) return this.status;
     this.changingSpace = true;
     this.preferences.folders[this.namespace!] = path.resolve(
@@ -372,6 +384,7 @@ export class CompanyDesktop {
     );
     this.preferences.storage ??= {};
     this.preferences.storage[this.namespace!] = { kind: "local" };
+    this.preferences.activeSpace = "enterprise";
     this.legacy.stop();
     await mkdir(this.workspace!, { recursive: true, mode: 0o700 });
     await this.save();
@@ -418,6 +431,7 @@ export class CompanyDesktop {
     )
       throw new Error("NAS 存储地址无效。");
     const previous = this.preferences.storage?.[this.namespace!];
+    const previousSpace = this.preferences.activeSpace;
     this.changingSpace = true;
     this.preferences.storage ??= {};
     this.preferences.storage[this.namespace!] = {
@@ -426,10 +440,12 @@ export class CompanyDesktop {
     };
     try {
       await this.connectNas();
+      this.preferences.activeSpace = "enterprise";
       await this.save();
       this.reload();
       return this.status;
     } catch (e) {
+      this.preferences.activeSpace = previousSpace;
       this.changingSpace = false;
       if (previous) this.preferences.storage[this.namespace!] = previous;
       else delete this.preferences.storage[this.namespace!];

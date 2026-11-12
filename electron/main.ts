@@ -1,4 +1,5 @@
 import { CompanyDesktop } from "./company/desktop.js";
+import { loadCompanyDefaults } from "./company/defaults.js";
 import { waitForStorageMutations } from "./storage/atomic-json.js";
 import { readImageDimensions } from "./media/image-metadata.js";
 import { ImageTaskQueue } from "./image-worker-client.js";
@@ -429,7 +430,7 @@ app.whenReady().then(async () => {
   startupMark("business-modules-loaded");
   const localSettings = new SettingsStore(dataDir);
   const enterprise = await createEnterpriseClient(app.getPath("userData"));
-  const company = new CompanyDesktop(app.getPath("userData"), enterprise);
+  const company = new CompanyDesktop(app.getPath("userData"), enterprise, await loadCompanyDefaults(app.getPath("userData"), app.isPackaged ? process.resourcesPath : undefined));
   await company.initialize();
   const settings = enterpriseSettings(localSettings, enterprise, company);
   const appLocale = resolveAppLocale(settings.getSettings().language, app.getLocale());

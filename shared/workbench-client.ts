@@ -143,7 +143,7 @@ export const VIDEO_SEQUENCE_MUTATIONS = [
 export function createWorkbenchClient(transport: WorkbenchTransport) {
   return {
     enterpriseStatus: () => transport.invoke("enterprise:status") as Promise<import("./enterprise.js").EnterpriseStatus>,
-    chooseCompanyLocalFolder: () => transport.invoke("enterprise:localFolder") as Promise<import("./enterprise.js").EnterpriseStatus>,
+    chooseCompanyLocalFolder: (reuseExisting?:boolean) => transport.invoke("enterprise:localFolder",reuseExisting) as Promise<import("./enterprise.js").EnterpriseStatus>,
     chooseCompanyNas: (url:string) => transport.invoke("enterprise:nasStorage",url) as Promise<import("./enterprise.js").EnterpriseStatus>,
     refreshCompanyModels: () => transport.invoke("enterprise:refreshModels") as Promise<import("./enterprise.js").EnterpriseStatus>,
     configureEnterprise: (url: string) => transport.invoke("enterprise:configure", url) as Promise<import("./enterprise.js").EnterpriseStatus>,
