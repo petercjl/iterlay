@@ -47,6 +47,8 @@ FFmpeg 的既有 macOS 产物仍是声明来源的上游依赖，未虚构改名
 
 ## Windows 构建与 npm 更新
 
+Windows 关闭最后一个窗口后，托盘保留本地 CLI 服务和后台任务；双击图标或选择“打开 Tuda”恢复窗口，选择“退出 Tuda”正常保存并退出。
+
 正式构建只生成 Windows 安装器，入口为 `pnpm release --arch x64`。`scripts/release-windows.mjs` 在 Windows 上执行品牌检查、源码构建、NSIS 打包与包体检查。安装路径、应用标识和用户数据与原版分离。
 
 `publish-npm.yml` 先在 GitHub 托管 Windows runner 构建并验证，再通过 OIDC 发布。npm 包携带版本与 `tudaRelease` 清单；Windows 安装器以不可变的 `tuda-v<版本>` GitHub Release 承载。桌面更新器按自身架构选择清单，核对 HTTPS、版本、大小和 SHA-256，再交给已有安装驱动替换和重启。客户点击桌面更新无需 Node.js。

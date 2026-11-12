@@ -5,7 +5,7 @@ import { allowedExternalUrl, installRendererSecurity, isTrustedRendererUrl } fro
 import { installWindowLifecycle } from "./window-lifecycle.js";
 import { BackgroundSession, CLI_BACKGROUND_FLAG } from "./background-session.js";
 import { resolveDesktopDevelopmentUserData } from "./dev-workspace.js";
-import { app, BrowserWindow, dialog, Menu, nativeImage, nativeTheme, net, shell } from "electron";
+import { app, BrowserWindow, dialog, Menu, nativeImage, nativeTheme, net, shell, Tray } from "electron";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
@@ -96,6 +96,7 @@ const backgroundSession = new BackgroundSession(
 let backgroundWindow: BrowserWindow | undefined;
 let browserDevBridge: { flush: () => Promise<void>; close: () => void } | undefined;
 let updateQuitScheduled = false;
+let statusTray: Tray | undefined;
 
 function quitForUpdate(): void {
   if (updateQuitScheduled) return;
@@ -1074,6 +1075,8 @@ app.whenReady().then(async () => {
   }
 
   app.once("will-quit", () => {
+    statusTray?.destroy();
+    statusTray = undefined;
     browserDevBridge?.close();
     mediaTools.cancel();
     disposeMediaToolsIpc();
@@ -1084,6 +1087,18 @@ app.whenReady().then(async () => {
     void piAgentLogs.flush();
     codexAuth.dispose();
   });
+
+  if (process.platform === "win32" && !isBrowserDev) {
+    statusTray = new Tray(loadAppIcon("default").resize({ width: 32, height: 32 }));
+    statusTray.setToolTip("Tuda · 图塔");
+    const restore = () => app.emit("activate");
+    statusTray.on("double-click", restore);
+    statusTray.setContextMenu(Menu.buildFromTemplate([
+      { label: "打开 Tuda", click: restore },
+      { type: "separator" },
+      { label: "退出 Tuda", click: () => app.quit() }
+    ]));
+  }
 
   app.on("activate", () => {
     if (isBrowserDev) return;
@@ -1105,7 +1120,7 @@ app.whenReady().then(async () => {
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
+  if (process.platform !== "darwin" && !statusTray) {
     app.quit();
   }
 });
