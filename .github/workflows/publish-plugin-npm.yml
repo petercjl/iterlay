@@ -1,0 +1,80 @@
+name: Publish Tuda capability package
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: Exact committed CLI package version
+        type: string
+        required: true
+      tag:
+        description: npm channel
+        type: choice
+        options: [next, latest]
+        default: next
+permissions:
+  contents: read
+concurrency:
+  group: tuda-npm-publication
+  cancel-in-progress: false
+env:
+  TUDA_NO_UPDATE_CHECK: '1'
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-14]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: cli/package-lock.json
+      - run: npm ci --prefix cli
+      - name: Verify exact version and channel
+        env:
+          RELEASE_VERSION: ${{ inputs.release }}
+          DIST_TAG: ${{ inputs.tag }}
+        run: node -e "const p=require('./cli/package.json');if(p.version!==process.env.RELEASE_VERSION)throw Error('Commit the requested exact version first');if(p.version.includes('-')&&process.env.DIST_TAG!=='next')throw Error('Prerelease requires next')"
+      - run: npm run typecheck --prefix cli
+      - run: npm run build --prefix cli
+      - run: node scripts/validate-cli-package.mjs
+      - run: node scripts/test-cli-package.mjs
+      - run: node scripts/test-board-plugin.mjs
+      - run: npm pack ./cli --pack-destination .
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Linux'
+        with:
+          name: tuda-verified-npm
+          path: petercjl-tuda-*.tgz
+          if-no-files-found: error
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - run: npm install --global npm@11
+      - uses: actions/download-artifact@v4
+        with:
+          name: tuda-verified-npm
+          path: candidate
+      - name: Publish verified package with OIDC
+        env:
+          PACKAGE_VERSION: ${{ inputs.release }}
+          DIST_TAG: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TARBALL="candidate/petercjl-tuda-$PACKAGE_VERSION.tgz"
+          test -f "$TARBALL"
+          npm publish "$TARBALL" --access public --provenance --tag "$DIST_TAG"
+          node --input-type=module -e 'const r=await fetch("https://registry.npmjs.org/@petercjl%2ftuda/"+process.env.PACKAGE_VERSION);if(!r.ok)throw Error("Published version unavailable");const p=await r.json();if(p.version!==process.env.PACKAGE_VERSION)throw Error("Version drift");const t=await fetch("https://registry.npmjs.org/-/package/@petercjl%2ftuda/dist-tags").then(r=>r.json());if(t[process.env.DIST_TAG]!==p.version)throw Error("Dist-tag drift")'

@@ -12,6 +12,8 @@
   },
   "files": [
     "dist/main.js",
+    "dist/board-plugin.js",
+    "dist/board-plugin.LICENSES.txt",
     "guard/**",
     "skills/**",
     "README.md",
@@ -24,12 +26,13 @@
     "scripts/validate-package.mjs"
   ],
   "scripts": {
-    "build": "node scripts/sync-skill.mjs && esbuild src/main.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/main.js",
+    "build": "node scripts/sync-skill.mjs && esbuild src/main.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/main.js && esbuild src/board-plugin.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/board-plugin.js --metafile=dist/board-plugin.meta.json && node scripts/build-plugin-notices.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "prepublishOnly": "npm run typecheck && node scripts/sync-skill.mjs && npm run build",
     "prepack": "node scripts/validate-package.mjs"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@types/node": "^24.10.1",
     "esbuild": "^0.25.5",
     "typescript": "^5.9.3"
@@ -48,5 +51,8 @@
     "capabilities": "capabilities.json",
     "installGuide": "INSTALL.md",
     "updateGuide": "UPDATE.md"
+  },
+  "exports": {
+    "./board-plugin": "./dist/board-plugin.js"
   }
 }

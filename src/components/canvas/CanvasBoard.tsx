@@ -249,6 +249,7 @@ export function preventMiddleMouseAutoScroll(event: MiddleMouseEvent): void {
 }
 
 interface CanvasBoardProps {
+  boardOnly?: boolean;
   images: GeneratedImage[];
   workflowNodes?: CanvasWorkflowNode[];
   videoUrls?: Record<string, string>;
@@ -422,6 +423,7 @@ interface CanvasBoardProps {
 
 export function CanvasBoard({
   images,
+  boardOnly = false,
   workflowNodes = [],
   videoUrls = {},
   activeImageProvider,
@@ -839,7 +841,7 @@ export function CanvasBoard({
   }, []);
   const menuController = useCanvasMenuController({
     commentMode: Boolean(commentMode),
-    allowedCreateTypes: comicDramaBoard
+    allowedCreateTypes: boardOnly ? ["textNode"] : comicDramaBoard
       ? ["textNode", "generationNode", "videoGenerationNode", "comicSettingNode", "comicCharacterNode", "comicSegmentNode"]
       : ["codeCanvasNode", "textNode", "generationNode", "videoGenerationNode"],
     getNodes: getCanvasNodes,
@@ -1409,6 +1411,7 @@ export function CanvasBoard({
     onViewImageDetails
   ]);
   const createWorkflowNode = useCallback((type: "canvas" | "text" | "generation" | "video-generation" | "comic-setting" | "comic-character" | "comic-segment-script"): void => {
+    if (boardOnly && type !== "text") return;
     const rect = canvasContainerRef.current?.getBoundingClientRect();
     if (!rect) return;
     recordCanvasChange();
@@ -1438,7 +1441,7 @@ export function CanvasBoard({
         ? { x: viewportCenter.x + comicOffset.x, y: viewportCenter.y + comicOffset.y }
       : viewportCenter;
     onCreateWorkflowNode?.(type, position, { focusOnCreate: true });
-  }, [onCreateWorkflowNode, recordCanvasChange, screenToFlowPosition]);
+  }, [boardOnly, onCreateWorkflowNode, recordCanvasChange, screenToFlowPosition]);
 
   const getShortcutSnapshot = useCallback((): CanvasShortcutSnapshot => ({
     enabled: clipboardEnabled,
@@ -1446,11 +1449,12 @@ export function CanvasBoard({
     gestureActive: hasActiveConnectionTransaction(),
     canAddReferences,
     availableAssetActions: availableShortcutAssetActions,
-    availableCreateTypes: onCreateWorkflowNode ? (comicDramaBoard ? ["video-generation"] : ["generation", "video-generation", "text"]) : [],
+    availableCreateTypes: boardOnly ? ["text"] : onCreateWorkflowNode ? (comicDramaBoard ? ["video-generation"] : ["generation", "video-generation", "text"]) : [],
     nodes: nodesRef.current,
     edges: edgesRef.current
   }), [
     availableShortcutAssetActions,
+    boardOnly,
     onCreateWorkflowNode,
     comicDramaBoard,
     canAddReferences,
@@ -1614,14 +1618,14 @@ export function CanvasBoard({
         <CanvasToolHint kind="select"><button type="button" aria-keyshortcuts={CANVAS_TOOL_HINTS.select.aria} aria-label={uiText("选择 (V)")} aria-pressed={canvasToolMode === "select"} disabled={Boolean(commentMode)} onClick={() => setCanvasToolMode("select")}><MousePointer2 /></button></CanvasToolHint>
         <CanvasToolHint kind="pan"><button type="button" aria-keyshortcuts={CANVAS_TOOL_HINTS.pan.aria} aria-label={uiText("平移 (H)")} aria-pressed={canvasToolMode === "pan"} disabled={Boolean(commentMode)} onClick={() => setCanvasToolMode("pan")}><Hand /></button></CanvasToolHint>
         {!comicDramaBoard ? <span className="canvas-tool-divider" /> : null}
-        {onCreateWorkflowNode && !comicDramaBoard ?
+        {onCreateWorkflowNode && !comicDramaBoard && !boardOnly ?
           <CanvasToolHint kind="image"><button type="button" aria-keyshortcuts={CANVAS_TOOL_HINTS.image.aria} aria-label={uiText("生成图片")} onClick={() => createWorkflowNode("generation")}><ImagePlus /></button></CanvasToolHint>
         : null}
-        {onCreateWorkflowNode ? <CanvasToolHint kind="video"><button type="button" aria-keyshortcuts={CANVAS_TOOL_HINTS.video.aria} aria-label={uiText("生成视频")} onClick={() => createWorkflowNode("video-generation")}><Video /></button></CanvasToolHint> : null}
+        {onCreateWorkflowNode && !boardOnly ? <CanvasToolHint kind="video"><button type="button" aria-keyshortcuts={CANVAS_TOOL_HINTS.video.aria} aria-label={uiText("生成视频")} onClick={() => createWorkflowNode("video-generation")}><Video /></button></CanvasToolHint> : null}
         {onCreateWorkflowNode && !comicDramaBoard ?
           <CanvasToolHint kind="text"><button type="button" aria-keyshortcuts={CANVAS_TOOL_HINTS.text.aria} aria-label={uiText("添加文本")} onClick={() => createWorkflowNode("text")}><Type /></button></CanvasToolHint>
         : null}
-        {onCreateWorkflowNode && !comicDramaBoard ? <CanvasToolHint kind="canvas"><button type="button" aria-label={uiText("添加 Canvas")} onClick={() => createWorkflowNode("canvas")}><Code2 /></button></CanvasToolHint> : null}
+        {onCreateWorkflowNode && !comicDramaBoard && !boardOnly ? <CanvasToolHint kind="canvas"><button type="button" aria-label={uiText("添加 Canvas")} onClick={() => createWorkflowNode("canvas")}><Code2 /></button></CanvasToolHint> : null}
         <CanvasToolHint kind="fit"><button type="button" aria-keyshortcuts={CANVAS_TOOL_HINTS.fit.aria} aria-label={uiText("适应画布")} onClick={viewportController.fitAll}><Maximize /></button></CanvasToolHint>
         {onCreateWorkflowNode && onStartComicDrama ? <details><CanvasToolHint kind="more"><summary aria-label={uiText("更多画布工具")}><MoreHorizontal /></summary></CanvasToolHint><div>
           <button type="button" onClick={startComicDrama}><Clapperboard />{comicDramaBoard ? uiText("打开漫剧设定") : uiText("新建漫剧项目")}</button>

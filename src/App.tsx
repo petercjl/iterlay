@@ -1,3 +1,4 @@
+import { flushSync } from "react-dom";
 import { useEnterpriseStatus } from "@/components/enterprise/use-enterprise";
 import { BRAND } from "@shared/brand";
 import { automaticVideoPlacement } from "@/lib/automatic-video-placement";
@@ -401,6 +402,8 @@ interface CanvasUndoSnapshot extends CanvasSelectionSnapshot {
   workflowNodes: CanvasPersistedNode[];
 }
 
+const BOARD_ONLY_MODE = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("boardOnly") === "1";
+const EmbeddedBoardFileManager = lazy(() => import("@/components/workbench/BoardFileManager").then(module => ({ default: module.BoardFileManager })));
 const MAX_CANVAS_UNDO_STEPS = 50;
 const LOCAL_CANVAS_HISTORY_ID = "__local-canvas__";
 
@@ -556,6 +559,8 @@ export default function App(): React.ReactElement {
   const [favoriteSceneIds, setFavoriteSceneIds] = useState<string[]>(readFavoriteSceneIds);
   const [videoHistory, setVideoHistory] = useState<VideoGenerationJob[]>([]);
   const [images, setImages] = useState<GeneratedImage[]>([]);
+  const [externalCanvasLayoutRevision, setExternalCanvasLayoutRevision] = useState(0);
+  const pendingExternalBoardSync = useRef(new Set<Promise<void>>());
   const [workflowNodes, setWorkflowNodes] = useState<CanvasPersistedNode[]>([]);
   const [canvasConnectionsVersion, setCanvasConnectionsVersion] = useState(0);
   const [selectedCanvasNodeIds, setSelectedCanvasNodeIds] = useState<string[]>([]);
@@ -781,6 +786,7 @@ export default function App(): React.ReactElement {
   }));
   const boardDetailCacheRef = useRef(new BoardDetailCache<BoardDetail | null>(4, 15_000));
   const boardOpenSequenceRef = useRef(0);
+  const pendingBoardOpenId = useRef<string | null>(null);
   // 进入编辑会话前的历史栏开合状态，退出编辑时恢复。
   const historyOpenBeforeEditRef = useRef(false);
   const editSuggestionRequestRef = useRef(0);
@@ -1006,7 +1012,13 @@ export default function App(): React.ReactElement {
       }).catch(() => undefined);
     }
   });
-  useWindowSave(flushBoardSave);
+  const flushWindowBoardState = useCallback(async (): Promise<void> => {
+    await Promise.all([...pendingExternalBoardSync.current]);
+    // Let any layout report queued by the committed external snapshot settle before saving.
+    await new Promise<void>(resolve => window.setTimeout(resolve, 0));
+    await flushBoardSave();
+  }, [flushBoardSave]);
+  useWindowSave(flushWindowBoardState);
 
   const handleCanvasChange = useCallback(
     (
@@ -1234,11 +1246,12 @@ export default function App(): React.ReactElement {
       }
     ): Promise<void> => {
       const requestSequence = ++boardOpenSequenceRef.current;
+      pendingBoardOpenId.current = boardId;
       setOpeningBoardId(boardId);
 
       if (boardId === activeBoardRef.current?.id && !opts?.forceReload) {
         if (!opts?.keepLibraryOpen) setLibraryOpen(false);
-        if (requestSequence === boardOpenSequenceRef.current) setOpeningBoardId(null);
+        if (requestSequence === boardOpenSequenceRef.current) { pendingBoardOpenId.current = null; setOpeningBoardId(null); }
         return;
       }
 
@@ -1248,7 +1261,7 @@ export default function App(): React.ReactElement {
       try {
         if (!opts?.skipFlushCurrent) await flushBoardSave();
         const detail = await detailPromise;
-        if (requestSequence !== boardOpenSequenceRef.current) return;
+        if (requestSequence !== boardOpenSequenceRef.current || deletedBoardIdsRef.current.has(boardId)) return;
         if (!detail) {
           toast.error(translateSourceText("画板不存在或已损坏。"));
           return;
@@ -1266,7 +1279,7 @@ export default function App(): React.ReactElement {
         } else {
           await preloadBoardImages(entryPreload);
         }
-        if (requestSequence !== boardOpenSequenceRef.current) return;
+        if (requestSequence !== boardOpenSequenceRef.current || deletedBoardIdsRef.current.has(boardId)) return;
         canvasStateRef.current = {
           positions: Object.fromEntries(detail.nodes.map((node) => [node.id, {
             x: node.x,
@@ -1344,7 +1357,7 @@ export default function App(): React.ReactElement {
             id: image.id,
             ...await loadImageSize(image.dataUrl)
           }))).then((sizes) => {
-            if (requestSequence !== boardOpenSequenceRef.current) return;
+            if (requestSequence !== boardOpenSequenceRef.current || deletedBoardIdsRef.current.has(boardId)) return;
             const sizeById = new Map(
               sizes
                 .filter((size) => size.width > 0 && size.height > 0)
@@ -1378,6 +1391,7 @@ export default function App(): React.ReactElement {
         if (requestSequence === boardOpenSequenceRef.current) reportWorkbenchError(error);
       } finally {
         if (requestSequence === boardOpenSequenceRef.current) {
+          pendingBoardOpenId.current = null;
           setOpeningBoardId(null);
           if (!opts?.suppressLoadingScreen) setBoardLoading(false);
         }
@@ -1425,12 +1439,45 @@ export default function App(): React.ReactElement {
   // CLI runs outside React and mutates boards through the preload API. Reconcile the
   // local workbench so its pending state and persisted canvas snapshot stay authoritative.
   useEffect(() => {
+    const trackExternalSync = (work: Promise<void>): void => {
+      pendingExternalBoardSync.current.add(work);
+      void work.catch(reportWorkbenchError).finally(() => pendingExternalBoardSync.current.delete(work));
+    };
     const onWorkspaceEvent = (event: Event): void => {
       const detail = (event as CustomEvent<Record<string, unknown>>).detail;
       if (!detail || typeof detail.type !== "string") return;
       const boardId = typeof detail.boardId === "string" ? detail.boardId : undefined;
       const operationId = typeof detail.operationId === "string" ? detail.operationId : undefined;
       if (detail.type === "library-updated") { void refreshBoards().catch(reportWorkbenchError); return; }
+
+      if (detail.type === "board-trashed" && boardId) {
+        deletedBoardIdsRef.current.add(boardId);
+        if (pendingBoardOpenId.current === boardId) {
+          boardOpenSequenceRef.current += 1;
+          pendingBoardOpenId.current = null;
+          setOpeningBoardId(null);
+          setBoardLoading(false);
+        }
+        boardDetailCacheRef.current.delete(boardId);
+        if (activeBoardRef.current?.id === boardId || activeBoardRef.current?.parentBoardId === boardId) {
+          boardSaveCoordinator.discardPending();
+          activeBoardRef.current = null;
+          setActiveBoard(null);
+          setImages([]);
+          setVideoUrls({});
+          workflowNodesRef.current = [];
+          setWorkflowNodes([]);
+          setLibraryOpen(true);
+        }
+        void refreshBoards().catch(reportWorkbenchError);
+        return;
+      }
+      if (detail.type === "board-restored" && boardId) {
+        deletedBoardIdsRef.current.delete(boardId);
+        boardDetailCacheRef.current.delete(boardId);
+        void refreshBoards().catch(reportWorkbenchError);
+        return;
+      }
 
       if (detail.type === "board-mutation-requested" && boardId) {
         const resolve = typeof detail.resolve === "function" ? detail.resolve as () => void : undefined;
@@ -1447,16 +1494,16 @@ export default function App(): React.ReactElement {
       }
 
       if (detail.type === "board-created" && boardId) {
-        void (async () => {
+        trackExternalSync((async () => {
           await refreshBoards();
           if (detail.preserveView !== true) await openBoard(boardId, undefined, { resetPromptDraft: true });
           setStatus(detail.preserveView === true ? "创作助手已创建画板。" : "CLI 已创建画板。");
-        })();
+        })());
         return;
       }
 
       if (detail.type === "open-board" && boardId) {
-        void openBoard(boardId);
+        trackExternalSync(openBoard(boardId));
         return;
       }
 
@@ -1464,10 +1511,10 @@ export default function App(): React.ReactElement {
         const nodeIds = Array.isArray(detail.nodeIds)
           ? detail.nodeIds.filter((id): id is string => typeof id === "string")
           : [];
-        void (async () => {
+        trackExternalSync((async () => {
           if (activeBoardRef.current?.id !== boardId) await openBoard(boardId);
           if (nodeIds.length > 0) setSelectionTarget({ ids: nodeIds, nonce: Date.now() });
-        })();
+        })());
         return;
       }
 
@@ -1475,10 +1522,10 @@ export default function App(): React.ReactElement {
         const nodeIds = Array.isArray(detail.nodeIds)
           ? detail.nodeIds.filter((id): id is string => typeof id === "string")
           : [];
-        void (async () => {
+        trackExternalSync((async () => {
           await openBoard(boardId, undefined, { forceReload: activeBoardRef.current?.id === boardId });
           if (nodeIds.length > 0) setSelectionTarget({ ids: nodeIds, nonce: Date.now() });
-        })();
+        })());
         return;
       }
 
@@ -1541,7 +1588,7 @@ export default function App(): React.ReactElement {
       }
 
       if (detail.type === "board-updated" && boardId) {
-        void (async () => {
+        const synchronize = (async () => {
           if (operationId) {
             const pendingIds = cliPendingImageIdsRef.current.get(operationId);
             cliPendingImageIdsRef.current.delete(operationId);
@@ -1575,6 +1622,7 @@ export default function App(): React.ReactElement {
           await refreshBoards();
           if (activeBoardRef.current?.id === boardId) {
             await openBoard(boardId, undefined, { forceReload: true, keepLibraryOpen: detail.preserveView === true, suppressLoadingScreen: detail.preserveView === true, skipFlushCurrent: true });
+            if (detail.reloadLayout === true) flushSync(() => setExternalCanvasLayoutRevision(revision => revision + 1));
             // Focus only after the persisted nodes have been loaded. A separate
             // focus event can arrive before the asynchronous reload finishes.
             const nodeIds = Array.isArray(detail.nodeIds)
@@ -1584,6 +1632,7 @@ export default function App(): React.ReactElement {
             }
           }
         })();
+        trackExternalSync(synchronize);
         return;
       }
 
@@ -2536,6 +2585,7 @@ export default function App(): React.ReactElement {
       focusOnCreate?: boolean;
     }
   ): string {
+    if (BOARD_ONLY_MODE && type !== "text") return "";
     const base = {
       id: crypto.randomUUID(),
       x: position.x,
@@ -5352,10 +5402,10 @@ export default function App(): React.ReactElement {
   function renderCanvasBoard(rightRailInset = effectiveRightRailCanvasInset): React.ReactElement {
     return (
       <>
-      {activeBoard ? <FieldChapterNavigation board={{id:activeBoard.id,name:activeBoard.name,nodes:[
+      {!BOARD_ONLY_MODE && activeBoard ? <FieldChapterNavigation board={{id:activeBoard.id,name:activeBoard.name,nodes:[
         ...images.filter(image=>!image.pending&&image.path).map(image=>serializeGeneratedImage(image,canvasStateRef.current.positions[image.id]??{x:0,y:0})),...workflowNodes
       ]}} jobs={history} onLocate={target=>{switchImageVersion(target.nodeId,target.versionIndex);setFocusTarget(current=>({key:target.nodeId,nonce:(current?.nonce??0)+1}));}} onDeliver={deliverFieldChapters} /> : null}
-      {activeBoard && activeBoard.kind !== "comic-drama" ? <PluginTools
+      {!BOARD_ONLY_MODE && activeBoard && activeBoard.kind !== "comic-drama" ? <PluginTools
         context={{ boardId: activeBoard.id, selectedNodeIds: selectedCanvasNodeIds, theme: effectiveTheme, locale }}
         beforeRequest={flushBoardSave}
         onMutation={handleComicDramaAgentMutation}
@@ -5365,9 +5415,10 @@ export default function App(): React.ReactElement {
         onShortDramaAvailabilityChange={setShortDramaAvailable}
       /> : null}
       <MemoizedCanvasBoard
-        key={activeBoard?.id ?? "empty"}
+        boardOnly={BOARD_ONLY_MODE}
+        key={`${activeBoard?.id ?? "empty"}:${externalCanvasLayoutRevision}`}
         images={images}
-        workflowNodes={workflowNodes}
+        workflowNodes={BOARD_ONLY_MODE ? workflowNodes.filter(node => node.type === "text") : workflowNodes}
         videoUrls={videoUrls}
         activeImageProvider={activeProvider}
         videoProviders={videoProviders}
@@ -5376,7 +5427,7 @@ export default function App(): React.ReactElement {
         goldBeanLoading={creditLoading}
         videoGoldBeanCostPerSecond={creditStatus?.videoGoldBeanCostPerSecond}
         advancedVideoModesEnabled={advancedVideoModesEnabled}
-        onStartComicDrama={shortDramaAvailable ? startComicDramaAt : undefined}
+        onStartComicDrama={BOARD_ONLY_MODE ? undefined : (shortDramaAvailable ? startComicDramaAt : undefined)}
         comicDramaBoard={activeBoard?.kind === "comic-drama" || (
           workflowNodes.some(isComicDramaNode)
           && !workflowNodes.some((node) => node.type === "comic-drama-entry")
@@ -5389,8 +5440,8 @@ export default function App(): React.ReactElement {
         onDeleteWorkflowNodes={handleDeleteWorkflowNodes}
         onContinueComicDrama={openComicDramaSetting}
         onRetryComicCharacter={(node) => void retryComicCharacterGeneration(node)}
-        onRunGenerationNode={handleRunGenerationNode}
-        onRunVideoGenerationNode={handleRunVideoGenerationNode}
+        onRunGenerationNode={BOARD_ONLY_MODE ? undefined : (handleRunGenerationNode)}
+        onRunVideoGenerationNode={BOARD_ONLY_MODE ? undefined : (handleRunVideoGenerationNode)}
         onDownloadVideo={saveVideo}
         onExtractVideoFrame={extractVideoFrame}
         onRevealVideo={revealVideo}
@@ -5412,7 +5463,7 @@ export default function App(): React.ReactElement {
         focusNonce={focusTarget?.nonce}
         selectionTargetIds={selectionTarget?.ids}
         selectionTargetNonce={selectionTarget?.nonce}
-        canEditImages={!bridgeError}
+        canEditImages={!BOARD_ONLY_MODE && !bridgeError}
         useThumbnailPreview={canvasThumbnailPreview}
         showMinimap={canvasMinimapVisible}
         onShowMinimapChange={handleCanvasMinimapVisibleChange}
@@ -5431,21 +5482,21 @@ export default function App(): React.ReactElement {
         onRemoveBackground={saveImageWithoutBackground}
         onUseReference={toggleImageReference}
         onUseReferences={addImageReferences}
-        canAddReferences={input.referenceImages.length < 4}
+        canAddReferences={!BOARD_ONLY_MODE && input.referenceImages.length < 4}
         referenceNodeIds={referencedCanvasNodeIds}
         referenceCount={input.referenceImages.length}
         onDownloadImages={saveImagesAsZip}
         onExportWechatImages={wechatStickerExportEnabled ? openWechatExportDialog : undefined}
-        onCreateVideoSequence={createVideoSequenceFromImages}
-        onCreateVideoAssembly={createVideoAssemblyFromVideos}
+        onCreateVideoSequence={BOARD_ONLY_MODE ? undefined : (createVideoSequenceFromImages)}
+        onCreateVideoAssembly={BOARD_ONLY_MODE ? undefined : (createVideoAssemblyFromVideos)}
         onOpenVideoSequence={openPersistedVideoSequence}
-        onReconstructInMasterGo={setMasterGoReconstructionImage}
-        onEditImage={enterEditSession}
-        onSliceImage={openSliceDialog}
-        onSaveAsTemplate={openTemplateExtraction}
+        onReconstructInMasterGo={BOARD_ONLY_MODE ? undefined : (setMasterGoReconstructionImage)}
+        onEditImage={BOARD_ONLY_MODE ? undefined : (enterEditSession)}
+        onSliceImage={BOARD_ONLY_MODE ? undefined : (openSliceDialog)}
+        onSaveAsTemplate={BOARD_ONLY_MODE ? undefined : (openTemplateExtraction)}
         sourceTemplateImageIds={templateSourceImageIds}
-        onOpenSourceTemplate={openImageSourceTemplate}
-        onViewImageDetails={viewCanvasImageDetails}
+        onOpenSourceTemplate={BOARD_ONLY_MODE ? undefined : (openImageSourceTemplate)}
+        onViewImageDetails={BOARD_ONLY_MODE ? undefined : (viewCanvasImageDetails)}
         onSwitchVersion={switchImageVersion}
         onSeparateVersions={separateVersions}
         clipboardEnabled={
@@ -5468,7 +5519,7 @@ export default function App(): React.ReactElement {
         onPasteImages={handlePasteCanvasImages}
         onDropImages={handleDropImages}
         onImportGenerationReferences={handleImportGenerationReferences}
-        showEmptyCanvasStart={activeBoard !== null}
+        showEmptyCanvasStart={!BOARD_ONLY_MODE && activeBoard !== null}
         emptyCanvasSuggestedMode={emptyCanvasSuggestedMode}
         promptFocused={promptFocused}
         onStartPrompt={startEmptyCanvasPrompt}
@@ -5491,6 +5542,57 @@ export default function App(): React.ReactElement {
         onRetry={licenseLoading ? retryLicenseStatus : undefined}
       />
     );
+  }
+  if (BOARD_ONLY_MODE) {
+    return <div className="workspace-surface flex h-screen w-screen flex-col overflow-hidden text-foreground" data-tuda-board-only="true">
+      <header className="flex h-14 shrink-0 items-center gap-3 border-b bg-background px-6 pl-24">
+        <strong className="text-sm">Tuda</strong>
+        <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">{activeBoard?.name ?? uiText("画板库")}</span>
+        <Button variant="outline" onClick={() => setLibraryOpen(value => !value)}>{uiText("画板库")}</Button>
+        <Button variant="outline" onClick={() => void createBoardAndOpen()}>{uiText("新建画板")}</Button>
+        <Button variant="outline" disabled={!activeBoard} onClick={() => { if (activeBoard) void exportBoardById(activeBoard.id); }}>{uiText("导出画板")}</Button>
+      </header>
+      <main className="relative min-h-0 flex-1">
+        <Suspense fallback={null}><CanvasRoot>
+          {libraryOpen || !activeBoard ? <EmbeddedBoardFileManager
+            boards={topLevelBoards} activeBoardId={activeBoard?.id} openingBoardId={openingBoardId}
+            onOpenBoard={(id, origin) => void openBoard(id, origin)} onPrefetchBoard={prefetchBoard}
+            onCreateBoard={folderId => void createBoardAndOpen(folderId)}
+            onRenameBoard={(id, name) => void renameBoardById(id, name)} onDuplicateBoard={id => void duplicateBoardById(id)}
+            onDeleteBoard={deleteBoardById} onExportBoard={id => void exportBoardById(id)}
+            onImportBoard={importBoardFromDialog} onImportBoardFiles={importBoardFiles} onClose={() => setLibraryOpen(false)}
+          /> : renderCanvasBoard(0)}
+        </CanvasRoot></Suspense>
+      </main>
+      <Dialog open={deleteTargetIds !== null} onOpenChange={(open) => !open && cancelDeleteImages()}>
+        <DialogContent
+          className="max-w-sm"
+          onKeyDown={(event) => {
+            // 回车即删除（无论焦点在哪个按钮）。
+            if (event.key === "Enter") {
+              event.preventDefault();
+              void confirmDeleteImages();
+            }
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>{uiText("删除图片")}</DialogTitle>
+            <DialogDescription>
+              {uiText("将从画布移除")}{deleteTargetIds && deleteTargetIds.length > 1 ? uiText(" {{ui:0}} 张图片", [deleteTargetIds.length]) : uiText("这张图片")}
+              {uiText("。图片会移入回收站，可在自动清理前恢复（评论仍会保留）。")}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" disabled={trashingImages} onClick={cancelDeleteImages}>
+              {uiText("取消")}</Button>
+            <Button variant="destructive" disabled={trashingImages} onClick={() => void confirmDeleteImages()}>
+              {trashingImages ? uiText("正在移入回收站…") : uiText("移入回收站（回车）")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Toaster theme={effectiveTheme} position="top-center" />
+    </div>;
   }
   if (activeBoard?.kind === "comic-drama" && comicDramaSnapshot) {
     return (

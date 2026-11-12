@@ -993,11 +993,12 @@ export function registerIpc({
     if (typeof sourceId !== "string" || !sourceId.trim()) throw new Error("灵感来源无效。");
     await shell.openExternal(await inspirationClient.urlFor(sourceId));
   });
-  const integrationHome = app.isPackaged ? app.getPath("home") : path.join(app.getPath("userData"), "agent-home");
+  const embeddedHost = Boolean(process.env.TUDA_EMBEDDED_HOST);
+  const integrationHome = app.isPackaged && !embeddedHost ? app.getPath("home") : path.join(app.getPath("userData"), "agent-home");
   const cliOptions = { homeDir: integrationHome, selfTest: true, userDataPath: app.isPackaged ? undefined : app.getPath("userData"), executable: process.execPath, scriptPath: app.isPackaged ? path.join(process.resourcesPath, "cli", "dist", "main.js") : path.join(app.getAppPath(), "cli", "dist", "main.js") };
   let cliError: string | undefined;
   const installAppCli = async () => { const result = await installCli(cliOptions); cliError = result.error; return result; };
-  const installation = app.isPackaged ? installAppCli() : Promise.resolve(null);
+  const installation = app.isPackaged && !embeddedHost ? installAppCli() : Promise.resolve(null);
   const skillSync: Promise<null> = Promise.resolve(null);
   let skillUpgradeConsumed = false;
   const readAgentStatus = async () => ({ ...await getAgentIntegrationStatus(integrationHome), cli: { ...await getCliInstallationStatus(integrationHome), error: cliError }, development: !app.isPackaged });

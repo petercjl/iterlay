@@ -1,4 +1,8 @@
-# Tuda CLI
+# Tuda CLI 与画板插件
+
+宿主内置的画板插件使用 `nativePlugin` 合同：直接以 Node.js 22.12+ 执行包内 `dist/board-plugin.js`，通过 stdio MCP 提供画板管理、导入已有图片、布局、文字标注和导出。宿主准备兼容的 Tuda 桌面运行时，完成原生注册与内部授权；用户直接在当前 Agent 中使用。此入口仅提供画板操作，生成素材由调用方自己的媒体能力完成。
+
+初始发布渠道为 `@petercjl/tuda@next`。宿主按 `capabilities.json` 的 `nativePlugin.updates` 自动检查、下载并验证兼容版本，在下一次新连接启用；离线或更新失败继续使用当前版本。具体安装和更新合同见 [INSTALL.md](INSTALL.md) 与 [UPDATE.md](UPDATE.md)。独立 CLI 与配套 Skill 的安装方法见下文。
 
 Tuda 把图片、视频与创作工作流放在同一张画布上。CLI 让你和 Coding Agent 通过命令生成图片、修改素材、制作视频、整理画板并导出结果，复用 App 已保存的模型服务与授权。
 
@@ -54,7 +58,7 @@ fal / OpenRouter 视频可用 `--connection-provider <同类型图片服务ID>` 
 
 `tuda guard descriptor` 可离线输出随包携带的 HOL Guard 命令描述；它不会安装 Guard 或改变 Agent 权限。生成/编辑、文件导出、配置安装与通用调用按影响分类，最终决策仍受 Guard 全局策略控制。参见 [说明](../docs/guard.md)。
 
-Coding Agent 在 App 的设置 → Coding Agent 中一键安装 `using-tuda` Skill，或运行 `npx tuda add --agent <id>`。支持 `codex`、`claude-code`、`workbuddy`、`cursor`、`windsurf`、`cline`、`roo-cline`、`gemini-cli` 和 `opencode`；省略 `--agent` 时自动安装到已检测到的 Agent。WorkBuddy 的安装位置为 `~/.workbuddy/skills/using-tuda`。`using-tuda` 仅供手动调用：Codex 使用 `$using-tuda`，Claude Code 使用 `/using-tuda`，其他支持 Skills 的 Agent 直接按其 Skill 调用语法使用。迁移会移除 Codex/Claude Code 原来的 Tuda MCP 条目，保留其他服务。此版本不再提供 MCP server。
+Coding Agent 在 App 的设置 → Coding Agent 中一键安装 `using-tuda` Skill，或运行 `npx tuda add --agent <id>`。支持 `codex`、`claude-code`、`workbuddy`、`cursor`、`windsurf`、`cline`、`roo-cline`、`gemini-cli` 和 `opencode`；省略 `--agent` 时自动安装到已检测到的 Agent。WorkBuddy 的安装位置为 `~/.workbuddy/skills/using-tuda`。`using-tuda` 仅供手动调用：Codex 使用 `$using-tuda`，Claude Code 使用 `/using-tuda`，其他支持 Skills 的 Agent 直接按其 Skill 调用语法使用。迁移会移除 Codex/Claude Code 原来的 Tuda MCP 条目，保留其他服务。独立 CLI 的 Skill 入口使用命令调用；宿主原生画板入口单独提供 stdio MCP。
 
 指定 `--user-data-path` 或 `TUDA_USER_DATA_PATH` 时只连接指定工作区，不自动启动另一个工作区。生成默认等待，`--async` 提交即返回；结束等待不会取消远端任务。导出失败后可重试导出，不必重新生成。
 

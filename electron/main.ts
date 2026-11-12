@@ -5,7 +5,7 @@ import { waitForStorageMutations } from "./storage/atomic-json.js";
 import { readImageDimensions } from "./media/image-metadata.js";
 import { ImageTaskQueue } from "./image-worker-client.js";
 import { allowedExternalUrl, installRendererSecurity, isTrustedRendererUrl } from "./renderer-security.js";
-import { installWindowLifecycle } from "./window-lifecycle.js";
+import { installWindowLifecycle, flushWindow } from "./window-lifecycle.js";
 import { BackgroundSession, CLI_BACKGROUND_FLAG } from "./background-session.js";
 import { resolveDesktopDevelopmentUserData } from "./dev-workspace.js";
 import { createEnterpriseClient, enterpriseSettings, registerEnterprise } from "./enterprise/integration.js";
@@ -172,7 +172,9 @@ if (isBrowserDev) {
 }
 app.setName(APP_NAME);
 if (app.isPackaged) {
-  const userData = path.join(app.getPath("appData"), BRAND.name);
+  const explicitHostData = process.env.TUDA_EMBEDDED_HOST && process.env.TUDA_USER_DATA_PATH;
+  if (explicitHostData && !path.isAbsolute(explicitHostData)) throw new Error("嵌入式 Tuda 工作区必须为绝对路径。");
+  const userData = explicitHostData || path.join(app.getPath("appData"), BRAND.name);
   app.setPath("userData", userData);
   app.setPath("sessionData", path.join(userData, "session"));
   app.setAppLogsPath(path.join(userData, "logs"));
@@ -359,13 +361,14 @@ async function loadApplication(win: BrowserWindow, theme: WindowTheme = "system"
     if (!app.isPackaged && process.env.VITE_DEV_SERVER_URL) {
       const url = new URL(process.env.VITE_DEV_SERVER_URL);
       url.searchParams.set("bootTheme", bootTheme);
+      if (process.env.TUDA_EMBEDDED_HOST) url.searchParams.set("boardOnly", "1");
       if (isBrowserDev) url.searchParams.set("__tuda_backend", "1");
       await win.loadURL(url.toString());
       if (!isBrowserDev && !backgroundSession.hidden && process.env.TUDA_PLAYWRIGHT !== "1") {
         win.webContents.openDevTools({ mode: "detach" });
       }
     } else {
-      await win.loadFile(path.join(__dirname, "../../dist/index.html"), { query: { bootTheme } });
+      await win.loadFile(path.join(__dirname, "../../dist/index.html"), { query: { bootTheme, ...(process.env.TUDA_EMBEDDED_HOST ? { boardOnly: "1" } : {}) } });
     }
     // The transient data: startup page would otherwise remain in Chromium's history.
     // macOS mouse back/forward buttons can navigate to it after the workbench is ready.
@@ -388,7 +391,7 @@ async function createWindow(
 
 app.whenReady().then(async () => {
   if (!hasSingleInstanceLock) return;
-  if (app.isPackaged) app.setAsDefaultProtocolClient(TUDA_DEEP_LINK_SCHEME);
+  if (app.isPackaged && !process.env.TUDA_EMBEDDED_HOST) app.setAsDefaultProtocolClient(TUDA_DEEP_LINK_SCHEME);
   guardWindowClose = installWindowLifecycle(
     async () => { await waitForStorageMutations(); await flushHistoryStore?.(); await Promise.all([flushAgentLogs?.(), runtimeLog?.flush()]); },
     isBrowserDev ? () => browserDevBridge?.flush() ?? Promise.resolve() : undefined,
@@ -430,9 +433,12 @@ app.whenReady().then(async () => {
   ]);
   startupMark("business-modules-loaded");
   const localSettings = new SettingsStore(dataDir);
+  startupMark("local-settings-ready");
   const enterprise = await createEnterpriseClient(app.getPath("userData"));
+  startupMark("enterprise-client-ready");
   const company = new CompanyDesktop(app.getPath("userData"), enterprise, await loadCompanyDefaults(app.getPath("userData"), app.isPackaged ? process.resourcesPath : undefined));
   await company.initialize();
+  startupMark("company-account-ready");
   const settings = enterpriseSettings(localSettings, enterprise, company);
   const appLocale = resolveAppLocale(settings.getSettings().language, app.getLocale());
   const onboarding = new OnboardingStore(dataDir);
@@ -636,7 +642,7 @@ app.whenReady().then(async () => {
   });
   registerUpdateIpc(update);
   // 开发模式下不做自动检查，手动“检查更新”入口仍可用。
-  if (app.isPackaged) {
+  if (app.isPackaged && !process.env.TUDA_EMBEDDED_HOST) {
     // 不让更新服务的网络延迟阻塞首窗；状态返回后 UpdateManager 仍会立即执行强更门禁。
     void update.check("auto").catch((error) => console.warn("启动更新检查失败。", error));
     update.startAutoCheck();
@@ -1082,7 +1088,12 @@ app.whenReady().then(async () => {
   }
   backgroundSession.markReady();
   const disposeLocalApi = await startLocalApi(() => BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows().find((window) => !window.isDestroyed()) ?? null, app.getPath("userData"),
-    isBrowserDev ? () => undefined : () => backgroundSession.requestForeground());
+    isBrowserDev ? () => undefined : () => backgroundSession.requestForeground(), value => company.acceptHostHandoff(value), () => company.authorizeHostOperation(), async () => {
+      const active = BrowserWindow.getAllWindows().find(window => !window.isDestroyed());
+      if (active) await flushWindow(active);
+      await waitForStorageMutations();
+      setTimeout(() => app.quit(), 100);
+    });
 
   if (settings.getSettings().memoryEnabled) {
     const maintenanceTimer = setTimeout(() => {

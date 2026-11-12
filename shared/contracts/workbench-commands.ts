@@ -1,5 +1,9 @@
 /** Stable channels shared by the preload adapter and local MCP transport. */
 export const WORKBENCH_COMMANDS = {
+  renameBoard: "boards:rename",
+  deleteBoard: "boards:delete",
+  restoreBoard: "boards:trash:restore",
+  listTrashedBoards: "boards:trash:list",
   getBoardLibrary: "boards:library:get",
   updateBoardLibrary: "boards:library:update",
   enterpriseStatus: "enterprise:status",

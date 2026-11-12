@@ -231,6 +231,34 @@ export class CompanyAccount extends EventEmitter {
     )
       throw new Error("公司设备授权格式无效。");
   }
+  /** Main-process-only, app-bound PKCE exchange. Never returns credentials. */
+  async acceptHostHandoff(value: unknown) {
+    if (!record(value) || value.contract !== 1 || value.appId !== "tuda" ||
+      value.origin !== this.origin || !this.origin ||
+      typeof value.code !== "string" || !opaque.test(value.code) ||
+      typeof value.verifier !== "string" || !opaque.test(value.verifier) ||
+      typeof value.expiresAt !== "string" || !Number.isFinite(Date.parse(value.expiresAt)) ||
+      Date.parse(value.expiresAt) <= Date.now() || Date.parse(value.expiresAt) > Date.now() + 120_000) {
+      throw new Error("AUTH_HANDOFF_INVALID");
+    }
+    const previous = this.snapshot;
+    try {
+      const data = await this.request("/handoff/exchange", { appId: "tuda", code: value.code, verifier: value.verifier }, false);
+      if (data.status !== "authorized") throw new Error("AUTH_HANDOFF_INVALID");
+      const session = data as unknown as CompanySession;
+      this.checkSession(session);
+      if (Date.parse(session.expiresAt) <= Date.now()) throw new Error("AUTH_HANDOFF_EXPIRED");
+      this.snapshot = { origin: this.origin, session };
+      this.pending = undefined;
+      await this.refresh();
+      return { authenticated: true, memberId: session.member.id, organizationId: session.organization.id };
+    } catch {
+      this.snapshot = previous;
+      await this.persist(previous);
+      this.changed();
+      throw new Error("AUTH_HANDOFF_FAILED");
+    }
+  }
   private async request(
     route: string,
     body?: unknown,

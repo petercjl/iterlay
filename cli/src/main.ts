@@ -7,7 +7,7 @@ import { randomUUID } from "node:crypto";
 import { handleManagement, automaticUpdateCheck } from "./management.js";
 import { runAdd, runRemove } from "./commands.js";
 import { defaultUserDataPath } from "./paths.js";
-import { connect } from "./runtime.js";
+import { connect, prepareDesktop } from "./runtime.js";
 import { listWorkspaceTools } from "../../electron/workspace-tools.js";
 import { assertInlineMediaByteLength } from "../../shared/media-import.js";
 import type { CodingAgentId } from "../../shared/agent-integration.js";
@@ -15,6 +15,7 @@ import type { CodingAgentId } from "../../shared/agent-integration.js";
 const HELP = `Tuda CLI — 使用 App 保存的模型创作
 
 tuda status                         工作区状态
+tuda desktop prepare                准备桌面后台并返回不含凭证的实例身份
 tuda providers list [--kind image]   已保存的模型服务（不包含密钥）
 tuda providers show <id>             查看配置（不包含密钥）
 tuda providers set --kind video|audio --provider <id> --model <id> [配置选项]
@@ -43,7 +44,7 @@ tuda add [--agent <id>]              安装 CLI Skill，迁移旧集成
 tuda remove --agent <id>             移除 Skill
 
 通用选项：--json --async --provider <id> --model <id> --board <id>
---user-data-path <path> --app-path <path> --no-launch --timeout <seconds>
+--user-data-path <path> --app-path <path> --no-launch --timeout <seconds> --startup-timeout <seconds>
 默认自动启动隐藏后台服务，不显示 App 窗口；--no-launch 仅连接已有服务。
 生成：--size auto --n 1 --quality high --background transparent
 未指定 --board 时使用设置中的 CLI 默认画板；未配置时使用「CLI 创作」。
@@ -53,7 +54,7 @@ type Flags = Record<string, string[]>;
 function parse(argv: string[]): { words: string[]; flags: Flags } {
   const words: string[] = [], flags: Flags = {};
   const bools = new Set(["json", "async", "no-launch", "overwrite", "help", "version", "default", "api-key-stdin", "clear-api-key"]);
-  const values = new Set(["template", "description", "category", "mode", "use-case", "expected-prompt", "agent", "home", "kind", "provider", "model", "prompt", "input", "out", "path", "board", "name", "size", "quality", "style", "background", "n", "reference", "ratio", "duration", "resolution", "timeout", "request-id", "app-path", "user-data-path", "type", "base-url", "voice", "speech-endpoint", "connection-provider", "saved-model", "api-key-env", "rows", "columns", "margin", "gap", "crops", "node"]);
+  const values = new Set(["template", "description", "category", "mode", "use-case", "expected-prompt", "agent", "home", "kind", "provider", "model", "prompt", "input", "out", "path", "board", "name", "size", "quality", "style", "background", "n", "reference", "ratio", "duration", "resolution", "timeout", "startup-timeout", "request-id", "app-path", "user-data-path", "type", "base-url", "voice", "speech-endpoint", "connection-provider", "saved-model", "api-key-env", "rows", "columns", "margin", "gap", "crops", "node"]);
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (!arg.startsWith("--")) { words.push(arg); continue; }
@@ -102,8 +103,8 @@ async function exportFiles(call: Awaited<ReturnType<typeof connect>>, paths: str
 }
 async function main(): Promise<void> {
   if (await handleManagement(process.argv.slice(2))) return;
-  await automaticUpdateCheck();
   const { words, flags } = parse(process.argv.slice(2));
+  if (!(words[0] === "desktop" && words[1] === "prepare")) await automaticUpdateCheck();
   const get = (key: string) => flags[key]?.at(-1);
   if (flags.help || words[0] === "help" || (!words.length && !flags.version)) { process.stdout.write(HELP + "\n"); return; }
   if (flags.version || words[0] === "version") {
@@ -115,6 +116,11 @@ async function main(): Promise<void> {
   const userDataPath = get("user-data-path") ?? process.env.TUDA_USER_DATA_PATH ?? defaultUserDataPath();
   const [group, action, id] = words;
   const output = (data: unknown) => process.stdout.write(JSON.stringify(flags.json ? { schemaVersion: 1, ok: true, data } : data, (key, value: unknown) => key === "previewImageDataUrls" ? undefined : value, 2) + "\n");
+  if (group === "desktop" && action === "prepare") {
+    output(await prepareDesktop({ userDataPath, appRoot: get("app-path"), noLaunch: Boolean(flags["no-launch"]),
+      startupTimeoutMs: get("startup-timeout") === undefined ? Number(process.env.TUDA_STARTUP_TIMEOUT_MS ?? 120000) : Number(get("startup-timeout")) * 1000 }));
+    return;
+  }
   if (group === "guard" && action === "descriptor") {
     output(JSON.parse(await readFile(path.resolve(moduleDir,"../guard/command.tuda.json"),"utf8")));
     return;
@@ -127,7 +133,7 @@ async function main(): Promise<void> {
     output(await (group === "add" ? runAdd(options) : runRemove(options))); return;
   }
   if (group === "tools" && action === "list") { output(listWorkspaceTools()); return; }
-  const call = await connect({ userDataPath, appRoot: get("app-path"), noLaunch: Boolean(flags["no-launch"]) || Boolean(process.env.TUDA_USER_DATA_PATH) || Boolean(get("user-data-path")) });
+  const call = await connect({ ...(get("startup-timeout") === undefined ? {} : { startupTimeoutMs: Number(get("startup-timeout")) * 1000 }), userDataPath, appRoot: get("app-path"), noLaunch: Boolean(flags["no-launch"]) || Boolean(process.env.TUDA_USER_DATA_PATH) || Boolean(get("user-data-path")) });
   if (group === "status" || group === "doctor") { output(await call("status")); return; }
   if (group === "providers" && action === "list") { output(await call("list_providers", get("kind") ? { kind: get("kind") } : {})); return; }
   if (group === "providers" && action === "show") { output(await call("get_provider", { providerId: id ?? get("provider") })); return; }

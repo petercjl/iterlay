@@ -1,3 +1,4 @@
+import { BOARD_PLUGIN_WRITES, executeBoardPluginWrite, boardPluginInputHash } from "./board-plugin.js";
 import { inExecutionSpace } from "../execution-space.js";
 import { calculateSliceGrid, validateCropRect, MAX_SLICE_COUNT } from "../../shared/image-slicing.js";
 import { parseInlineMediaDataUrl } from "../../shared/media-import.js";
@@ -57,7 +58,37 @@ export class WorkspaceCommands {
   private readonly tasks = new Map<string, GenerationRecord>();
   private readonly submissions = new Map<string, { hash: string; promise: Promise<GenerationRecord> }>();
   private defaultBoardResolution?: Promise<string>;
+  private boardOperations = new Map<string, Promise<unknown>>();
   constructor(private readonly dependencies: CommandDependencies) {}
+  private async boardPluginWrite(method: string, args: Record<string, unknown>): Promise<unknown> {
+    if (!["import_board_images", "write_board_text"].includes(method) || !this.dependencies.taskDirectory) return executeBoardPluginWrite(this.dependencies.api, method, args);
+    const key = createHash("sha256").update(JSON.stringify([args.boardId, args.operationId])).digest("hex");
+    const hash = boardPluginInputHash(method, args);
+    const file = path.join(this.dependencies.taskDirectory, `board-operation-${key}.json`);
+    const existing = this.boardOperations.get(key);
+    if (existing) { await existing; return this.boardPluginWrite(method, args); }
+    const work = (async () => {
+      const receipt = await readFile(file, "utf8").then(value => JSON.parse(value)).catch(error => {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+        throw error;
+      });
+      if (receipt && receipt.hash !== hash) throw new Error("OPERATION_ID_CONFLICT");
+      if (receipt?.state === "succeeded") return { ...receipt.result, reused: true };
+      if (receipt?.state === "pending") {
+        // A crash may have happened after the board write but before its receipt.
+        const board = await this.dependencies.api.getBoard(string(args.boardId));
+        const recorded = board?.nodes.some(node => (node as unknown as { pluginOperation?: { id: string } }).pluginOperation?.id === args.operationId);
+        if (!recorded) throw new Error("OPERATION_OUTCOME_UNKNOWN: inspect the board before a new operation");
+      }
+      await mkdir(this.dependencies.taskDirectory!, { recursive: true });
+      await writeJsonAtomic(file, { hash, state: "pending" });
+      const result = await executeBoardPluginWrite(this.dependencies.api, method, args);
+      await writeJsonAtomic(file, { hash, state: "succeeded", result });
+      return result;
+    })();
+    this.boardOperations.set(key, work);
+    try { return await work; } finally { this.boardOperations.delete(key); }
+  }
   async call(method: string, a: Record<string, unknown>): Promise<unknown> { if (a.space !== undefined && a.space !== "personal" && a.space !== "enterprise") throw new Error("无效空间，请选择 personal 或 enterprise。"); return inExecutionSpace(() => this.execute(method, a), a.space); }
   private async execute(method: string, a: Record<string, unknown>): Promise<unknown> {
     if (method === "open_iterlay") method = "open_tuda";
@@ -71,6 +102,15 @@ export class WorkspaceCommands {
       emit({ type: "board-updated", boardId, ...detail });
       return result;
     };
+    if (BOARD_PLUGIN_WRITES.has(method)) {
+      await this.dependencies.flush();
+      const result = await this.boardPluginWrite(method, a);
+      if (method === "trash_board") emit({ type: "board-trashed", boardId });
+      else if (method === "restore_board") emit({ type: "board-restored", boardId });
+      else if (method !== "list_trashed_boards") emit({ type: "board-updated", boardId, ...(["import_board_images", "write_board_text", "move_board_nodes"].includes(method) ? { reloadLayout: true } : {}) });
+      if (["rename_board", "trash_board", "restore_board"].includes(method)) emit({ type: "library-updated" });
+      return result;
+    }
     switch (method) {
       case "status": {
         const space = typeof api.enterpriseStatus === "function" ? await api.enterpriseStatus() : undefined;

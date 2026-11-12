@@ -32,7 +32,12 @@
     ],
     "install": "skill install --target <exact-directory>",
     "update": "update install --target <exact-directory>",
-    "verification": "skill status --target <exact-directory> --json"
+    "verification": "skill status --target <exact-directory> --json",
+    "agentNeutral": true,
+    "explicitDestination": true,
+    "hostDiscoveryVerificationRequired": true,
+    "physicalRuntimeIsolation": true,
+    "bootstrapNotice": "INSTALL.md"
   },
   "commandContracts": {
     "version": {
@@ -144,7 +149,7 @@
           ]
         }
       },
-      "sideEffects": "read"
+      "sideEffects": "none"
     },
     "update install": {
       "options": {
@@ -170,6 +175,26 @@
         }
       },
       "sideEffects": "package-and-skill-update"
+    },
+    "desktop prepare": {
+      "options": {
+        "--json": {
+          "type": "boolean"
+        },
+        "--app-path": {
+          "type": "string"
+        },
+        "--user-data-path": {
+          "type": "string"
+        },
+        "--startup-timeout": {
+          "type": "number",
+          "unit": "seconds",
+          "minimum": 1,
+          "maximum": 180
+        }
+      },
+      "sideEffects": "local-process-start"
     }
   },
   "discoveryContract": {
@@ -295,6 +320,124 @@
         "field": "recovery",
         "type": "object"
       }
+    }
+  },
+  "nativePlugin": {
+    "contract": 1,
+    "profile": "boards-only",
+    "transport": "stdio-mcp",
+    "entry": "dist/board-plugin.js",
+    "requiresSkill": false,
+    "requiresDesktop": true,
+    "environment": {
+      "TUDA_USER_DATA_PATH": "exact private workspace directory",
+      "TUDA_APP_PATH": "compatible desktop root",
+      "TUDA_PLUGIN_SPACE": "fixed personal or enterprise space",
+      "TUDA_SPACE": "alias with precedence",
+      "TUDA_EMBEDDED_HOST": "host identity for isolated packaged desktop",
+      "TUDA_AUTH_HANDOFF_FILE": "host-private short-lived PKCE handoff file; never a model argument",
+      "TUDA_STARTUP_TIMEOUT_MS": "background readiness deadline, 1000..180000 ms; native plugin default 120000"
+    },
+    "generationTools": false,
+    "preparation": {
+      "argv": [
+        "desktop",
+        "prepare",
+        "--app-path",
+        "{appRoot}",
+        "--user-data-path",
+        "{userData}",
+        "--startup-timeout",
+        "120",
+        "--json"
+      ],
+      "readyField": "data.ready",
+      "instanceField": "data.instanceId",
+      "requiresAuth": false,
+      "sequence": [
+        "prepare",
+        "issue-instance-bound-handoff",
+        "tools/call"
+      ],
+      "contract": 1,
+      "resultSchema": {
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "ok",
+          "data"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "const": 1
+          },
+          "ok": {
+            "const": true
+          },
+          "data": {
+            "type": "object",
+            "required": [
+              "ready",
+              "instanceId",
+              "protocolVersion"
+            ],
+            "properties": {
+              "ready": {
+                "const": true
+              },
+              "instanceId": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "protocolVersion": {
+                "const": 1
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    "authHandoff": {
+      "contract": 1,
+      "transport": "private-file",
+      "environment": "TUDA_AUTH_HANDOFF_FILE",
+      "targetAppId": "tuda",
+      "required": [
+        "contract",
+        "origin",
+        "appId",
+        "code",
+        "verifier",
+        "expiresAt",
+        "instanceId"
+      ],
+      "instanceField": "instanceId",
+      "bindingSource": "nativePlugin.preparation.data.instanceId",
+      "sessionPersistence": "memory-only",
+      "sequence": [
+        "prepare-desktop",
+        "issue-handoff",
+        "write-instance-bound-file",
+        "tools/call"
+      ]
+    },
+    "desktopCompatibility": {
+      "contract": 1,
+      "protocolVersion": 1,
+      "minimumVersion": "0.1.0"
+    },
+    "updates": {
+      "contract": 1,
+      "owner": "host",
+      "package": "@petercjl/tuda",
+      "channel": "next",
+      "mode": "automatic",
+      "intervalHours": 24,
+      "timeoutMs": 1500,
+      "activation": "next-connection",
+      "compatibility": "same-minor-for-0.x-same-major-for-1.x",
+      "failure": "keep-active"
     }
   }
 }

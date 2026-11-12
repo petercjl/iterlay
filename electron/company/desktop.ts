@@ -68,6 +68,8 @@ export class CompanyDesktop {
     this.account = new CompanyAccount(
       this.preferences.origin,
       async (value) => {
+        // Embedded sessions are short-lived grants from the live host, not independent logins.
+        if (process.env.TUDA_EMBEDDED_HOST) return;
         if (!safeStorage.isEncryptionAvailable())
           throw new Error("系统安全存储不可用，未保存公司登录凭据。");
         const encrypted = safeStorage
@@ -290,6 +292,7 @@ export class CompanyDesktop {
     if (this.enabled) {
       this.legacy.stop();
       try {
+        if (!process.env.TUDA_EMBEDDED_HOST) {
         const p = JSON.parse(
           await readFile(
             path.join(this.userData, "company-session.json"),
@@ -303,6 +306,7 @@ export class CompanyDesktop {
             safeStorage.decryptString(Buffer.from(p.encrypted, "base64")),
           ) as AccountSnapshot,
         );
+        }
       } catch (e) {
         if ((e as NodeJS.ErrnoException).code !== "ENOENT")
           console.warn("公司登录需重新授权。");
@@ -353,6 +357,29 @@ export class CompanyDesktop {
     if (this.enabled && this.account.authenticated)
       throw new Error("当前已登录公司账号，请先退出后切换账号。");
     return this.enabled ? this.account.beginLogin() : this.legacy.beginLogin();
+  }
+  /** Internal host integration: no dialogs, credentials or personal-space fallback. */
+  async authorizeHostOperation() {
+    if (!this.enabled || !this.account.authenticated) throw new Error("COMPANY_AUTH_REQUIRED");
+    await this.account.refresh();
+    this.assertAccount();
+  }
+  async acceptHostHandoff(value: unknown) {
+    if (!this.enabled) throw new Error("COMPANY_AUTH_NOT_CONFIGURED");
+    await this.flush();
+    const result = await this.account.acceptHostHandoff(value);
+    // Honor an existing NAS/local workspace. A fresh embedded host gets private local storage.
+    if (!this.workspace) {
+      this.preferences.folders[this.namespace!] = path.join(this.userData, "host-board-workspace");
+      this.preferences.storage ??= {};
+      this.preferences.storage[this.namespace!] = { kind: "local" };
+    }
+    if (this.usesNas) await this.connectNas();
+    else await mkdir(this.workspace!, { recursive: true, mode: 0o700 });
+    this.preferences.activeSpace = "enterprise";
+    await this.save();
+    this.reload();
+    return { ...result, space: "enterprise" };
   }
   async pollLogin() {
     if (!this.enabled) return this.legacy.pollLogin();

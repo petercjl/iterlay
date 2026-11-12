@@ -41,4 +41,19 @@ describe("typed workspace board commands", () => {
     await f.commands.call("get_active_board", {});
     expect(f.mocks.getBoard).toHaveBeenCalledWith("board");
   });
+  it("uses dedicated trash/restore events so the UI stops saving a removed board", async () => {
+    const f = workspaceFixture();
+    f.mocks.deleteBoard.mockResolvedValue({ ok: true });
+    await f.commands.call("trash_board", { boardId: "board" });
+    expect(f.emit).toHaveBeenCalledWith({ type: "board-trashed", boardId: "board" });
+    expect(f.emit).not.toHaveBeenCalledWith({ type: "board-updated", boardId: "board" });
+    f.emit.mockClear();
+    await f.commands.call("restore_board", { boardId: "board" });
+    expect(f.emit).toHaveBeenCalledWith({ type: "board-restored", boardId: "board" });
+  });
+  it("requests authoritative canvas layout hydration for plugin writes", async () => {
+    const f = workspaceFixture();
+    await f.commands.call("write_board_text", { boardId: "board", operationId: "note", text: "说明" });
+    expect(f.emit).toHaveBeenCalledWith({ type: "board-updated", boardId: "board", reloadLayout: true });
+  });
 });

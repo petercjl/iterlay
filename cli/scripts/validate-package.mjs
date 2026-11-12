@@ -9,7 +9,7 @@ const caps = JSON.parse(await read("capabilities.json"));
 assert.equal(pkg.name, "@petercjl/tuda");
 assert.equal(pkg.version, caps.version);
 assert((await read("skills/using-tuda/SKILL.md")).includes(`version: "${pkg.version}"`));
-for (const name of ["dist/main.js", "LICENSE", "THIRD_PARTY_NOTICES.md", "INSTALL.md", "UPDATE.md", "release-manifest.json"]) await read(name);
+for (const name of ["dist/main.js", "dist/board-plugin.js", "dist/board-plugin.LICENSES.txt", "LICENSE", "THIRD_PARTY_NOTICES.md", "INSTALL.md", "UPDATE.md", "release-manifest.json"]) await read(name);
 if (pkg.tudaRelease) {
   assert.equal(pkg.tudaRelease.applicationVersion, pkg.version);
   assert(pkg.tudaRelease.installers.length > 0);

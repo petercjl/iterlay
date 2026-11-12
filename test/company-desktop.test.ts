@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vitest";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { EventEmitter } from "node:events";
@@ -12,7 +12,7 @@ vi.mock("electron", () => ({
     decryptString: (v: Buffer) => v.toString(),
   },
 }));
-import { dialog } from "electron";
+import { dialog, safeStorage } from "electron";
 import { CompanyDesktop } from "../electron/company/desktop.js";
 import { inExecutionSpace } from "../electron/execution-space.js";
 import type { EnterpriseClient } from "../electron/enterprise/client.js";
@@ -216,4 +216,21 @@ it("automatically validates a newly granted image credential and disables it on 
     else process.env.TUDA_COMPANY_URL = previous;
     await rm(root, { recursive: true, force: true });
   }
+});
+
+it("keeps embedded grants memory-only and never restores a prior host through the OS keychain", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "tuda-embedded-session-"));
+  const legacy = Object.assign(new EventEmitter(), { activeSpace: "personal", status: { pendingWrites: 0 }, stop: vi.fn() }) as unknown as EnterpriseClient;
+  const decrypt = vi.spyOn(safeStorage, "decryptString"), encrypt = vi.spyOn(safeStorage, "encryptString");
+  vi.stubEnv("TUDA_EMBEDDED_HOST", "codex-own");
+  const company = new CompanyDesktop(root, legacy, { accountOrigin: "https://company.example" });
+  try {
+    await writeFile(path.join(root, "company-session.json"), JSON.stringify({ version: 1, encrypted: "legacy-host-grant" }), { flag: "wx", mode: 0o600 });
+    await company.initialize();
+    expect(company.status.authenticated).toBe(false);
+    expect(decrypt).not.toHaveBeenCalled();
+    await company.account.configure("https://company.example");
+    expect(encrypt).not.toHaveBeenCalled();
+    expect(JSON.parse(await readFile(path.join(root, "company-session.json"), "utf8")).encrypted).toBe("legacy-host-grant");
+  } finally { company.stop(); decrypt.mockRestore(); encrypt.mockRestore(); vi.unstubAllEnvs(); await rm(root, { recursive: true, force: true }); }
 });
