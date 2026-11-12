@@ -39,7 +39,19 @@ assert.equal(pkg.dist.tarball, `https://registry.npmjs.org/@petercjl/tuda-deskto
 const bytes = Buffer.from(await (await visible(pkg.dist.tarball, 90)).arrayBuffer());
 assert.equal("sha512-" + createHash("sha512").update(bytes).digest("base64"), expectedIntegrity);
 const root = await mkdtemp(path.join(os.tmpdir(), "tuda-desktop-public-"));
-execFileSync("npm", ["install", "--prefix", root, "--ignore-scripts", "--no-audit", "--no-fund", "--prefer-online", "--cache", root + "-cache", name + "@" + version], {stdio:"inherit"});
+let installedExact = false;
+for (let attempt = 0; attempt < 90; attempt++) {
+  try {
+    const output = execFileSync("npm", ["install", "--prefix", root, "--ignore-scripts", "--no-audit", "--no-fund", "--prefer-online", "--fetch-retries=0", "--fetch-timeout=20000", "--cache", root + "-cache-" + attempt, name + "@" + version], {encoding:"utf8", stdio:["ignore","pipe","pipe"]});
+    console.log(output.trim()); installedExact = true; break;
+  } catch (error) {
+    const message = String(error.stderr ?? "");
+    if (!/ETARGET|E404/.test(message)) throw error;
+    console.log("Waiting for npm client metadata propagation");
+    await new Promise(resolve => setTimeout(resolve, 5000));
+  }
+}
+assert(installedExact, "Exact npm install visibility pending; continue read-only verification");
 const installed = path.join(root, "node_modules/@petercjl/tuda-desktop");
 const actual = JSON.parse(await readFile(path.join(installed, "package.json"), "utf8"));
 const manifest = JSON.parse(await readFile(path.join(installed, "release-manifest.json"), "utf8"));

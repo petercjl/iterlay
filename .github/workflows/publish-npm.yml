@@ -11,6 +11,10 @@ on:
         type: choice
         options: [next, latest]
         default: next
+      verify_only:
+        description: Read-only verification of an already accepted stable publication
+        type: boolean
+        default: false
       resume_run:
         description: Reuse an exact verified desktop run after accepted payload uploads
         type: string
@@ -22,7 +26,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   verify:
-    if: ${{ !inputs.resume_run }}
+    if: ${{ !inputs.resume_run && !inputs.verify_only }}
     runs-on: windows-latest
     timeout-minutes: 40
     steps:
@@ -99,7 +103,7 @@ jobs:
             output/package-size/*.json
             output/playwright/tuda-smoke-*/**
   publish:
-    if: ${{ always() && (inputs.resume_run || needs.verify.result == 'success') }}
+    if: ${{ always() && (inputs.resume_run || inputs.verify_only || needs.verify.result == 'success') }}
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -112,7 +116,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Verify native artifact recovery provenance
-        if: inputs.resume_run
+        if: inputs.resume_run || inputs.verify_only
         env:
           GH_TOKEN: ${{ github.token }}
           RESUME_RUN: ${{ inputs.resume_run }}
@@ -152,6 +156,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           DIST_TAG: ${{ inputs.tag }}
           RESUME_RUN: ${{ inputs.resume_run }}
+          VERIFY_ONLY: ${{ inputs.verify_only }}
         run: |
           set -euo pipefail
           VERSION=$(node -p 'require("./desktop-package/package.json").version')
@@ -162,7 +167,7 @@ jobs:
           node -e 'const fs=require("fs"),c=require("crypto"),m=JSON.parse(fs.readFileSync(process.argv[1])),b=fs.readFileSync(process.argv[2]);if(c.createHash("sha256").update(b).digest("hex")!==m.installers[0].sha256)throw Error("installer integrity")' "$MANIFEST" "$INSTALLER"
           tar -xzf "$TARBALL" -C candidate
           node -e 'const p=require("./candidate/package/package.json"),m=require(process.argv[1]);if(JSON.stringify(p.tudaRelease)!==JSON.stringify(m))throw Error("manifest drift")' "$(realpath "$MANIFEST")"
-          if [[ -z "$RESUME_RUN" ]]; then
+          if [[ -z "$RESUME_RUN" && "$VERIFY_ONLY" != true ]]; then
           while IFS= read -r -d '' PAYLOAD; do
             PAYLOAD_VERSION=$(tar -xOf "$PAYLOAD" package/package.json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).version))')
             if npm view "@petercjl/tuda-desktop@$PAYLOAD_VERSION" version >/dev/null 2>&1; then
@@ -175,9 +180,11 @@ jobs:
           fi
           node scripts/verify-npm-release.mjs "$MANIFEST"
           EXPECTED_INTEGRITY=$(node -e 'const c=require("crypto"),f=require("fs");console.log("sha512-"+c.createHash("sha512").update(f.readFileSync(process.argv[1])).digest("base64"))' "$TARBALL")
+          if [[ "$VERIFY_ONLY" != true ]]; then
           if npm view "@petercjl/tuda-desktop@$VERSION" dist.integrity --json > candidate/manager-integrity.json 2>/dev/null; then
             EXPECTED_INTEGRITY="$EXPECTED_INTEGRITY" node -e 'const f=require("fs");if(JSON.parse(f.readFileSync("candidate/manager-integrity.json"))!==process.env.EXPECTED_INTEGRITY)throw Error("Existing stable archive differs")'
           else
             npm publish "$TARBALL" --access public --provenance --tag "$DIST_TAG"
+          fi
           fi
           node scripts/verify-desktop-publication.mjs "$VERSION" "$DIST_TAG" "$EXPECTED_INTEGRITY"
