@@ -1,8 +1,8 @@
 import type { BoardCanvasNode, CanvasNodeWriteInput } from "../../shared/contracts/board.js";
+import { comicBoardSnapshot } from "../domain/comic-board-snapshot.js";
 import {
   sanitizeBoardId,
   appendVideoNodeVersions,
-  isManagedBoardNode,
   mergeManagedNodes,
   mergeManagedConnections,
   prepareBoardMutationPlan,
@@ -336,16 +336,7 @@ export class BoardStore {
     await this.mutations.idle();
     const board = await this.readBoardFile(this.boardFile(id));
     if (!board) throw new Error("画板不存在或已移入回收站。");
-    const managedIds = new Set(board.nodes.filter(isManagedBoardNode).map((node) => node.id));
-    return {
-      boardId: board.id,
-      revision: board.revision ?? 0,
-      nodes: structuredClone(board.nodes.filter(isManagedBoardNode)),
-      connections: structuredClone((board.connections ?? []).filter((connection) => (
-        connection.kind === "reference" && (managedIds.has(connection.source) || managedIds.has(connection.target))
-      ))),
-      groups: structuredClone(board.groups ?? [])
-    };
+    return comicBoardSnapshot(board);
   }
 
   async applyMutationPlan(plan: BoardMutationPlan): Promise<BoardMutationResult> {

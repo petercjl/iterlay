@@ -12,6 +12,7 @@ import path from "node:path";
 import { CompanyAccount, type AccountSnapshot } from "./account.js";
 import { CompanyToapis } from "./toapis.js";
 import type { CompanyDefaults } from "./defaults.js";
+import { comicBoardSnapshot } from "../domain/comic-board-snapshot.js";
 import {
   executionContext,
   executionSpace,
@@ -490,6 +491,12 @@ export class CompanyDesktop {
           return typeof v === "function" ? v.bind(target) : v;
         }
         this.assertAccount();
+        if (property === "getComicDramaBoardSnapshot")
+          return async (id: string) => {
+            const board = await this.legacy.command("boards:get", [id]);
+            if (!board) throw new Error("画板不存在或已移入回收站。");
+            return comicBoardSnapshot(board);
+          };
         if (property === "getLastOpenedBoardId")
           return async () => {
             const state = await this.legacy.command("boards:getState", []);

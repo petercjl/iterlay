@@ -1,4 +1,5 @@
 import { CompanyDesktop } from "./company/desktop.js";
+import { TemplateStore } from "./storage/template-store.js";
 import { loadCompanyDefaults } from "./company/defaults.js";
 import { waitForStorageMutations } from "./storage/atomic-json.js";
 import { readImageDimensions } from "./media/image-metadata.js";
@@ -477,6 +478,7 @@ app.whenReady().then(async () => {
   const assets = company.nasAssets(company.scopeStore(new AssetStore(dataDir), root => new AssetStore(root)));
   const comments = company.scopeStore(new CommentStore(dataDir), root => new CommentStore(root));
   const assistantConversations = company.scopeStore(new AssistantConversationStore(dataDir), root => new AssistantConversationStore(root));
+  const templates = company.scopeStore(new TemplateStore(path.join(app.getPath("userData"), "templates.json")), root => new TemplateStore(path.join(root, "templates.json")));
   const memories = company.scopeStore(new MemoryStore(dataDir), root => new MemoryStore(root));
   const memoryOrganizer = setInterval(() => {
     if (settings.getSettings().memoryEnabled) {
@@ -1032,6 +1034,7 @@ app.whenReady().then(async () => {
   );
   await masterGoBridge.start();
   const disposeIpcResources = registerIpc({
+    templates,
     settings,
     onboarding,
     history,

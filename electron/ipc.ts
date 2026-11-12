@@ -254,6 +254,7 @@ export async function decorateAssetLibraryItem(
 }
 
 interface IpcDependencies {
+  templates: TemplateStore;
   settings: SettingsStore;
   onboarding: OnboardingStore;
   history: HistoryStore;
@@ -288,6 +289,7 @@ interface IpcDependencies {
 }
 
 export function registerIpc({
+  templates,
   settings,
   onboarding,
   history,
@@ -1573,7 +1575,6 @@ export function registerIpc({
 
   // ---------- 模板导出 / 导入（.itt = 模板定义 + 实例 + 封面） ----------
 
-  const templates = new TemplateStore(path.join(app.getPath("userData"), "templates.json"));
   ipcMain.handle("templates:list", () => templates.list());
   ipcMain.handle("templates:get", (_event, id: string) => templates.get(id));
   ipcMain.handle("templates:create", (_event, input: Partial<SceneTemplateData>) => templates.create(input));

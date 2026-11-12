@@ -96,6 +96,9 @@ export function registerEnterprise(client: EnterpriseClient, localBoards: BoardS
         if (["settings:configureProvider", "provider:testConnection", "provider:listModels", "textProvider:testConnection", "textProvider:listModels", "videoProvider:testConnection", "videoProvider:listModels"].includes(channel)) throw new Error("公司模型由统一账号服务下发，请刷新模型授权。");
       }
       if(!company.usesNas||executionSpace()!=="enterprise"||/^(image|history|assistantConversation|assistant|textProvider):/.test(channel)) return next();
+      // Auxiliary reads/recovery use account-scoped stores and the authorized
+      // NAS board adapter. Unsupported operations stay behind the guard below.
+      if (["comicDrama:getBoardSnapshot", "video:list", "video:recover", "comments:list", "sceneMedia:list", "templates:list", "templates:get"].includes(channel)) return next();
     }
     const hasEnterpriseAsset = args.some(value => typeof value === "string" && value.startsWith(ENTERPRISE_ASSET_PREFIX));
     const targetBoard = typeof args[0] === "string" ? args[0] : args[0] && typeof args[0] === "object" ? (args[0] as { boardId?: string; id?: string }).boardId ?? (args[0] as { id?: string }).id : undefined;
