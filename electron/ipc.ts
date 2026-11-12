@@ -15,6 +15,7 @@ import { imageDimensionsFromHeader } from "./media/image-metadata.js";
 import type { PsdLayerInput } from "./media/psd-worker.js";
 import { createImageGenerationCommand } from "./application/image-generation.js";
 import { registerModificationRequestIpc } from "./modification-request-ipc.js";
+import { decodeDeliveryToPng } from "./image-delivery-webp.js";
 import { registerImageDeliveryIpc } from "./image-delivery-ipc.js";
 import { ImageProviderRegistry } from "./providers/image-registry.js";
 import { checkImageGeneration, checkProviderConnection, localCredentialCheck, newProviderTestResult } from "./providers/diagnostics.js";
@@ -825,8 +826,9 @@ export function registerIpc({
     const maxSize = requestedSize <= 192 ? 192 : 480;
     return assets.getThumbnailUrl(
       sourcePath,
-      (readablePath) => imageTasks.run(() => {
-        const source = nativeImage.createFromPath(readablePath);
+      (readablePath) => imageTasks.run(async () => {
+        let source = nativeImage.createFromPath(readablePath);
+        if (source.isEmpty()) source = nativeImage.createFromBuffer(await decodeDeliveryToPng(await readFile(readablePath)));
         if (source.isEmpty()) throw new Error("无法生成缩略图。");
         const size = source.getSize();
         const scale = Math.min(1, maxSize / Math.max(size.width, size.height));

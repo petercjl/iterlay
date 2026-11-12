@@ -63,6 +63,16 @@ try {
   await page.evaluate((settings) => window.imageWorkbench.saveSettings({ ...settings, apiKeyByProviderId: { "fixture-provider": "offline-test-only" } }), settings);
   const board = await page.evaluate(() => window.imageWorkbench.createBoard("Isolated smoke board"));
   const imported = await page.evaluate((data) => window.imageWorkbench.importUploadedImage(data), "data:image/jpeg;base64," + fixture.toString("base64"));
+  const webpThumbnail = await page.evaluate(async (data) => {
+    const image = new Image(); image.src = data; await image.decode();
+    const canvas = document.createElement("canvas"); canvas.width = image.width; canvas.height = image.height;
+    canvas.getContext("2d").drawImage(image, 0, 0);
+    const asset = await window.imageWorkbench.importUploadedImage(canvas.toDataURL("image/webp"));
+    const thumbnail = await window.imageWorkbench.getAssetThumbnail(asset.path, 192);
+    const decoded = new Image(); decoded.src = thumbnail; await decoded.decode();
+    return decoded.width > 0 && decoded.width <= 192;
+  }, "data:image/jpeg;base64," + fixture.toString("base64"));
+  assert.equal(webpThumbnail, true, "WebP must have a usable local PNG thumbnail");
   const nodeId = "smoke-image";
   await page.evaluate(({ boardId, nodeId, imagePath }) => window.imageWorkbench.appendBoardNodes(boardId, [{ id: nodeId, imagePath, jobId: "smoke-import", source: "upload" }]), { boardId: board.id, nodeId, imagePath: imported.path });
   await bridge("open_board", { boardId: board.id });
@@ -130,7 +140,7 @@ try {
   assert.equal(windowOptions.contextIsolation, true);
   assert.equal(windowOptions.nodeIntegration, false);
   assert.equal(errors.filter((message) => /Content Security Policy|preload|uncaught|not defined/i.test(message)).length, 0, errors.join("\n"));
-  console.log(JSON.stringify({ ok: true, isolatedWorkspace: true, immediateCloseSaved: true, mcpReopen: true, rendererIndependentGeneration: true, sandbox: true, boardNodes: 3, cliLayoutSynchronized: true, screenshot: path.join(output, "electron-smoke.png") }, null, 2));
+  console.log(JSON.stringify({ ok: true, isolatedWorkspace: true, immediateCloseSaved: true, mcpReopen: true, rendererIndependentGeneration: true, sandbox: true, boardNodes: 3, cliLayoutSynchronized: true, webpThumbnail: true, screenshot: path.join(output, "electron-smoke.png") }, null, 2));
 } catch (error) {
   await writeFile(path.join(output, "electron-smoke-errors.json"), JSON.stringify({ error: String(error), rendererErrors: errors }, null, 2));
   if (electronApp) for (const page of electronApp.windows()) await page.screenshot({ path: path.join(output, "electron-smoke-failure.png") }).catch(() => undefined);
