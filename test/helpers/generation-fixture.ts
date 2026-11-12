@@ -60,7 +60,7 @@ export function generationHarness(official = true, queue?: GenerationQueue) {
     creditStatus: null,
     licenseStatus: null,
     openLicenseActivation: vi.fn(),
-    iterlayToast: { result: vi.fn(), dismiss: vi.fn(), balance: vi.fn(), generationPending: vi.fn(), partial: vi.fn() },
+    tudaToast: { result: vi.fn(), dismiss: vi.fn(), balance: vi.fn(), generationPending: vi.fn(), partial: vi.fn() },
     setImages,
     setInput,
     toast: { error: vi.fn(), warning: vi.fn() }

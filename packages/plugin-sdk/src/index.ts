@@ -39,7 +39,7 @@ function call<T>(method: string, params: unknown = null): Promise<T> {
     window.parent.postMessage({ source: "iterlay-plugin", id, method, params }, "*");
   });
 }
-export const iterlay = {
+export const tuda = {
   workspace: { back: () => call<void>("workspace.back"), manage: () => call<void>("workspace.manage"), export: () => call<void>("workspace.export") },
   context: { get: () => call<PluginContext>("context.get") },
   board: {
@@ -66,8 +66,8 @@ export const iterlay = {
 export function usePluginContext() {
   const [value, setValue] = useState(context);
   useEffect(() => {
-    const dispose = iterlay.onEvent(event => { if (event.type === "context") setValue(event.context as PluginContext); });
-    void iterlay.context.get().then(setValue).catch(() => undefined);
+    const dispose = tuda.onEvent(event => { if (event.type === "context") setValue(event.context as PluginContext); });
+    void tuda.context.get().then(setValue).catch(() => undefined);
     return dispose;
   }, []);
   return value;
@@ -87,3 +87,6 @@ export function registerCapability<TInput, TResult>(name: string, handler: (inpu
   window.addEventListener("message", receive);
   return () => window.removeEventListener("message", receive);
 }
+
+/** API v1 alias retained for existing plugin source compatibility. */
+export const iterlay = tuda;

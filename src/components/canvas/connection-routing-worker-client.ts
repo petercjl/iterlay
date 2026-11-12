@@ -40,7 +40,7 @@ export function createConnectionRoutingWorkerClient(): ConnectionRoutingWorkerCl
     if (worker) return worker;
     worker = new Worker(new URL("./connection-routing.worker.ts", import.meta.url), {
       type: "module",
-      name: "iterlay-connection-router"
+      name: "tuda-connection-router"
     });
     worker.addEventListener("message", (event: MessageEvent<{
       type: "result" | "error";

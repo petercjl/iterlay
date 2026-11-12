@@ -90,7 +90,7 @@ function buildCrashReport({
   const viewport = typeof window === "undefined" ? "unknown" : `${window.innerWidth}x${window.innerHeight}`;
 
   return [
-    "Iterlay renderer diagnostics",
+    "Tuda renderer diagnostics",
     `Error ID: ${incidentId}`,
     `Occurred at: ${occurredAt}`,
     `App version: ${packageMetadata.version}`,
@@ -159,7 +159,7 @@ export class RootErrorBoundary extends Component<RootErrorBoundaryProps, RootErr
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
     this.setState({ componentStack: info.componentStack ?? "" });
-    console.error("Iterlay renderer crashed", error, info.componentStack);
+    console.error("Tuda renderer crashed", error, info.componentStack);
   }
 
   private readonly copyDiagnostics = async (): Promise<void> => {

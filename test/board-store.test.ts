@@ -12,7 +12,7 @@ describe("BoardStore", () => {
   let dir: string;
 
   beforeEach(async () => {
-    dir = await mkdtemp(path.join(os.tmpdir(), "iterlay-boards-"));
+    dir = await mkdtemp(path.join(os.tmpdir(), "tuda-boards-"));
   });
 
   afterEach(async () => {

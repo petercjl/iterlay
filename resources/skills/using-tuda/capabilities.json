@@ -1,0 +1,44 @@
+{
+  "schema": "portable-skill-capabilities",
+  "schema_version": "1.0.0",
+  "skill": "using-tuda",
+  "target_platforms": [
+    "generic"
+  ],
+  "capabilities": [
+    {
+      "id": "command.execute",
+      "purpose": "Execute the Tuda CLI and read structured results",
+      "required": true,
+      "required_features": [
+        "node22",
+        "local-process",
+        "json-output",
+        "filesystem"
+      ],
+      "input_fields": [
+        "argv",
+        "cwd"
+      ],
+      "output_fields": [
+        "exit_code",
+        "stdout",
+        "stderr"
+      ],
+      "side_effects": {
+        "local_write": "selected workspace and exported assets",
+        "external_write": "user-authorized model calls",
+        "cost": "provider-dependent; generation requires user authorization",
+        "external_mutation": true,
+        "may_cost_money": true,
+        "authorization": "Model generation requires user authorization; local operations affect only the requested workspace."
+      },
+      "errors": [
+        "CAPABILITY_UNAVAILABLE",
+        "AUTH_REQUIRED",
+        "PROVIDER_FAILURE",
+        "OUTPUT_CONTRACT_FAILED"
+      ]
+    }
+  ]
+}

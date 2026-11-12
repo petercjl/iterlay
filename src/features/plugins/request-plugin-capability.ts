@@ -38,7 +38,7 @@ export async function requestPluginCapability<T extends keyof CapabilityInputs>(
   await api.authorizePlugin(pluginId, "assistant:comic-drama");
   const installed = (await api.listPlugins()).find(plugin => plugin.manifest.id === pluginId && plugin.enabled);
   if (!installed) throw new Error("请在插件市场安装或启用短剧助手，画板内容已保留。");
-  if (pluginId === "dev.iterlay.short-drama" && comparePluginVersions(installed.manifest.version, "1.3.2") < 0) {
+  if (pluginId === "dev.tuda.short-drama" && comparePluginVersions(installed.manifest.version, "1.3.2") < 0) {
     throw new Error("请在插件市场将短剧助手更新至 1.3.2 或更新版本后重试，已有项目与素材会保留。");
   }
   const url = await api.getPluginFrameUrl(pluginId);

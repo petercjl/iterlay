@@ -14,7 +14,7 @@ function manifest(overrides: Partial<UpdateManifest> = {}): UpdateManifest {
     version: "0.2.0",
     platform: "darwin",
     arch: "arm64",
-    downloadUrl: "https://example.com/Iterlay-0.2.0-arm64.dmg",
+    downloadUrl: "https://example.com/Tuda-0.2.0-arm64.dmg",
     releaseNotes: "修复若干问题",
     ...overrides
   };
@@ -49,7 +49,7 @@ function createService(options: {
   const preferences = new MemoryPreferences();
   const apiClient = { fetchLatest: vi.fn(async () => options.latest ?? null) };
   const driver: UpdateDriver = {
-    download: vi.fn(async () => "/tmp/Iterlay-0.2.0-arm64.dmg"),
+    download: vi.fn(async () => "/tmp/Tuda-0.2.0-arm64.dmg"),
     install: vi.fn(async () => ({ quitRequested: false })),
     ...options.driver
   };
@@ -118,7 +118,7 @@ describe("AppUpdateService.download / install", () => {
       driver: {
         download: vi.fn(async (_manifest, options) => {
           options?.onProgress?.({ transferredBytes: 100, totalBytes: 100, percent: 100 });
-          return "/tmp/Iterlay-0.2.0-arm64.dmg";
+          return "/tmp/Tuda-0.2.0-arm64.dmg";
         })
       }
     });
@@ -126,7 +126,7 @@ describe("AppUpdateService.download / install", () => {
     await service.check("manual");
     const snapshot = await service.download();
     expect(snapshot.phase).toBe("ready");
-    expect(snapshot.installerPath).toBe("/tmp/Iterlay-0.2.0-arm64.dmg");
+    expect(snapshot.installerPath).toBe("/tmp/Tuda-0.2.0-arm64.dmg");
     expect(events.some((event) => event.phase === "downloading")).toBe(true);
     expect(events.some((event) => event.progress?.percent === 100)).toBe(true);
   });
@@ -171,7 +171,7 @@ describe("AppUpdateService.download / install", () => {
     await service.check("auto");
     const pending = service.download();
     expect(service.cancelDownload()).toMatchObject({ phase: "downloading", forced: true });
-    resolveDownload?.("/tmp/Iterlay-0.2.0-arm64.dmg");
+    resolveDownload?.("/tmp/Tuda-0.2.0-arm64.dmg");
     await expect(pending).resolves.toMatchObject({ phase: "ready", forced: true });
   });
 
@@ -197,7 +197,7 @@ describe("AppUpdateService.download / install", () => {
     await service.check("manual");
     await service.download();
     await service.install();
-    expect(install).toHaveBeenCalledWith("/tmp/Iterlay-0.2.0-arm64.dmg");
+    expect(install).toHaveBeenCalledWith("/tmp/Tuda-0.2.0-arm64.dmg");
     expect(phases.at(-1)).toBe("installing");
     expect(onQuitRequested).toHaveBeenCalledTimes(1);
   });
@@ -278,7 +278,7 @@ describe("AppUpdateService.skipVersion", () => {
 
 describe("UpdatePreferenceStore", () => {
   it("keeps skipped version and channel independent across writes", async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), "iterlay-update-prefs-"));
+    const dir = await mkdtemp(path.join(os.tmpdir(), "tuda-update-prefs-"));
     try {
       const store = new UpdatePreferenceStore(dir);
       await store.setSkippedVersion("0.2.0");
@@ -391,7 +391,7 @@ describe("HttpUpdateApiClient", () => {
 
 describe("DirectDownloadDriver", () => {
   async function withTempDir(run: (dir: string) => Promise<void>): Promise<void> {
-    const dir = await mkdtemp(path.join(os.tmpdir(), "iterlay-update-"));
+    const dir = await mkdtemp(path.join(os.tmpdir(), "tuda-update-"));
     try {
       await run(dir);
     } finally {
@@ -401,7 +401,7 @@ describe("DirectDownloadDriver", () => {
 
   it("streams the installer to disk and verifies its sha256", async () => {
     await withTempDir(async (dir) => {
-      const payload = Buffer.from("iterlay-installer-bytes");
+      const payload = Buffer.from("tuda-installer-bytes");
       const sha256 = createHash("sha256").update(payload).digest("hex");
       const fetcher = vi.fn(
         async () => new Response(payload, { status: 200, headers: { "content-length": String(payload.length) } })
@@ -411,7 +411,7 @@ describe("DirectDownloadDriver", () => {
       const installerPath = await driver.download(manifest({ sha256 }), {
         onProgress: (event) => progress.push(event)
       });
-      expect(path.basename(installerPath)).toBe("Iterlay-0.2.0-arm64.dmg");
+      expect(path.basename(installerPath)).toBe("Tuda-0.2.0-arm64.dmg");
       expect(await readFile(installerPath)).toEqual(payload);
       expect(progress.at(-1)?.percent).toBe(100);
     });
@@ -429,7 +429,7 @@ describe("DirectDownloadDriver", () => {
       });
       await driver.download(manifest());
       const init = (fetcher.mock.calls[0] as unknown[])[1] as RequestInit;
-      expect(new Headers(init.headers).get("X-Iterlay-Device-ID")).toBe(
+      expect(new Headers(init.headers).get("X-Tuda-Device-ID")).toBe(
         "dfp_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
       );
     });
@@ -448,13 +448,13 @@ describe("DirectDownloadDriver", () => {
     await withTempDir(async (dir) => {
       const payload = Buffer.from("cached-installer");
       const sha256 = createHash("sha256").update(payload).digest("hex");
-      await writeFile(path.join(dir, "Iterlay-0.2.0-arm64.dmg"), payload);
+      await writeFile(path.join(dir, "Tuda-0.2.0-arm64.dmg"), payload);
       const fetcher = vi.fn(async () => {
         throw new Error("不应重新下载");
       });
       const driver = new DirectDownloadDriver({ downloadDir: dir, platform: "darwin", fetcher });
       const installerPath = await driver.download(manifest({ sha256 }));
-      expect(path.basename(installerPath)).toBe("Iterlay-0.2.0-arm64.dmg");
+      expect(path.basename(installerPath)).toBe("Tuda-0.2.0-arm64.dmg");
       expect(fetcher).not.toHaveBeenCalled();
     });
   });
@@ -465,16 +465,16 @@ describe("DirectDownloadDriver", () => {
       const fetcher = vi.fn(async () => new Response(payload, { status: 200 }));
       const driver = new DirectDownloadDriver({ downloadDir: dir, platform: "win32", fetcher });
       const installerPath = await driver.download(
-        manifest({ platform: "win32", downloadUrl: "https://example.com/files/Iterlay%20Setup-0.2.0.exe" })
+        manifest({ platform: "win32", downloadUrl: "https://example.com/files/Tuda%20Setup-0.2.0.exe" })
       );
-      expect(path.basename(installerPath)).toBe("Iterlay Setup-0.2.0.exe");
+      expect(path.basename(installerPath)).toBe("Tuda Setup-0.2.0.exe");
     });
   });
 
   it("schedules the Windows installer after exit and requests app quit", async () => {
     await withTempDir(async (dir) => {
-      const installerPath = path.join(dir, "Iterlay Setup-0.2.0.exe");
-      const applicationPath = path.join(dir, "Iterlay.exe");
+      const installerPath = path.join(dir, "Tuda Setup-0.2.0.exe");
+      const applicationPath = path.join(dir, "Tuda.exe");
       await writeFile(installerPath, "exe");
       await writeFile(applicationPath, "app");
       const launchInstallerAfterExit = vi.fn(async () => undefined);
@@ -492,8 +492,8 @@ describe("DirectDownloadDriver", () => {
 
   it("opens the dmg after the macOS app exits and requests app quit", async () => {
     await withTempDir(async (dir) => {
-      const installerPath = path.join(dir, "Iterlay-0.2.0-arm64.dmg");
-      const applicationPath = path.join(dir, "Iterlay.app");
+      const installerPath = path.join(dir, "Tuda-0.2.0-arm64.dmg");
+      const applicationPath = path.join(dir, "Tuda.app");
       await writeFile(installerPath, "dmg");
       await writeFile(applicationPath, "app");
       const launchInstallerAfterExit = vi.fn(async () => undefined);

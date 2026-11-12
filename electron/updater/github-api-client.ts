@@ -4,7 +4,7 @@ interface GitHubRelease { tag_name: string; draft: boolean; prerelease: boolean;
 export class GitHubUpdateApiClient implements UpdateApiClient {
   constructor(private readonly fetcher: typeof fetch = fetch) {}
   async fetchLatest(query: UpdateCheckQuery): Promise<UpdateManifest | null> {
-    const response = await this.fetcher('https://api.github.com/repos/Davied-H/iterlay/releases?per_page=100', { headers:{Accept:'application/vnd.github+json'},signal:AbortSignal.timeout(8000) });
+    const response = await this.fetcher('https://api.github.com/repos/petercjl/iterlay/releases?per_page=100', { headers:{Accept:'application/vnd.github+json'},signal:AbortSignal.timeout(8000) });
     if (!response.ok) throw new Error('无法读取 GitHub Releases，请稍后重试。');
     const releases = await response.json() as GitHubRelease[];
     for (const release of releases) {

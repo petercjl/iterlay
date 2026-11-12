@@ -5,7 +5,7 @@ export interface AssistantDockLayout {
   width: number;
 }
 
-export const ASSISTANT_DOCK_LAYOUT_STORAGE_KEY = "iterlay.assistantDockLayout";
+export const ASSISTANT_DOCK_LAYOUT_STORAGE_KEY = "tuda.assistantDockLayout";
 export const ASSISTANT_DOCK_THRESHOLD = 72;
 export const ASSISTANT_DOCK_MIN_VIEWPORT_WIDTH = 760;
 export const ASSISTANT_DOCK_MIN_WIDTH = 320;

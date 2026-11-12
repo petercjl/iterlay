@@ -1,4 +1,4 @@
-export const repository = 'https://github.com/Davied-H/iterlay'
+export const repository = 'https://github.com/petercjl/iterlay'
 export const releasesUrl = `${repository}/releases`
 // Preserve published text. Link only references that actually appear in the notes.
 export function releaseNoteParts(body) {
@@ -39,7 +39,7 @@ export function releaseInstallers(releases, variant) {
 export async function loadReleases(signal) {
   const all = []
   for (let page = 1; page <= 5; page++) {
-    const response = await fetch(`https://api.github.com/repos/Davied-H/iterlay/releases?per_page=100&page=${page}`, { signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000), headers: { Accept: 'application/vnd.github+json' } })
+    const response = await fetch(`https://api.github.com/repos/petercjl/iterlay/releases?per_page=100&page=${page}`, { signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000), headers: { Accept: 'application/vnd.github+json' } })
     if (!response.ok) throw new Error('暂时无法读取 GitHub 版本列表，请重试或直接打开 GitHub Releases。')
     const batch = await response.json()
     all.push(...batch)

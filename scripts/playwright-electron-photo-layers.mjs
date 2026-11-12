@@ -4,41 +4,41 @@ import { fileURLToPath } from "node:url";
 import { _electron as electron } from "playwright";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const targetImage = process.env.ITERLAY_E2E_IMAGE ?? "b2fdc6bd-2f39-4087-a959-6dd2433d37c9-1.png";
-const targetNodeId = process.env.ITERLAY_E2E_NODE_ID ?? "a0cf133b-ef13-40d2-a7ad-1670631b5e06";
+const targetImage = process.env.TUDA_E2E_IMAGE ?? "b2fdc6bd-2f39-4087-a959-6dd2433d37c9-1.png";
+const targetNodeId = process.env.TUDA_E2E_NODE_ID ?? "a0cf133b-ef13-40d2-a7ad-1670631b5e06";
 const requiredAssetPatterns = JSON.parse(
-  process.env.ITERLAY_E2E_REQUIRED_ASSET_PATTERNS
+  process.env.TUDA_E2E_REQUIRED_ASSET_PATTERNS
     ?? '["person|people|human|woman|women|man|men|girl|boy","sign|board|advert|poster|billboard"]'
 ).map((pattern) => new RegExp(pattern, "iu"));
-const requirePersonCompleteness = process.env.ITERLAY_E2E_REQUIRE_PERSON_COMPLETENESS !== "0";
-const minimumSignAssets = Number(process.env.ITERLAY_E2E_MIN_SIGN_ASSETS ?? "0");
+const requirePersonCompleteness = process.env.TUDA_E2E_REQUIRE_PERSON_COMPLETENESS !== "0";
+const minimumSignAssets = Number(process.env.TUDA_E2E_MIN_SIGN_ASSETS ?? "0");
 const forbiddenAssetPatterns = JSON.parse(
-  process.env.ITERLAY_E2E_FORBIDDEN_ASSET_PATTERNS ?? "[]"
+  process.env.TUDA_E2E_FORBIDDEN_ASSET_PATTERNS ?? "[]"
 ).map((pattern) => new RegExp(pattern, "iu"));
-const taskTimeoutMs = Number(process.env.ITERLAY_E2E_TIMEOUT_MS ?? String(10 * 60_000));
+const taskTimeoutMs = Number(process.env.TUDA_E2E_TIMEOUT_MS ?? String(10 * 60_000));
 const outputDirectory = path.join(projectRoot, "output", "playwright");
 const piAgentLogPath = path.join(
   process.env.HOME,
   "Library",
   "Logs",
-  "Iterlay",
+  "Tuda",
   "pi-agent.jsonl"
 );
 const createdAssetDirectory = path.join(
   process.env.HOME,
   "Library",
   "Application Support",
-  "Iterlay",
+  "Tuda",
   "mastergo-workspace",
   ".mastergo",
   "created",
   "asset"
 );
-const iterlayWorkspaceDirectory = path.join(
+const tudaWorkspaceDirectory = path.join(
   process.env.HOME,
   "Library",
   "Application Support",
-  "Iterlay",
+  "Tuda",
   "workspace"
 );
 await mkdir(outputDirectory, { recursive: true });
@@ -61,9 +61,9 @@ async function latestAssetDirectory(startedAt) {
 }
 
 async function sourceImagePath() {
-  if (process.env.ITERLAY_E2E_SOURCE_PATH) return process.env.ITERLAY_E2E_SOURCE_PATH;
+  if (process.env.TUDA_E2E_SOURCE_PATH) return process.env.TUDA_E2E_SOURCE_PATH;
   for (const directory of ["uploads", "outputs"]) {
-    const candidate = path.join(iterlayWorkspaceDirectory, directory, targetImage);
+    const candidate = path.join(tudaWorkspaceDirectory, directory, targetImage);
     try {
       await stat(candidate);
       return candidate;
@@ -283,12 +283,12 @@ async function inspectMasterGoRender(page, backgroundPath, screenshotPath) {
 const electronApp = await electron.launch({
   args: ["."],
   cwd: projectRoot,
-  ...(process.env.ITERLAY_E2E_ELECTRON
-    ? { executablePath: process.env.ITERLAY_E2E_ELECTRON }
+  ...(process.env.TUDA_E2E_ELECTRON
+    ? { executablePath: process.env.TUDA_E2E_ELECTRON }
     : {}),
   env: {
     ...process.env,
-    ITERLAY_PLAYWRIGHT: "1",
+    TUDA_PLAYWRIGHT: "1",
     VITE_DEV_SERVER_URL: process.env.VITE_DEV_SERVER_URL ?? "http://127.0.0.1:5180"
   },
   timeout: 30_000
@@ -435,7 +435,7 @@ try {
     throw new Error(`MasterGo 最终稿与完整照片出现明显色块或接缝：${JSON.stringify(masterGoRender)}`);
   }
 
-  const screenshotSuffix = process.env.ITERLAY_E2E_SCREENSHOT_SUFFIX ?? "success";
+  const screenshotSuffix = process.env.TUDA_E2E_SCREENSHOT_SUFFIX ?? "success";
   const screenshotPath = path.join(outputDirectory, `electron-photo-layers-${screenshotSuffix}.png`);
   await page.screenshot({ path: screenshotPath });
   console.log(JSON.stringify({

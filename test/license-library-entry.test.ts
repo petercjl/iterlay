@@ -71,7 +71,7 @@ function LibraryShell(props: ComponentProps<typeof LibraryShellComponent>): Reac
 let root: Root | undefined;
 let container: HTMLDivElement | undefined;
 
-beforeEach(() => window.localStorage.setItem("iterlay:language", "zh-CN"));
+beforeEach(() => window.localStorage.setItem("tuda:language", "zh-CN"));
 afterEach(async () => {
   if (root) await act(async () => root?.unmount());
   root = undefined;
@@ -240,7 +240,7 @@ describe("LibraryShell license entry", () => {
       manifest: {
         version: "0.2.0",
         platform: "darwin",
-        downloadUrl: "https://example.com/Iterlay-0.2.0.dmg"
+        downloadUrl: "https://example.com/Tuda-0.2.0.dmg"
       }
     };
     const props = {

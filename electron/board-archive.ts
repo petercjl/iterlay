@@ -21,7 +21,7 @@ import { remapGenerationHistorySnapshot } from "../shared/generation-history.js"
 import { remapFinalVersion, remapImageDeliveryMetadata } from "../shared/image-delivery.js";
 import { buildArchiveInWorker, parseArchiveInWorker } from "./archive-worker-client.js";
 
-export const BOARD_ARCHIVE_FORMAT = "iterlay-board";
+export const BOARD_ARCHIVE_FORMAT = "tuda-board";
 export const BOARD_ARCHIVE_VERSION = 1;
 const LEGACY_BOARD_ARCHIVE_FORMAT = "image-relay-board";
 const maxArchiveBytes = 512 * 1024 * 1024;
@@ -310,8 +310,8 @@ export async function parseBoardArchive(buffer: Buffer): Promise<ParsedBoardArch
   const entryMap = new Map(entries);
   const manifest = readJsonEntry<BoardArchiveManifest>(entryMap, "manifest.json");
   if (!manifest) throw new Error("画板包缺少 manifest.json。");
-  if (manifest.format !== BOARD_ARCHIVE_FORMAT && manifest.format !== LEGACY_BOARD_ARCHIVE_FORMAT) {
-    throw new Error("这不是 Iterlay 画板文件。");
+  if (manifest.format !== BOARD_ARCHIVE_FORMAT && manifest.format !== LEGACY_BOARD_ARCHIVE_FORMAT && manifest.format !== "iterlay-board") {
+    throw new Error("这不是 Tuda 画板文件。");
   }
   if (typeof manifest.formatVersion !== "number" || manifest.formatVersion > BOARD_ARCHIVE_VERSION) {
     throw new Error("画板包版本过高，请升级应用后再导入。");

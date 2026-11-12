@@ -12,7 +12,7 @@ const MAX_CANVAS_ENTRY_GZIP_BYTES = 547_000;
 
 function javascriptChunkBudget(): Plugin {
   return {
-    name: "iterlay-javascript-chunk-budget",
+    name: "tuda-javascript-chunk-budget",
     generateBundle(_options, bundle) {
       for (const output of Object.values(bundle)) {
         if (output.type !== "chunk" || output.code.length <= MAX_JAVASCRIPT_CHUNK_BYTES) continue;
@@ -27,7 +27,7 @@ function javascriptChunkBudget(): Plugin {
 
 function canvasEntryBudget(): Plugin {
   return {
-    name: "iterlay-canvas-entry-budget",
+    name: "tuda-canvas-entry-budget",
     generateBundle(_options, bundle) {
       const measurement = measureStaticEntry(
         bundle,
@@ -48,7 +48,7 @@ function canvasEntryBudget(): Plugin {
 
 const developmentNonce = randomBytes(18).toString("base64");
 const developmentCsp: Plugin = {
-  name: "iterlay-development-csp",
+  name: "tuda-development-csp",
   apply: "serve",
   transformIndexHtml: {
     order: "pre",
@@ -67,8 +67,8 @@ export default defineConfig(({ command }) => ({
     fs: {
       // Development credentials/workspaces must never be served as source files.
       deny: [".env", ".env.*", "*.{crt,pem}", "**/.git/**", "**/tmp/**",
-        ...(process.env.ITERLAY_BROWSER_DEV_USER_DATA
-          ? [`${path.resolve(process.env.ITERLAY_BROWSER_DEV_USER_DATA).replaceAll("\\", "/")}/**`]
+        ...(process.env.TUDA_BROWSER_DEV_USER_DATA
+          ? [`${path.resolve(process.env.TUDA_BROWSER_DEV_USER_DATA).replaceAll("\\", "/")}/**`]
           : [])]
     }
   },

@@ -36,7 +36,7 @@ jobs:
         working-directory: website
         env:
           PAGES_BASE_PATH: ${{ steps.pages.outputs.base_path }}/
-          VITE_SITE_ORIGIN: ${{ vars.SITE_ORIGIN || 'https://davied-h.github.io' }}
+          VITE_SITE_ORIGIN: ${{ vars.SITE_ORIGIN || 'https://petercjl.github.io' }}
           VITE_GOOGLE_SITE_VERIFICATION: ${{ vars.GOOGLE_SITE_VERIFICATION }}
           VITE_BING_SITE_VERIFICATION: ${{ vars.BING_SITE_VERIFICATION }}
           VITE_PLAUSIBLE_DOMAIN: ${{ vars.PLAUSIBLE_DOMAIN }}

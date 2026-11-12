@@ -1,7 +1,7 @@
 import type { FeedbackKind } from "@shared/feedback";
 import { version } from "../../package.json";
 
-export const GITHUB_ISSUES_URL = "https://github.com/Davied-H/iterlay/issues";
+export const GITHUB_ISSUES_URL = "https://github.com/petercjl/iterlay/issues";
 const MAX_ISSUE_URL_LENGTH = 7_500;
 const kindLabels: Record<FeedbackKind, string> = {
   experience: "体验问题",
@@ -21,7 +21,7 @@ export function buildGithubFeedbackIssue(input: {
   const title = `[${kindLabels[input.kind]}] ${Array.from(content.split(/\r?\n/u)[0]).slice(0, 70).join("")}`;
   const context = [
     "### 使用环境",
-    `- Iterlay: ${version}`,
+    `- Tuda: ${version}`,
     `- 界面: ${input.view}`,
     `- 窗口: ${input.viewport}`,
     `- 语言: ${input.locale}`

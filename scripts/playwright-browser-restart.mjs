@@ -7,9 +7,9 @@ import { chromium } from "playwright";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const output = path.join(projectRoot, "output", "playwright");
-const rendererUrl = process.env.ITERLAY_BROWSER_SMOKE_URL || "http://127.0.0.1:5180";
-const userData = process.env.ITERLAY_BROWSER_DEV_USER_DATA;
-assert(userData, "Pass the temporary ITERLAY_BROWSER_DEV_USER_DATA of an already-running pnpm dev service.");
+const rendererUrl = process.env.TUDA_BROWSER_SMOKE_URL || "http://127.0.0.1:5180";
+const userData = process.env.TUDA_BROWSER_DEV_USER_DATA;
+assert(userData, "Pass the temporary TUDA_BROWSER_DEV_USER_DATA of an already-running pnpm dev service.");
 const origin = new URL(rendererUrl).origin;
 assert(["127.0.0.1", "localhost", "[::1]"].includes(new URL(rendererUrl).hostname), "Restart verification requires a local development server.");
 const restartTarget = path.join(projectRoot, "dist-electron", "electron", "dev-browser-bridge.js");
@@ -23,11 +23,11 @@ await mkdir(output, { recursive: true });
 const fixture = await readFile(path.join(projectRoot, "demo-assets", "lamp-studio.jpg"));
 const nodeId = `browser-restart-${Date.now()}`;
 const nodeSelector = `.react-flow__node[data-id="${nodeId}"]`;
-const probePrefix = "__ITERLAY_BROWSER_RESTART__";
+const probePrefix = "__TUDA_BROWSER_RESTART__";
 const errors = [];
 const probes = [];
 const dialogs = [];
-const onboardingKeys = ["board", "library", "gallery", "edit", "demo-start"].map((key) => `iterlay.onboarding.${key}.v1`);
+const onboardingKeys = ["board", "library", "gallery", "edit", "demo-start"].map((key) => `tuda.onboarding.${key}.v1`);
 const report = { ok: false, serviceManagedExternally: true, restartTrigger: restartTarget, rendererErrors: errors, saveEvents: probes, dialogs };
 let browser;
 let page;
@@ -54,7 +54,7 @@ async function workspace(method, args = {}) {
 }
 
 async function rpc(channel, args = []) {
-  const response = await fetch(`${origin}/__iterlay_dev/invoke`, {
+  const response = await fetch(`${origin}/__tuda_dev/invoke`, {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({ sessionId, channel, args }), signal: AbortSignal.timeout(30_000)
   });
@@ -72,7 +72,7 @@ async function ready(timeout = 60_000, retryPreviousTestLease = false) {
     undefined, { timeout: Math.max(1, deadline - Date.now()) });
     const bootstrapError = await page.evaluate(() => document.querySelector(".boot-error")?.textContent ?? null);
     if (!bootstrapError) {
-      sessionId = await page.evaluate(() => window.sessionStorage.getItem("iterlay:browser-debug-session"));
+      sessionId = await page.evaluate(() => window.sessionStorage.getItem("tuda:browser-debug-session"));
       return;
     }
     // A prior headless process may have closed without pagehide. Only automation
@@ -214,7 +214,7 @@ try {
   assert.notEqual(sessionId, sessionBeforeDrag, "The browser must establish a new backend session after automatic reload.");
   const restored = await page.evaluate((id) => window.imageWorkbench.getBoard(id), testBoardId);
   const newAssetUrl = restored.images[imagePath];
-  assert.match(newAssetUrl, /^\/__iterlay_dev\/assets\//u);
+  assert.match(newAssetUrl, /^\/__tuda_dev\/assets\//u);
   assert.notEqual(newAssetUrl, oldAssetUrl, "Reload must replace resource URLs signed by the old backend.");
   await page.waitForFunction((selector) => [...document.querySelectorAll(`${selector} img`)].some((image) => image.complete && image.naturalWidth > 0), nodeSelector);
   const media = await page.evaluate(async (url) => {
@@ -268,9 +268,9 @@ try {
   }
   try {
     if (page && !page.isClosed()) await page.evaluate(async () => {
-      const currentSession = window.sessionStorage.getItem("iterlay:browser-debug-session");
+      const currentSession = window.sessionStorage.getItem("tuda:browser-debug-session");
       if (!currentSession) return;
-      const response = await fetch("/__iterlay_dev/disconnect", { method: "POST", headers: { "content-type": "application/json" },
+      const response = await fetch("/__tuda_dev/disconnect", { method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ sessionId: currentSession }), signal: AbortSignal.timeout(5_000) });
       if (!response.ok) throw new Error("Failed to release the restart test's editor session.");
     });

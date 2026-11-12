@@ -1,7 +1,7 @@
 {
   "case": "FIELD portable speaker visual exploration",
   "createdAt": "2026-10-16",
-  "method": "Iterlay CLI connected to the browser development workspace; screenshots from the real browser UI",
+  "method": "Tuda CLI connected to the browser development workspace; screenshots from the real browser UI",
   "providerType": "openai-compatible",
   "model": "gpt-image-1",
   "requestedSize": "1024x1024",

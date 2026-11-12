@@ -41,7 +41,7 @@ describe("assistant display records", () => {
     const history = buildAssistantHistory([{
       id: "r1", conversationId: "c1", surface: "canvas-prompt", instruction: "图片", response: "回复",
       occurredAt: "2026-09-10T00:00:00Z", generatedPrompt: "prompt",
-      attachments: [{ id: "a", src: "iterlay-asset://local/a", name: "图片", role: "reference" }],
+      attachments: [{ id: "a", src: "tuda-asset://local/a", name: "图片", role: "reference" }],
       toolCalls: [{ id: "t", name: "inspect", status: "completed" }]
     }]);
     expect(history[0].messages[0].attachments?.[0].name).toBe("图片");

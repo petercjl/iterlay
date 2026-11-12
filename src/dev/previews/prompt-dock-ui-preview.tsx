@@ -9,7 +9,7 @@ import "@/styles.css";
 const providers: ProviderConfig[] = [
   {
     id: "preview-official",
-    name: "Iterlay 官方",
+    name: "Tuda 官方",
     type: "official",
     baseUrl: "",
     generationEndpoint: "",

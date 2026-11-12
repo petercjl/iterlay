@@ -1,3 +1,4 @@
+import { BRAND } from "@shared/brand";
 import { automaticVideoPlacement } from "@/lib/automatic-video-placement";
 import { connectTemplatePersistence, readPersistedTemplates } from "@/lib/template-persistence";
 import { CANVAS_STARTERS } from "@/components/code-canvas/model";
@@ -28,7 +29,7 @@ import { BOARD_TOUR,EDIT_TOUR,GALLERY_TOUR,LIBRARY_TOUR,TOUR_DEMO_IMAGE_ID,TOUR_
 import { StartupLoading } from "@/components/system/StartupLoading";
 import { Button } from "@/components/ui/button";
 import { Dialog,DialogContent,DialogDescription,DialogFooter,DialogHeader,DialogTitle } from "@/components/ui/dialog";
-import { iterlayToast } from "@/components/ui/iterlay-toast";
+import { tudaToast } from "@/components/ui/tuda-toast";
 import { OverlayInteractionProvider } from "@/components/ui/overlay-interaction";
 import { Toaster } from "@/components/ui/sonner";
 import { Textarea } from "@/components/ui/textarea";
@@ -176,7 +177,7 @@ type TemplatePromptSet
 } from "@/lib/template-workflow";
 import { buildUiDesignBriefInstruction,createUiDesignBrief,inferUiMaterialRole } from "@/lib/ui-design-workflow";
 import type { AgentSkillUpgradeDetail } from "@shared/agent-integration";
-import { parseIterlayDeepLink,type IterlayDeepLink } from "@shared/deep-link";
+import { parseTudaDeepLink,type TudaDeepLink } from "@shared/deep-link";
 
 const CanvasBoard = lazy(() =>
   import("@/components/canvas/CanvasBoard").then((module) => ({ default: module.CanvasBoard }))
@@ -374,7 +375,7 @@ function GenerationConfirmationDialog({
             <div className="col-span-2"><dt className="text-muted-foreground">{uiText("报价有效期")}</dt><dd className="mt-0.5 font-medium">{
               confirmation.items.some((item) => item.quoteExpiresAt)
                 ? new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "medium" }).format(new Date(Math.min(...confirmation.items.flatMap((item) => item.quoteExpiresAt ? [Date.parse(item.quoteExpiresAt)] : []))))
-                : uiText("外部 Provider 未提供 Iterlay 报价有效期")
+                : uiText("外部 Provider 未提供 Tuda 报价有效期")
             }</dd></div>
           </dl>
           <div className="divide-y divide-border border-y border-border" aria-label={uiText("生成确认任务")}>
@@ -510,8 +511,8 @@ export default function App(): React.ReactElement {
   setBoardAssistantAgentModeEnabled,
   piAgentBuiltinTools,
   setPiAgentBuiltinTools,
-  piAgentIterlayTools,
-  setPiAgentIterlayTools,
+  piAgentTudaTools,
+  setPiAgentTudaTools,
   piAgentSkillPaths,
   setPiAgentSkillPaths,
   piAgentExtensionPaths,
@@ -729,9 +730,9 @@ export default function App(): React.ReactElement {
       if (cancelled || details.length === 0) return;
       setSkillUpgradeDetails(details);
       frame = window.requestAnimationFrame(() => {
-        iterlayToast.update({
+        tudaToast.update({
           badge: "Skill",
-          title: translateSourceText("Iterlay Skill 已升级"),
+          title: translateSourceText("Tuda Skill 已升级"),
           detail: details.length > 1
             ? translateSourceText("已同步到 {{ui:0}} 个 Coding Agent", [details.length])
             : translateSourceText("已同步到 {{ui:0}}", [details[0].client === "codex" ? "Codex" : "Claude Code"]),
@@ -739,7 +740,7 @@ export default function App(): React.ReactElement {
           onOpen: () => setSkillUpgradeDetailsOpen(true)
         });
       });
-    }).catch((error) => console.warn("读取 Iterlay Skill 升级详情失败。", error));
+    }).catch((error) => console.warn("读取 Tuda Skill 升级详情失败。", error));
     return () => {
       cancelled = true;
       if (frame) window.cancelAnimationFrame(frame);
@@ -1281,6 +1282,13 @@ export default function App(): React.ReactElement {
           setParticleBurst(null);
         }
         observeBoard(detail);
+        if (opts?.forceReload) {
+          setCanvasRestoreSnapshot((current) => ({
+            nonce: (current?.nonce ?? 0) + 1,
+            positions: { ...canvasStateRef.current.positions },
+            connections: detail.connections ?? [], selectedIds: []
+          }));
+        }
         const openedAt = new Date().toISOString();
         setBoards((current) => promoteRecentlyUsedBoard(current, detail.id, openedAt));
         const openedBoard: ActiveBoard = {
@@ -1388,16 +1396,16 @@ export default function App(): React.ReactElement {
     const refresh = async (): Promise<void> => {
       const templates = await readPersistedTemplates();
       if (active && templates) {
-        localStorage.setItem("iterlay.customScenes", JSON.stringify(templates));
+        localStorage.setItem("tuda.customScenes", JSON.stringify(templates));
         setCustomScenes(templates);
       }
     };
     const onError = (error: unknown): void => {
-      localStorage.setItem("iterlay.unsavedTemplateDrafts", localStorage.getItem("iterlay.customScenes") ?? "[]");
+      localStorage.setItem("tuda.unsavedTemplateDrafts", localStorage.getItem("tuda.customScenes") ?? "[]");
       reportWorkbenchError(error);
     };
-    void connectTemplatePersistence(api, readCustomScenes(), onError, localStorage.getItem("iterlay.templatesMigrated") !== "1")
-      .then(async () => { localStorage.setItem("iterlay.templatesMigrated", "1"); await refresh(); }).catch(onError);
+    void connectTemplatePersistence(api, readCustomScenes(), onError, localStorage.getItem("tuda.templatesMigrated") !== "1")
+      .then(async () => { localStorage.setItem("tuda.templatesMigrated", "1"); await refresh(); }).catch(onError);
     const unsubscribe = api.onWorkbenchEvent(detail => {
       if (detail.type === "templates-updated") void refresh().catch(onError);
     });
@@ -1421,7 +1429,7 @@ export default function App(): React.ReactElement {
             if (activeBoardRef.current?.id === boardId) await flushBoardSave();
             resolve?.();
           } catch (error) {
-            reject?.(getWorkbenchErrorMessage(error, "Iterlay 无法准备画板变更。"));
+            reject?.(getWorkbenchErrorMessage(error, "Tuda 无法准备画板变更。"));
           }
         })();
         return;
@@ -1551,7 +1559,7 @@ export default function App(): React.ReactElement {
           boardDetailCacheRef.current.delete(boardId);
           await refreshBoards();
           if (activeBoardRef.current?.id === boardId) {
-            await openBoard(boardId, undefined, { forceReload: true, keepLibraryOpen: detail.preserveView === true, suppressLoadingScreen: detail.preserveView === true });
+            await openBoard(boardId, undefined, { forceReload: true, keepLibraryOpen: detail.preserveView === true, suppressLoadingScreen: detail.preserveView === true, skipFlushCurrent: true });
             // Focus only after the persisted nodes have been loaded. A separate
             // focus event can arrive before the asynchronous reload finishes.
             const nodeIds = Array.isArray(detail.nodeIds)
@@ -1595,9 +1603,9 @@ export default function App(): React.ReactElement {
       }
     };
 
-    window.addEventListener("iterlay:workspace", onWorkspaceEvent);
-    const unsubscribe = getWorkbenchApi()?.onWorkbenchEvent((detail) => onWorkspaceEvent(new CustomEvent("iterlay:workspace", { detail })));
-    return () => { unsubscribe?.(); window.removeEventListener("iterlay:workspace", onWorkspaceEvent); };
+    window.addEventListener("tuda:workspace", onWorkspaceEvent);
+    const unsubscribe = getWorkbenchApi()?.onWorkbenchEvent((detail) => onWorkspaceEvent(new CustomEvent("tuda:workspace", { detail })));
+    return () => { unsubscribe?.(); window.removeEventListener("tuda:workspace", onWorkspaceEvent); };
   }, [boardSaveCoordinator, flushBoardSave, getWorkbenchApi, openBoard, refreshBoards, refreshHistory, setStatus]);
 
   // 生成结果可能来自已切走的画板。统一按图片路径定位，编辑版本也能命中所属原图。
@@ -1644,7 +1652,7 @@ export default function App(): React.ReactElement {
       }
 
       try {
-        performance.mark("iterlay:workspace-start");
+        performance.mark("tuda:workspace-start");
         // 恢复库页时立即加载其分包，并在撤下启动页前等待它就绪，避免先露出底层画板。
         const restoredLibraryPromise = restoreLibraryOpenRef.current ? loadLibraryShell() : null;
         await initializeOnboardingPersistence(api);
@@ -1684,7 +1692,7 @@ export default function App(): React.ReactElement {
           settings.assistantAgentModeEnabled ?? settings.boardAssistantAgentModeEnabled ?? false
         );
         setPiAgentBuiltinTools(settings.piAgentBuiltinTools ?? ["read", "grep", "find", "ls"]);
-        setPiAgentIterlayTools(settings.piAgentIterlayTools ?? []);
+        setPiAgentTudaTools(settings.piAgentTudaTools ?? []);
         setPiAgentSkillPaths(settings.piAgentSkillPaths ?? []);
         setPiAgentExtensionPaths(settings.piAgentExtensionPaths ?? []);
         setPiAgentCustomSkillPaths(settings.piAgentCustomSkillPaths ?? []);
@@ -1735,7 +1743,7 @@ export default function App(): React.ReactElement {
     })();
     void startupTaskRef.current.finally(() => {
       if (active) {
-        performance.mark("iterlay:workspace-interactive");
+        performance.mark("tuda:workspace-interactive");
         setStartupLoading(false);
       }
     });
@@ -1777,7 +1785,7 @@ export default function App(): React.ReactElement {
     setPiAgentCustomExtensionPaths,
     setPiAgentCustomSkillPaths,
     setPiAgentExtensionPaths,
-    setPiAgentIterlayTools,
+    setPiAgentTudaTools,
     setPiAgentMaxTurns,
     setPiAgentSkillPaths,
     setPiAgentWebSearchMaxResults,
@@ -1931,7 +1939,7 @@ export default function App(): React.ReactElement {
   // 记忆"是否停留在库页"，供下次启动恢复。
   useEffect(() => {
     try {
-      localStorage.setItem("iterlay.libraryOpen", libraryOpen ? "1" : "0");
+      localStorage.setItem("tuda.libraryOpen", libraryOpen ? "1" : "0");
     } catch {
       /* localStorage 不可用时忽略 */
     }
@@ -1989,7 +1997,7 @@ export default function App(): React.ReactElement {
   changeBoardAssistantEnabled,
   changeBoardAssistantAgentModeEnabled,
   changePiAgentBuiltinTools,
-  changePiAgentIterlayTools,
+  changePiAgentTudaTools,
   changePiAgentSkillPaths,
   changePiAgentExtensionPaths,
   changePiAgentCustomSkillPaths,
@@ -2384,7 +2392,7 @@ export default function App(): React.ReactElement {
       if (activeBoardRef.current?.id === id) await flushBoardSave();
       const result = await api.exportBoard(id);
       if (result.ok && result.path) {
-        iterlayToast.exported({ title: translateSourceText("画板已导出"), path: result.path });
+        tudaToast.exported({ title: translateSourceText("画板已导出"), path: result.path });
       }
     } catch (error) {
       reportWorkbenchError(error);
@@ -2392,7 +2400,7 @@ export default function App(): React.ReactElement {
   }
 
   function announceImportedBoard(summary: BoardSummary): void {
-    iterlayToast.boardImported({
+    tudaToast.boardImported({
       name: summary.name,
       imageCount: summary.imageCount,
       preview: summary.thumbnailDataUrl,
@@ -2464,7 +2472,7 @@ export default function App(): React.ReactElement {
     persistBoard,
     window,
     toast,
-    iterlayToast
+    tudaToast
   });
 
   function createWorkflowNode(
@@ -2985,6 +2993,7 @@ export default function App(): React.ReactElement {
   // 首次进入画板：画布无遮挡浮层时延迟弹出，给舞台淡入和布局留出时间。
   useEffect(() => {
     if (!activeBoard || images.length === 0 || libraryOpen || galleryOpen || settingsOpen || editTargetId || openingBoardId) return;
+    if (!BRAND.autoOnboarding) return;
     if (activeTour || tourAutoShownRef.current.has(BOARD_TOUR.id)) return;
     if (hasSeenTour(BOARD_TOUR.id, BOARD_TOUR.version)) return;
     const timer = window.setTimeout(() => {
@@ -3204,7 +3213,7 @@ export default function App(): React.ReactElement {
           })();
       if (!copies) return;
       setImages((current) => current.flatMap((image) => image.id === imageId ? [image, ...copies] : [image]));
-      iterlayToast.placed({
+      tudaToast.placed({
         title: versionIndex === undefined ? translateSourceText("已复制分离 {{ui:0}} 个版本", [copies.length]) : translateSourceText("v{{ui:0}} 已复制分离", [versionIndex + 1]),
         detail: translateSourceText("原版本仍保留在版本栈中"),
         previews: copies.map((image) => image.dataUrl)
@@ -3217,7 +3226,7 @@ export default function App(): React.ReactElement {
       : extractImageVersion(source, versionIndex, crypto.randomUUID(), placement.position);
     if (!extracted) return;
     setImages((current) => current.flatMap((image) => image.id === imageId ? extracted : [image]));
-    iterlayToast.placed({
+    tudaToast.placed({
       title: versionIndex === undefined ? translateSourceText("已直接分离 {{ui:0}} 个版本", [extracted.length]) : translateSourceText("v{{ui:0}} 已直接分离", [versionIndex + 1]),
       detail: translateSourceText("已作为独立图片放入画板"),
       previews: extracted.map((image) => image.dataUrl)
@@ -3551,7 +3560,7 @@ export default function App(): React.ReactElement {
         );
         boardDetailCacheRef.current.delete(originBoard.id);
         void refreshBoards();
-        iterlayToast.result({
+        tudaToast.result({
           count: persistable.length,
           title: translateSourceText("已添加 {{ui:0}} 张图片", [persistable.length]),
           boardName: originBoard.name,
@@ -3566,7 +3575,7 @@ export default function App(): React.ReactElement {
     }
     setImages((current) => [...uploaded, ...current]);
     if (options.notifyPlacement !== false) {
-      iterlayToast.placed({
+      tudaToast.placed({
         title: translateSourceText("已添加 {{ui:0}} 张图片到画布", [uploaded.length]),
         detail: translateSourceText("可用作生成参考图"),
         previews: uploaded.map((image) => image.dataUrl),
@@ -3668,7 +3677,7 @@ export default function App(): React.ReactElement {
     const copies = duplicateClipboardImages(items, () => crypto.randomUUID());
     if (copies.length === 0) return;
     setImages((current) => [...current, ...copies]);
-    iterlayToast.placed({
+    tudaToast.placed({
       title: action === "duplicate"
         ? copies.length === 1 ? translateSourceText("已创建图片副本") : translateSourceText("已创建 {{ui:0}} 个图片副本", [copies.length])
         : translateSourceText("已粘贴 {{ui:0}} 张图片", [copies.length]),
@@ -3721,7 +3730,7 @@ export default function App(): React.ReactElement {
       });
       scheduleBoardSave();
     }
-    iterlayToast.placed({
+    tudaToast.placed({
       title: assets.length === 1 ? translateSourceText("已将素材放入画板") : translateSourceText("已将 {{ui:0}} 项素材放入画板", [assets.length]),
       detail: assets.length === 1 ? translateSourceText("来自「{{ui:0}}」", [assets[0].boardName]) : translateSourceText("已按选择顺序排列"),
       previews: assets.map((asset) => asset.thumbnailUrl || asset.dataUrl)
@@ -3910,7 +3919,7 @@ export default function App(): React.ReactElement {
       return;
     }
     addReferencePayloads([payload]);
-    iterlayToast.referenceAdded({
+    tudaToast.referenceAdded({
       imageUrl: source,
       count: Math.min(4, current.referenceImages.length + 1)
     });
@@ -4013,7 +4022,7 @@ export default function App(): React.ReactElement {
     if (duplicateCount > 0) details.push(`跳过 ${duplicateCount} 张已加入的图片`);
     if (failedCount > 0) details.push(`跳过 ${failedCount} 张不可读取的图片`);
     if (limitSkipped > 0) details.push(`另有 ${limitSkipped} 张超出 4 张上限`);
-    iterlayToast.referenceAdded({
+    tudaToast.referenceAdded({
       imageUrls: payloads.map((payload) => `data:${payload.mimeType};base64,${payload.dataBase64}`),
       count: Math.min(4, current.referenceImages.length + payloads.length),
       addedCount: payloads.length,
@@ -4249,7 +4258,7 @@ export default function App(): React.ReactElement {
       if (!payload) throw new Error("无法读取这张历史图片。");
       addReferencePayloads([payload]);
       setLibraryOpen(false);
-      iterlayToast.referenceAdded({
+      tudaToast.referenceAdded({
         imageUrl: dataUrl,
         count: Math.min(4, inputRef.current.referenceImages.length + 1)
       });
@@ -4283,7 +4292,7 @@ export default function App(): React.ReactElement {
     );
   }
 
-  const handleDeepLink = useCallback(async (link: IterlayDeepLink): Promise<void> => {
+  const handleDeepLink = useCallback(async (link: TudaDeepLink): Promise<void> => {
     const closeTransientSurfaces = (): void => {
       setSettingsOpen(false);
       setGalleryOpen(false);
@@ -4457,7 +4466,7 @@ export default function App(): React.ReactElement {
     if (!api) return;
     let active = true;
     const receive = (rawUrl: string): void => {
-      const parsed = parseIterlayDeepLink(rawUrl);
+      const parsed = parseTudaDeepLink(rawUrl);
       if (!parsed.ok) {
         toast.error(parsed.reason);
         return;
@@ -4484,7 +4493,7 @@ export default function App(): React.ReactElement {
     if (payload) addReferencePayloads([payload]);
     setLibraryOpen(false);
     if (payload) {
-      iterlayToast.referenceAdded({
+      tudaToast.referenceAdded({
         imageUrl: dataUrl,
         count: Math.min(4, inputRef.current.referenceImages.length + 1)
       });
@@ -4656,7 +4665,7 @@ export default function App(): React.ReactElement {
 
   const copyText = useCallback((text: string): void => {
     void navigator.clipboard.writeText(text);
-    iterlayToast.copied({ title: translateSourceText("已复制文本") });
+    tudaToast.copied({ title: translateSourceText("已复制文本") });
   }, []);
 
   const copyImageReferences = useCallback(async (references: AssetReference[]): Promise<void> => {
@@ -4686,7 +4695,7 @@ export default function App(): React.ReactElement {
       return;
     }
     addReferencePayloads(payloads);
-    iterlayToast.referenceAdded({
+    tudaToast.referenceAdded({
       imageUrls,
       count: Math.min(4, current.referenceImages.length + payloads.length),
       addedCount: payloads.length
@@ -4700,7 +4709,7 @@ export default function App(): React.ReactElement {
         const result = await api.saveAsset(path);
         if (result.directory) setDownloadDirectory(result.directory);
         setStatus(result?.ok ? "图片已下载。" : "已取消下载。");
-        if (result?.ok) iterlayToast.exported({ path: result.path });
+        if (result?.ok) tudaToast.exported({ path: result.path });
       } catch (error) {
         reportWorkbenchError(error);
       }
@@ -4733,7 +4742,7 @@ export default function App(): React.ReactElement {
           return;
         }
         setStatus(processed.alreadyTransparent ? "透明原图已下载。" : "背景已去除并下载。");
-        iterlayToast.exported({
+        tudaToast.exported({
           title: processed.alreadyTransparent ? translateSourceText("原图已有透明背景，已下载") : translateSourceText("背景已去除并下载"),
           path: result.path
         });
@@ -4758,7 +4767,7 @@ export default function App(): React.ReactElement {
         const count = result.count ?? paths.length;
         const skipped = result.skipped ?? 0;
         setStatus(`已将 ${count} 张图片打包下载。`);
-        iterlayToast.exported({
+        tudaToast.exported({
           count,
           path: result.path,
           detail: skipped > 0 ? translateSourceText("另有 {{ui:0}} 张图片无法读取，已跳过", [skipped]) : undefined
@@ -5018,7 +5027,7 @@ export default function App(): React.ReactElement {
 
         setImages((current) => current.some((image) => image.id === target.id) ? [...current, ...slices] : current);
         setStatus(`已切出 ${slices.length} 张图片。`);
-        iterlayToast.sliced({
+        tudaToast.sliced({
           count: slices.length,
           previews: slices.map((image) => image.dataUrl),
           onDownload: () => void saveImagesAsZip(slices)
@@ -5434,7 +5443,7 @@ export default function App(): React.ReactElement {
   if (startupLoading || licenseLoading || boardLoading) {
     return (
       <StartupLoading
-        label={boardLoading && !startupLoading ? uiText("正在打开画板") : uiText("正在打开 Iterlay")}
+        label={boardLoading && !startupLoading ? uiText("正在打开画板") : uiText("正在打开 Tuda")}
         error={licenseLoading ? licenseStartupError : undefined}
         onRetry={licenseLoading ? retryLicenseStatus : undefined}
       />
@@ -6122,8 +6131,8 @@ export default function App(): React.ReactElement {
              onBoardAssistantAgentModeEnabledChange={changeBoardAssistantAgentModeEnabled}
              piAgentBuiltinTools={piAgentBuiltinTools ?? []}
              onPiAgentBuiltinToolsChange={changePiAgentBuiltinTools}
-             piAgentIterlayTools={piAgentIterlayTools}
-             onPiAgentIterlayToolsChange={changePiAgentIterlayTools}
+             piAgentTudaTools={piAgentTudaTools}
+             onPiAgentTudaToolsChange={changePiAgentTudaTools}
              piAgentSkillPaths={piAgentSkillPaths}
              onPiAgentSkillPathsChange={changePiAgentSkillPaths}
              piAgentExtensionPaths={piAgentExtensionPaths}
@@ -6297,7 +6306,7 @@ export default function App(): React.ReactElement {
             onExported={(result, count) => {
               if (result.directory) setDownloadDirectory(result.directory);
               setStatus(`已导出 ${count} 张微信表情。`);
-              iterlayToast.exported({
+              tudaToast.exported({
                 title: translateSourceText("微信表情素材已导出"),
                 count,
                 path: result.folderPath ?? result.zipPath
@@ -6443,7 +6452,7 @@ function CommentComposer({
 
 function readLibraryOpenPref(): boolean {
   try {
-    return (localStorage.getItem("iterlay.libraryOpen") ?? localStorage.getItem("ir.libraryOpen")) === "1";
+    return (localStorage.getItem("tuda.libraryOpen") ?? localStorage.getItem("ir.libraryOpen")) === "1";
   } catch {
     return false;
   }

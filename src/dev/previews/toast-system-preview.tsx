@@ -106,7 +106,7 @@ const scenarios: ToastScenario[] = [
     tone: "success", visual: "copy", accessory: "⌘ V", duration: "2.4s", behavior: "同类计数聚合"
   },
   {
-    id: "exported", group: "resource", label: "导出完成", title: "已导出 6 张图片", detail: "Downloads / Iterlay",
+    id: "exported", group: "resource", label: "导出完成", title: "已导出 6 张图片", detail: "Downloads / Tuda",
     tone: "success", visual: "icon", icon: <Download />, action: "打开", duration: "5s", behavior: "显示末级路径"
   },
   {
@@ -179,7 +179,7 @@ function App(): React.ReactElement {
       <header className="toast-system-header">
         <div className="toast-system-brand">
           <img src={appIcon} alt="" />
-          <strong>Iterlay</strong>
+          <strong>Tuda</strong>
           <i />
           <span>Toast System</span>
           <b>A3</b>
@@ -424,4 +424,4 @@ function PolicyItem({ icon, title, detail }: { icon: React.ReactNode; title: str
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode><App /></React.StrictMode>
 );
-performance.mark("iterlay:startup-shell-ready");
+performance.mark("tuda:startup-shell-ready");

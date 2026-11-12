@@ -85,7 +85,7 @@ export function ModificationRequestsDialog({ open, onOpenChange, boardId, onFocu
   async function copyHandoff(): Promise<void> {
     if (!selected) return;
     const session = sessionRef.current;
-    const handoff = uiText("请使用 Iterlay CLI 的 iterlay call 接手修改请求 {{ui:0}}。先用 get_modification_request 读取固定源图、源版本、annotationPath、maskPath、修改要求和约束；信息不足时用 clarify_modification_request 澄清。用 claim_modification_request 领取并保存其返回的 claimToken；调用 edit_image 时传入 modificationRequestId 与 claimToken，按请求固定源图执行，不另建无关联的生成任务。完成后用 finish_modification_request 关联真实 resultJobId 与 resultPaths。保存或复制说明不会调用模型，执行图片编辑才可能产生费用。", [selected.id]);
+    const handoff = uiText("请使用 Tuda CLI 的 tuda call 接手修改请求 {{ui:0}}。先用 get_modification_request 读取固定源图、源版本、annotationPath、maskPath、修改要求和约束；信息不足时用 clarify_modification_request 澄清。用 claim_modification_request 领取并保存其返回的 claimToken；调用 edit_image 时传入 modificationRequestId 与 claimToken，按请求固定源图执行，不另建无关联的生成任务。完成后用 finish_modification_request 关联真实 resultJobId 与 resultPaths。保存或复制说明不会调用模型，执行图片编辑才可能产生费用。", [selected.id]);
     try {
       await navigator.clipboard.writeText(handoff);
       if (sessionRef.current === session) setNotice("接手说明已复制，可粘贴给 Codex 或 Claude Code。");

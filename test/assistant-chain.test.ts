@@ -5,7 +5,7 @@ import { beforeEach, expect, it } from "vitest";
 import { AssistantProcessDetails } from "../src/components/assistant/AssistantMessageDetails";
 import { I18nProvider } from "../src/i18n";
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-beforeEach(() => { window.localStorage.setItem("iterlay:language", "zh-CN"); });
+beforeEach(() => { window.localStorage.setItem("tuda:language", "zh-CN"); });
 it("combines activity and tools, preserves user expansion and exposes failures and payloads", async () => {
   const container = document.createElement("div");
   document.body.append(container);

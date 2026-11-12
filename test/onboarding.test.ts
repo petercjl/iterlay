@@ -27,13 +27,13 @@ describe("onboarding persistence", () => {
   });
 
   it("migrates legacy localStorage markers and then uses the main-process state", async () => {
-    window.localStorage.setItem("iterlay.onboarding.board.v1", JSON.stringify({
+    window.localStorage.setItem("tuda.onboarding.board.v1", JSON.stringify({
       status: "completed",
       at: "2026-07-20T08:00:00.000Z"
     }));
     const getOnboardingState = vi.fn(async (legacyState) => ({
       ...legacyState,
-      "iterlay.onboarding.edit.v1": { status: "skipped" as const, at: "2026-07-20T09:00:00.000Z" }
+      "tuda.onboarding.edit.v1": { status: "skipped" as const, at: "2026-07-20T09:00:00.000Z" }
     }));
     const bridge = {
       getOnboardingState,
@@ -44,7 +44,7 @@ describe("onboarding persistence", () => {
     await initializeOnboardingPersistence(bridge);
 
     expect(getOnboardingState).toHaveBeenCalledWith({
-      "iterlay.onboarding.board.v1": {
+      "tuda.onboarding.board.v1": {
         status: "completed",
         at: "2026-07-20T08:00:00.000Z"
       }
@@ -64,12 +64,12 @@ describe("onboarding persistence", () => {
     markTourSeen("board", 1, "completed");
     expect(hasSeenTour("board", 1)).toBe(true);
     expect(bridge.markOnboardingSeen).toHaveBeenCalledWith(
-      "iterlay.onboarding.board.v1",
+      "tuda.onboarding.board.v1",
       "completed"
     );
 
     clearTourSeen("board", 1);
     expect(hasSeenTour("board", 1)).toBe(false);
-    expect(bridge.clearOnboardingSeen).toHaveBeenCalledWith("iterlay.onboarding.board.v1");
+    expect(bridge.clearOnboardingSeen).toHaveBeenCalledWith("tuda.onboarding.board.v1");
   });
 });

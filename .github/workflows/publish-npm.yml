@@ -1,0 +1,76 @@
+name: Publish Tuda Windows and npm
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: npm channel
+        type: choice
+        options: [next, latest]
+        default: next
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: npm ci --prefix cli
+      - run: pnpm exec install-electron
+      - run: pnpm brand:check
+      - run: pnpm test
+      - run: pnpm release --arch x64
+      - run: node scripts/playwright-electron-smoke.mjs
+      - run: node scripts/prepare-release-manifest.mjs --arch x64
+      - run: pnpm build:cli
+      - run: node scripts/validate-cli-package.mjs
+      - run: npm pack ./cli --pack-destination release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tuda-verified-release
+          path: |
+            release/*.exe
+            release/*.tgz
+            cli/release-manifest.json
+            output/package-size/*.json
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: npm-release
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - run: npm install --global npm@11
+      - uses: actions/download-artifact@v4
+        with:
+          name: tuda-verified-release
+          path: candidate
+      - name: Verify archive, upload immutable installer and publish through OIDC
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DIST_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p 'require("./cli/package.json").version')
+          if [[ "$VERSION" == *-* && "$DIST_TAG" != next ]]; then exit 1; fi
+          INSTALLER="$(find candidate -name 'Tuda-*.exe' -type f)"
+          TARBALL="$(find candidate -name '*.tgz' -type f)"
+          MANIFEST="$(find candidate -name release-manifest.json -type f)"
+          node -e 'const fs=require("fs"),c=require("crypto"),m=JSON.parse(fs.readFileSync(process.argv[1])),b=fs.readFileSync(process.argv[2]);if(c.createHash("sha256").update(b).digest("hex")!==m.installers[0].sha256)throw Error("installer integrity")' "$MANIFEST" "$INSTALLER"
+          tar -xzf "$TARBALL" -C candidate
+          node -e 'const p=require("./candidate/package/package.json"),m=require(process.argv[1]);if(JSON.stringify(p.tudaRelease)!==JSON.stringify(m))throw Error("manifest drift")' "$(realpath "$MANIFEST")"
+          gh release create "tuda-v$VERSION" "$INSTALLER" "$MANIFEST" --target "$GITHUB_SHA" --title "Tuda $VERSION" --notes "Tuda · 图塔 Windows release"
+          npm publish "$TARBALL" --access public --provenance --tag "$DIST_TAG"
+          npm view "@petercjl/tuda@$VERSION" version

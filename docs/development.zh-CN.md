@@ -58,4 +58,4 @@ pnpm media-tools:build --version ffmpeg6-r2
 pnpm media-tools:verify
 ```
 
-构建使用固定版本 FFmpeg 6.0 与 x264 源码，不启用 nonfree，保持现有 codec 配置；产物位于 `output/media-tools/<version>-darwin-arm64/`，包含两个工具、许可证、对应源码压缩包和构建信息，并把归档及逐文件的真实哈希写入 `shared/media-tools-manifest.json`。组件版本不可变，修改构建时须用新的 `--version`；无参数会验证并复用本地已匹配的归档，`--rebuild` 只在独立目录生成诊断候选，若哈希不同会拒绝覆盖固定版本。当前 `ffmpeg6-r1` 的资产为 GitHub Release `media-tools-ffmpeg6-r1` 上的 `iterlay-media-tools-ffmpeg6-r1-darwin-arm64.zip`。发布引用新组件的应用前，须先由维护者单独上传对应资产。其他平台尚未配置完整打包依赖。签名、公证和安装包分发由维护者自行配置；详见[第三方说明](../THIRD_PARTY_NOTICES.md)。
+构建使用固定版本 FFmpeg 6.0 与 x264 源码，不启用 nonfree，保持现有 codec 配置；产物位于 `output/media-tools/<version>-darwin-arm64/`，包含两个工具、许可证、对应源码压缩包和构建信息，并把归档及逐文件的真实哈希写入 `shared/media-tools-manifest.json`。组件版本不可变，修改构建时须用新的 `--version`；无参数会验证并复用本地已匹配的归档，`--rebuild` 只在独立目录生成诊断候选，若哈希不同会拒绝覆盖固定版本。当前 `ffmpeg6-r1` 的资产为 GitHub Release `media-tools-ffmpeg6-r1` 上的 `tuda-media-tools-ffmpeg6-r1-darwin-arm64.zip`。发布引用新组件的应用前，须先由维护者单独上传对应资产。其他平台尚未配置完整打包依赖。签名、公证和安装包分发由维护者自行配置；详见[第三方说明](../THIRD_PARTY_NOTICES.md)。

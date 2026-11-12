@@ -1,4 +1,4 @@
-export const ASSISTANT_PANEL_SIZE_STORAGE_KEY = "iterlay.assistantPanelSize";
+export const ASSISTANT_PANEL_SIZE_STORAGE_KEY = "tuda.assistantPanelSize";
 
 export interface AssistantPanelSize {
   width: number;

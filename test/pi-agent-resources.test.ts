@@ -15,7 +15,7 @@ afterEach(async () => {
 });
 
 async function fixture(): Promise<{ cwd: string; agentDir: string }> {
-  const root = await mkdtemp(path.join(os.tmpdir(), "iterlay-pi-resources-"));
+  const root = await mkdtemp(path.join(os.tmpdir(), "tuda-pi-resources-"));
   directories.push(root);
   const cwd = path.join(root, "project");
   const agentDir = path.join(root, "agent");
@@ -76,7 +76,7 @@ describe("Pi Agent resources", () => {
       expect.objectContaining({ name: "fixture", source: "system" })
     ]);
     expect(inventory.builtinTools.map((item) => item.name)).toContain("bash");
-    expect(inventory.iterlayTools.map((tool) => tool.name)).toEqual(expect.arrayContaining(["list_providers", "list_models", "generate_image", "generate_video"]));
+    expect(inventory.tudaTools.map((tool) => tool.name)).toEqual(expect.arrayContaining(["list_providers", "list_models", "generate_image", "generate_video"]));
   });
 
   it("loads only explicitly enabled extensions and skills", async () => {

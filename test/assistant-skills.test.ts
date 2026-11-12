@@ -22,34 +22,34 @@ function request(overrides: Partial<CollaborateSceneRequest>): CollaborateSceneR
 
 describe("assistant Skill routing", () => {
   it.each([
-    [{ assistantSurface: "scene-template", templateIntent: "build" }, "iterlay-template-create"],
-    [{ assistantSurface: "scene-template", templateIntent: "audit" }, "iterlay-template-collaborate"],
-    [{ assistantSurface: "scene-template", templateWorkflow: "use" }, "iterlay-template-use"],
-    [{ assistantSurface: "canvas-prompt" }, "iterlay-board-image"],
-    [{ assistantSurface: "canvas-prompt", assistantScenario: "ui-design" }, "iterlay-ui-design"],
-    [{ assistantSurface: "canvas-edit", workflowMode: "edit" }, "iterlay-image-edit"],
-    [{ assistantSurface: "gallery-review" }, "iterlay-gallery-review"],
-    [{ assistantSurface: "comic-drama" }, "iterlay-comic-drama"]
+    [{ assistantSurface: "scene-template", templateIntent: "build" }, "tuda-template-create"],
+    [{ assistantSurface: "scene-template", templateIntent: "audit" }, "tuda-template-collaborate"],
+    [{ assistantSurface: "scene-template", templateWorkflow: "use" }, "tuda-template-use"],
+    [{ assistantSurface: "canvas-prompt" }, "tuda-board-image"],
+    [{ assistantSurface: "canvas-prompt", assistantScenario: "ui-design" }, "tuda-ui-design"],
+    [{ assistantSurface: "canvas-edit", workflowMode: "edit" }, "tuda-image-edit"],
+    [{ assistantSurface: "gallery-review" }, "tuda-gallery-review"],
+    [{ assistantSurface: "comic-drama" }, "tuda-comic-drama"]
   ] as const)("routes %o to %s", (overrides, expected) => {
     const ids = resolveAssistantSkillIds(request(overrides));
-    expect(ids[0]).toBe("iterlay-assistant-base");
+    expect(ids[0]).toBe("tuda-assistant-base");
     expect(ids).toContain(expected);
   });
 
   it("adds the video base Skill to comic-drama", () => {
     expect(resolveAssistantSkillIds(request({ assistantSurface: "comic-drama" }))).toEqual([
-      "iterlay-assistant-base",
-      "iterlay-video",
-      "iterlay-comic-drama"
+      "tuda-assistant-base",
+      "tuda-video",
+      "tuda-comic-drama"
     ]);
   });
 
   it("saves and resets a validated user override", async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "iterlay-assistant-skills-"));
+    const root = await mkdtemp(path.join(os.tmpdir(), "tuda-assistant-skills-"));
     try {
       const builtInRoot = path.join(root, "builtin");
       const overrideRoot = path.join(root, "overrides");
-      const id = "iterlay-board-image";
+      const id = "tuda-board-image";
       await mkdir(path.join(builtInRoot, id), { recursive: true });
       const builtIn = `---\nname: ${id}\ndescription: Built in\n---\n\n# Built in\n`;
       await writeFile(path.join(builtInRoot, id, "SKILL.md"), builtIn, "utf8");
@@ -73,10 +73,10 @@ describe("assistant Skill routing", () => {
   });
 
   it("rejects overrides that change the required Skill name", async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "iterlay-assistant-skills-"));
+    const root = await mkdtemp(path.join(os.tmpdir(), "tuda-assistant-skills-"));
     try {
       const builtInRoot = path.join(root, "builtin");
-      const id = "iterlay-board-image";
+      const id = "tuda-board-image";
       await mkdir(path.join(builtInRoot, id), { recursive: true });
       await writeFile(
         path.join(builtInRoot, id, "SKILL.md"),

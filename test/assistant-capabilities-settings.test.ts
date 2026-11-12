@@ -7,10 +7,10 @@ import { PiAgentSettingsPanel } from "../src/components/workbench/settings/PiAge
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 function props(): ComponentProps<typeof PiAgentSettingsPanel> {
   return { available: false, enabled: false, model: "chat-model", inventory: {
-    builtinTools: [{ name: "read", description: "读取文件", risk: "read" }], iterlayTools: [], skills: [], extensions: [], warnings: [] },
-    resourceError: null, assistantSkills: [], builtinTools: ["read"], iterlayTools: [], skillPaths: [], extensionPaths: [],
+    builtinTools: [{ name: "read", description: "读取文件", risk: "read" }], tudaTools: [], skills: [], extensions: [], warnings: [] },
+    resourceError: null, assistantSkills: [], builtinTools: ["read"], tudaTools: [], skillPaths: [], extensionPaths: [],
     customSkillPaths: [], customExtensionPaths: [], maxTurns: 12, webSearchMaxResults: 5,
-    onEnabledChange: vi.fn(), onConfigureModel: vi.fn(), onBuiltinToolsChange: vi.fn(), onIterlayToolsChange: vi.fn(),
+    onEnabledChange: vi.fn(), onConfigureModel: vi.fn(), onBuiltinToolsChange: vi.fn(), onTudaToolsChange: vi.fn(),
     onSkillPathsChange: vi.fn(), onExtensionPathsChange: vi.fn(), onCustomSkillPathsChange: vi.fn(),
     onCustomExtensionPathsChange: vi.fn(), onMaxTurnsChange: vi.fn(), onWebSearchMaxResultsChange: vi.fn(),
     onRefresh: vi.fn(), onEditAssistantSkill: vi.fn() };

@@ -4,7 +4,7 @@ import { getPendingEditCount, type GeneratedImage, type ImageVersion } from "@/c
 
 import { type ParticleBurstTrigger } from "@/components/canvas/ParticleBurst";
 
-import { iterlayToast } from "@/components/ui/iterlay-toast";
+import { tudaToast } from "@/components/ui/tuda-toast";
 
 import type { ActiveBoardGeneration } from "@/lib/active-board-generation";
 
@@ -70,7 +70,7 @@ export interface GenerationControllerDependencies {
   persistBoard: () => Promise<void>;
   window: Pick<Window, "setTimeout" | "clearTimeout">;
   toast: Pick<typeof toast, "error" | "warning">;
-  iterlayToast: Pick<typeof iterlayToast, "result" | "dismiss" | "balance" | "generationPending" | "partial">;
+  tudaToast: Pick<typeof tudaToast, "result" | "dismiss" | "balance" | "generationPending" | "partial">;
 }
 
 export function createImageGenerationController(dependencies: GenerationControllerDependencies) {
@@ -106,7 +106,7 @@ export function createImageGenerationController(dependencies: GenerationControll
   persistBoard,
   window,
   toast,
-  iterlayToast
+  tudaToast
 } = dependencies;
   return async function generate(
     sourceRect?: ParticleBurstTrigger["rect"],
@@ -355,7 +355,7 @@ export function createImageGenerationController(dependencies: GenerationControll
       setStatus(options?.createDerivedEditNode || generationInput.workflowMode !== "edit" ? "正在生成图片..." : "正在编辑图片...");
       if (!isEditSession) {
         delayedNoticeTimer = window.setTimeout(() => {
-          delayedNoticeId = iterlayToast.generationPending();
+          delayedNoticeId = tudaToast.generationPending();
         }, GENERATION_ESTIMATE_MS);
       }
       // 负面提示（避免出现）在发送时并入提示词，真正到达 provider（对纯文本与结构化都生效）。
@@ -444,7 +444,7 @@ export function createImageGenerationController(dependencies: GenerationControll
           void refreshBoards();
         }
         setStatus("编辑完成。");
-        iterlayToast.result({
+        tudaToast.result({
           count: newVersions.length,
           title: newVersions.length > 1 ? translateSourceText("已生成 {{ui:0}} 个编辑版本", [newVersions.length]) : translateSourceText("编辑已应用"),
           detail: activeBoardRef.current?.id === originBoard.id ? translateSourceText("新版本已叠加到原图") : translateSourceText("已存入「{{ui:0}}」", [originBoard.name]),
@@ -531,9 +531,9 @@ export function createImageGenerationController(dependencies: GenerationControll
         await persistBoard();
         setStatus(`已生成 ${result.images.length} 张图片。`);
         if (produced.length < clientIds.length) {
-          iterlayToast.partial({ actual: produced.length, expected: clientIds.length });
+          tudaToast.partial({ actual: produced.length, expected: clientIds.length });
         } else {
-          iterlayToast.result({
+          tudaToast.result({
             count: result.images.length,
             previews: completedImages.map((output) => output.dataUrl),
             onNavigate: () => void locateGenerationResult(
@@ -558,7 +558,7 @@ export function createImageGenerationController(dependencies: GenerationControll
         boardDetailCacheRef.current.delete(originBoard.id);
         void refreshBoards();
         setStatus(`已生成 ${result.images.length} 张图片。`);
-        iterlayToast.result({
+        tudaToast.result({
           count: result.images.length,
           boardName: originBoard.name,
           previews: produced.map((output) => output.dataUrl),
@@ -611,7 +611,7 @@ export function createImageGenerationController(dependencies: GenerationControll
       return [];
     } finally {
       if (delayedNoticeTimer !== null) window.clearTimeout(delayedNoticeTimer);
-      if (delayedNoticeId !== undefined) iterlayToast.dismiss(delayedNoticeId);
+      if (delayedNoticeId !== undefined) tudaToast.dismiss(delayedNoticeId);
       generationQueueRef.current?.release(activeGenerationId);
       setActiveGenerations((count) => count - 1);
       setActiveBoardGenerations((current) => current.filter((task) => task.id !== activeGenerationId));

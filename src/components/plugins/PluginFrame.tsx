@@ -96,7 +96,7 @@ export function PluginFrame({ plugin, view = "tool", ...props }: PluginHostProps
           boardId: board.id, boardName: board.name, nodeId, path, prompt: typeof params.prompt === "string" ? params.prompt.slice(0, 12000) : "",
           status: "ready" as const, createdAt: new Date().toISOString() };
         const updated = await api.presentCreationArtifact(conversationId, artifact);
-        window.dispatchEvent(new CustomEvent("iterlay:creation:updated", { detail: updated }));
+        window.dispatchEvent(new CustomEvent("tuda:creation:updated", { detail: updated }));
         return { artifactId };
       }
       if (method === "storage.get" || method === "storage.set") {

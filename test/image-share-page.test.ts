@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   buildOnlineImageDetailSharePage,
   buildOnlineImageSharePage,
-  ITERLAY_OFFICIAL_WEBSITE,
-  ITERLAY_SHARE_WEBSITE
+  TUDA_OFFICIAL_WEBSITE,
+  TUDA_SHARE_WEBSITE
 } from "../electron/image-share-page";
 
 describe("online image share page", () => {
-  it("renders a responsive prompt panel with references and Iterlay branding", () => {
+  it("renders a responsive prompt panel with references and Tuda branding", () => {
     const page = buildOnlineImageSharePage({
       prompt: '<雨夜 & "霓虹">',
       referenceCount: 2,
@@ -22,13 +22,13 @@ describe("online image share page", () => {
     expect(page).toContain('href="references/1/download" download');
     expect(page).toContain('class="reference-download"');
     expect(page).toContain('src="brand-logo"');
-    expect(page).toContain(ITERLAY_OFFICIAL_WEBSITE);
+    expect(page).toContain(TUDA_OFFICIAL_WEBSITE);
     expect(page).toContain(".prompt-panel");
     expect(page).toContain("@media (max-width: 720px)");
     expect(page).toContain("border-top: 1px solid #e2e5e3");
-    expect(page).toContain(`href="${ITERLAY_SHARE_WEBSITE}"`);
-    expect(page).toContain('id="use-in-iterlay"');
-    expect(page).toContain('iterlay://import?source=');
+    expect(page).toContain(`href="${TUDA_SHARE_WEBSITE}"`);
+    expect(page).toContain('id="use-in-tuda"');
+    expect(page).toContain('tuda://import?source=');
   });
 
   it("omits generation details when prompt sharing is disabled", () => {
@@ -41,7 +41,7 @@ describe("online image share page", () => {
     expect(page).not.toContain("private prompt");
     expect(page).not.toContain("创作提示词");
     expect(page).not.toContain('src="references/1"');
-    expect(page).toContain("Iterlay");
+    expect(page).toContain("Tuda");
     expect(page).toContain('src="image"');
   });
 
@@ -75,7 +75,7 @@ describe("online image share page", () => {
       referenceCount: 2
     });
 
-    expect(page).toContain("图片 2 · Iterlay");
+    expect(page).toContain("图片 2 · Tuda");
     expect(page).toContain('src="../2"');
     expect(page).toContain("为夏日活动设计商品主视觉");
     expect(page).toContain('src="../2/references/2"');

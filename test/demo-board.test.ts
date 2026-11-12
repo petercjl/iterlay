@@ -22,7 +22,7 @@ describe("initial demo board", () => {
   let workspaceDirectory: string;
 
   beforeEach(async () => {
-    directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-demo-board-"));
+    directory = await mkdtemp(path.join(os.tmpdir(), "tuda-demo-board-"));
     assetsDirectory = path.join(directory, "bundled-assets");
     workspaceDirectory = path.join(directory, "workspace");
     await mkdir(assetsDirectory, { recursive: true });

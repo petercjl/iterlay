@@ -2,13 +2,13 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { URL } from 'node:url'
 import { setTimeout as delay } from 'node:timers/promises'
-const site = new URL(process.env.SEO_SITE_URL || 'https://davied-h.github.io/iterlay/')
+const site = new URL(process.env.SEO_SITE_URL || 'https://petercjl.github.io/iterlay/')
 if (!site.pathname.endsWith('/')) site.pathname += '/'
 const report = { checkedAt: new Date().toISOString(), site: site.href, pages: [], issues: [], hostRobots: null, missingStatus: null, llmsStatus: null, note: 'A technical crawl check does not prove search index inclusion or AI citation. Inspect host robots directives and Search Console/Bing reports separately.' }
 async function fetchText(url, expectPublished = true) {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(15000), headers: { 'User-Agent': 'Iterlay-SEO-Audit/1.0' } })
+      const response = await fetch(url, { signal: AbortSignal.timeout(15000), headers: { 'User-Agent': 'Tuda-SEO-Audit/1.0' } })
       const result = { status: response.status, url: response.url, headers: Object.fromEntries(response.headers), text: await response.text() }
       if (!expectPublished || response.status === 200 || attempt === 2) return result
     } catch (error) { if (attempt === 2) throw error }

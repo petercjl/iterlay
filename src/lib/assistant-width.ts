@@ -2,8 +2,8 @@ import { useSyncExternalStore } from "react";
 
 export const ASSISTANT_WIDTHS = { small: 460, medium: 560, large: 660, maximum: 760 } as const;
 export type AssistantWidth = keyof typeof ASSISTANT_WIDTHS;
-export const ASSISTANT_WIDTH_KEY = "iterlay.assistantWidth.v1";
-const changeEvent = "iterlay:assistant-width";
+export const ASSISTANT_WIDTH_KEY = "tuda.assistantWidth.v1";
+const changeEvent = "tuda:assistant-width";
 let sessionWidth: AssistantWidth = "medium";
 
 export function readAssistantWidth(): AssistantWidth {

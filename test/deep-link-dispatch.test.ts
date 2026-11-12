@@ -36,11 +36,11 @@ describe("deep-link main-process dispatch", () => {
   it("buffers cold-start links and sends later links to the ready window", async () => {
     const { dispatchDeepLink, registerDeepLinkIpc } = await import("../electron/deep-link.js");
     registerDeepLinkIpc();
-    expect(dispatchDeepLink("iterlay://boards/board-1")).toBe(true);
+    expect(dispatchDeepLink("tuda://boards/board-1")).toBe(true);
 
     const readyHandler = electronMocks.handle.mock.calls[0][1] as (event: unknown) => string[];
     const sender = { id: 7, once: vi.fn() };
-    expect(readyHandler({ sender })).toEqual(["iterlay://boards/board-1"]);
+    expect(readyHandler({ sender })).toEqual(["tuda://boards/board-1"]);
 
     const send = vi.fn();
     electronMocks.focusedWindow = {
@@ -51,8 +51,8 @@ describe("deep-link main-process dispatch", () => {
       focus: vi.fn()
     };
 
-    expect(dispatchDeepLink("iterlay://assets")).toBe(true);
-    expect(send).toHaveBeenCalledWith("deep-link:open", "iterlay://assets");
+    expect(dispatchDeepLink("tuda://assets")).toBe(true);
+    expect(send).toHaveBeenCalledWith("deep-link:open", "tuda://assets");
     expect(electronMocks.focusedWindow.restore).toHaveBeenCalledOnce();
     expect(electronMocks.focusedWindow.focus).toHaveBeenCalledOnce();
   });
@@ -72,17 +72,17 @@ describe("deep-link main-process dispatch", () => {
       webContents: { id: sender.id, send }, isMinimized: vi.fn(() => false),
       restore: vi.fn(), show: vi.fn(), focus: vi.fn()
     };
-    dispatchDeepLink("iterlay://assets");
+    dispatchDeepLink("tuda://assets");
     expect(send).toHaveBeenCalledOnce();
     sender.emit("destroyed");
     expect(sender.listenerCount("destroyed")).toBe(0);
-    dispatchDeepLink("iterlay://boards/after-destruction");
+    dispatchDeepLink("tuda://boards/after-destruction");
     expect(send).toHaveBeenCalledOnce();
 
     const replacement = Object.assign(new EventEmitter(), { id: sender.id });
-    expect(readyHandler({ sender: replacement })).toEqual(["iterlay://boards/after-destruction"]);
+    expect(readyHandler({ sender: replacement })).toEqual(["tuda://boards/after-destruction"]);
     expect(replacement.listenerCount("destroyed")).toBe(1);
-    dispatchDeepLink("iterlay://assets");
+    dispatchDeepLink("tuda://assets");
     expect(send).toHaveBeenCalledTimes(2);
     replacement.emit("destroyed");
   });

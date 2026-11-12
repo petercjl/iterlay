@@ -35,6 +35,8 @@ import {
   type IpcMainInvokeEvent,
   type NativeImage
 } from "electron";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { access, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { mergeAssistantToolCall, type AssistantToolCall } from "../shared/assistant-display.js";
@@ -128,13 +130,13 @@ import { LocalInspirationClient } from "./inspiration-client.js";
 import type { LicenseService } from "./licensing/service.js";
 import { MasterGoBridge } from "./mastergo-bridge.js";
 import { callLocalApi } from "./local-api.js";
-import { getAgentIntegrationStatus, installAgentSkill, uninstallAgentSkill, removeLegacyIntegration, setSkillAutoInstallDeclined, syncAgentSkills, type CodingAgentId } from "./agent-integration.js";
+import { getAgentIntegrationStatus, uninstallAgentSkill, setSkillAutoInstallDeclined, type CodingAgentId } from "./agent-integration.js";
 import { getCliInstallationStatus, installCli } from "./cli-installation.js";
 import { FfmpegService } from "./media/ffmpeg-service.js";
 import { PaidMediaQuoteService } from "./paid-media-quote.js";
 import { PiAgentLogStore } from "./pi-agent-log.js";
 import { discoverPiAgentResources } from "./pi-agent-resources.js";
-import { createIterlayAgentTools } from "./pi-agent-tools.js";
+import { createTudaAgentTools } from "./pi-agent-tools.js";
 import { ManagerProductAnalyticsClient } from "./product-analytics-client.js";
 import { ArkImageProvider } from "./providers/ark.js";
 import { BailianImageProvider } from "./providers/bailian.js";
@@ -451,7 +453,7 @@ export function registerIpc({
       ? {
           ...currentSettings,
           piAgentBuiltinTools: [],
-          piAgentIterlayTools: [...COMIC_DRAMA_AGENT_TOOL_NAMES],
+          piAgentTudaTools: [...COMIC_DRAMA_AGENT_TOOL_NAMES],
           piAgentSkillPaths: [],
           piAgentExtensionPaths: []
         }
@@ -637,14 +639,14 @@ export function registerIpc({
         signal
       });
     }
-    return createIterlayAgentTools(app.getPath("userData"), { boardId, preserveView: request.creationWorkflow === true,
+    return createTudaAgentTools(app.getPath("userData"), { boardId, preserveView: request.creationWorkflow === true,
       referenceImagePaths: request.referenceImages.flatMap((reference) => reference.imagePath ? [reference.imagePath] : []),
       referenceNodeIds: request.referenceImages.flatMap((reference) => reference.sourceNodeId ? [reference.sourceNodeId] : []) });
   };
   const getAssistantSkillRoots = () => ({
     builtInRoot: app.isPackaged
-      ? path.join(process.resourcesPath, "skills", "iterlay-assistants")
-      : path.join(app.getAppPath(), "resources", "skills", "iterlay-assistants"),
+      ? path.join(process.resourcesPath, "skills", "tuda-assistants")
+      : path.join(app.getAppPath(), "resources", "skills", "tuda-assistants"),
     overrideRoot: path.join(app.getPath("userData"), "assistant-skills")
   });
   const sceneCollaborationStreams = new Map<
@@ -985,12 +987,11 @@ export function registerIpc({
     await shell.openExternal(await inspirationClient.urlFor(sourceId));
   });
   const integrationHome = app.isPackaged ? app.getPath("home") : path.join(app.getPath("userData"), "agent-home");
-  const bundledSkillPath = app.isPackaged ? path.join(process.resourcesPath, "skills", "using-iterlay") : path.join(app.getAppPath(), "resources", "skills", "using-iterlay");
   const cliOptions = { homeDir: integrationHome, selfTest: true, userDataPath: app.isPackaged ? undefined : app.getPath("userData"), executable: process.execPath, scriptPath: app.isPackaged ? path.join(process.resourcesPath, "cli", "dist", "main.js") : path.join(app.getAppPath(), "cli", "dist", "main.js") };
   let cliError: string | undefined;
   const installAppCli = async () => { const result = await installCli(cliOptions); cliError = result.error; return result; };
   const installation = app.isPackaged ? installAppCli() : Promise.resolve(null);
-  const skillSync = app.isPackaged ? syncAgentSkills(integrationHome, bundledSkillPath, { userDataPath: app.getPath("userData") }).catch((error) => { console.warn("同步 CLI Skill 失败", error); return null; }) : Promise.resolve(null);
+  const skillSync: Promise<null> = Promise.resolve(null);
   let skillUpgradeConsumed = false;
   const readAgentStatus = async () => ({ ...await getAgentIntegrationStatus(integrationHome), cli: { ...await getCliInstallationStatus(integrationHome), error: cliError }, development: !app.isPackaged });
   ipcMain.handle("agent:status", async () => { await installation; await skillSync; return readAgentStatus(); });
@@ -1011,7 +1012,7 @@ export function registerIpc({
     });
   });
   ipcMain.handle("agent:cli:install", async () => { const cli = await installAppCli(); return { ...await readAgentStatus(), cli }; });
-  ipcMain.handle("agent:skill-upgrade:consume", async () => { const result = await skillSync; if (skillUpgradeConsumed) return []; skillUpgradeConsumed = true; return result?.skillUpgrades ?? []; });
+  ipcMain.handle("agent:skill-upgrade:consume", async () => { await skillSync; if (skillUpgradeConsumed) return []; skillUpgradeConsumed = true; return []; });
   ipcMain.handle("pi-agent-log:list", () => piAgentLogs.getSnapshot());
   ipcMain.handle("pi-agent-log:clear", async () => {
     await piAgentLogs.clear();
@@ -1111,8 +1112,9 @@ export function registerIpc({
     if (!client) throw new Error("未知的 Coding Agent。");
     const cli = await installAppCli();
     if (cli.error) throw new Error(cli.error);
-    await installAgentSkill(client, integrationHome, bundledSkillPath);
-    await removeLegacyIntegration(client, integrationHome);
+    const selected = (await getAgentIntegrationStatus(integrationHome)).clients.find((item) => item.id === client);
+    if (!selected) throw new Error("未知的 Coding Agent。");
+    await promisify(execFile)(process.execPath, [cliOptions.scriptPath, "skill", "install", "--target", selected.skillPath, "--agent", client, "--json"], { timeout: 60_000, env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" } });
     await setSkillAutoInstallDeclined(app.getPath("userData"), client, false);
     return readAgentStatus();
   });
@@ -1576,7 +1578,7 @@ export function registerIpc({
     if (!isSceneTemplateData(scene)) throw new Error("模板数据无效，无法导出。");
     const result = await dialog.showSaveDialog({
       defaultPath: `${safeArchiveBaseName(scene.name)}.itt`,
-      filters: [{ name: "Iterlay 模板", extensions: ["itt"] }]
+      filters: [{ name: "Tuda 模板", extensions: ["itt"] }]
     });
     if (result.canceled || !result.filePath) return { ok: false };
 
@@ -1617,7 +1619,7 @@ export function registerIpc({
   ipcMain.handle("scenes:import", async (): Promise<SceneTemplateImportResult | null> => {
     const result = await dialog.showOpenDialog({
       properties: ["openFile"],
-      filters: [{ name: "Iterlay 模板", extensions: ["itt", "zip"] }]
+      filters: [{ name: "Tuda 模板", extensions: ["itt", "zip"] }]
     });
     if (result.canceled || result.filePaths.length === 0) return null;
     return importSceneBuffer(await readFile(result.filePaths[0]));
@@ -2084,7 +2086,7 @@ export function registerIpc({
     ).filter((item): item is AssetArchiveItem => item !== null);
     if (archiveItems.length === 0) throw new Error("所选图片均无法读取，未创建压缩包。");
 
-    const destinationPath = await availableDownloadPath(directory, `iterlay-images-${timestamp}.zip`);
+    const destinationPath = await availableDownloadPath(directory, `tuda-images-${timestamp}.zip`);
     const archive = await buildAssetArchive(archiveItems);
     await writeFile(destinationPath, archive);
     return {
@@ -2402,7 +2404,7 @@ export function registerIpc({
     if (!board) throw new Error("画板不存在。");
     const result = await dialog.showSaveDialog({
       defaultPath: `${board.name}.itb`,
-      filters: [{ name: "Iterlay 画板", extensions: ["itb"] }]
+      filters: [{ name: "Tuda 画板", extensions: ["itb"] }]
     });
     if (result.canceled || !result.filePath) return { ok: false };
 
@@ -2439,7 +2441,7 @@ export function registerIpc({
   ipcMain.handle("boards:import", async () => {
     const result = await dialog.showOpenDialog({
       properties: ["openFile"],
-      filters: [{ name: "Iterlay 画板", extensions: ["itb", "irb", "zip"] }]
+      filters: [{ name: "Tuda 画板", extensions: ["itb", "irb", "zip"] }]
     });
     if (result.canceled || result.filePaths.length === 0) return null;
     return importBoard(await readFile(result.filePaths[0]));
@@ -2489,13 +2491,13 @@ async function fingerprintAgentMediaOperation(value: unknown): Promise<string> {
 
 function sanitizeWechatPackageName(value: unknown): string {
   const normalized = typeof value === "string" ? value.trim() : "";
-  const safe = Array.from(normalized || "iterlay-wechat-stickers")
+  const safe = Array.from(normalized || "tuda-wechat-stickers")
     .filter((character) => character.charCodeAt(0) >= 32 && !/[\\/:*?"<>|]/.test(character))
     .join("")
     .replace(/\s+/g, " ")
     .slice(0, 80)
     .trim();
-  return safe || "iterlay-wechat-stickers";
+  return safe || "tuda-wechat-stickers";
 }
 
 function normalizeWechatPackageRelativePath(value: unknown): string {

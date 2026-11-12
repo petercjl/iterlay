@@ -14,7 +14,7 @@ const png="iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCA
 describe("persistent Agent edit requests",()=>{
   let dir:string,boards:BoardStore,assets:AssetStore,history:HistoryStore,service:ModificationRequests,input:CreateModificationRequest;
   beforeEach(async()=>{
-    dir=await mkdtemp(path.join(os.tmpdir(),"iterlay-edit-brief-"));
+    dir=await mkdtemp(path.join(os.tmpdir(),"tuda-edit-brief-"));
     boards=new BoardStore(dir);assets=new AssetStore(dir);history=new HistoryStore(dir);
     const [source]=await assets.saveOutputs("source",[{bytes:Buffer.from(png,"base64"),mimeType:"image/png"}]);
     const board=await boards.createBoard("brief");

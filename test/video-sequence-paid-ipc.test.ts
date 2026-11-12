@@ -15,7 +15,7 @@ vi.mock("electron", () => ({
 
 describe("paid video sequence IPC", () => {
   let dir: string;
-  beforeEach(async () => { dir = await mkdtemp(path.join(os.tmpdir(), "iterlay-paid-sequence-")); electronMocks.handlers.clear(); });
+  beforeEach(async () => { dir = await mkdtemp(path.join(os.tmpdir(), "tuda-paid-sequence-")); electronMocks.handlers.clear(); });
   afterEach(async () => { await rm(dir, { recursive: true, force: true }); });
 
   it("reserves an authoritative quote before task creation and replays the original batch", async () => {

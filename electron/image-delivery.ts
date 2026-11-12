@@ -57,7 +57,7 @@ export async function buildImageDelivery(
   const sources = recipe.items.map((item) => resolveDeliverySource(board, item));
   const entries: Array<{ name: string; bytes: Buffer }> = [];
   const manifest: ImageDeliveryManifest = {
-    format: "iterlay-image-delivery", version: 1, boardId: board.id, recipeId: recipe.id,
+    format: "tuda-image-delivery", version: 1, boardId: board.id, recipeId: recipe.id,
     recipeName: recipe.name, exportedAt: new Date().toISOString(), files: []
   };
   let totalBytes = 0;

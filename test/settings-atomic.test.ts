@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { SettingsStore } from "../electron/storage/settings-store";
 describe("settings atomic transactions", () => {
   it("serializes incremental updates and writes a versioned file", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-atomic-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-settings-atomic-"));
     try {
       const store = new SettingsStore(directory);
       await Promise.all([
@@ -17,7 +17,7 @@ describe("settings atomic transactions", () => {
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
   it("persists and clears the CLI default without losing it when other settings are saved", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-cli-settings-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-cli-settings-"));
     try {
       const store = new SettingsStore(directory);
       const original = store.getSettings();
@@ -30,7 +30,7 @@ describe("settings atomic transactions", () => {
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
   it("restores cached settings when commit fails", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-atomic-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-settings-atomic-"));
     try {
       const store = new SettingsStore(directory);
       store.updateSettings({ theme: "light" });
@@ -41,7 +41,7 @@ describe("settings atomic transactions", () => {
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
   it("reports corrupt settings without replacing the original data", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-atomic-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-settings-atomic-"));
     try {
       const file = path.join(directory, "settings.json");
       await writeFile(file, "{broken");

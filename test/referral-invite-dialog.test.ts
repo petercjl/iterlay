@@ -44,7 +44,7 @@ describe("ReferralInviteDialog", () => {
         maxMajorVersion: 1,
         maxDevices: 2,
         activationCredits: 0,
-        shareMessage: "送你一份 Iterlay 永久授权",
+        shareMessage: "送你一份 Tuda 永久授权",
         status: "active",
         codesIssued: true,
         redemptionEndsAt: "2026-08-31T15:59:59Z"
@@ -80,7 +80,7 @@ describe("ReferralInviteDialog", () => {
     });
     await act(async () => { await vi.dynamicImportSettled(); });
 
-    expect(document.body.textContent).toContain("Iterlay 1.x 永久授权 · 2 台设备");
+    expect(document.body.textContent).toContain("Tuda 1.x 永久授权 · 2 台设备");
     expect(document.body.textContent).toContain("ABCD-EFGH-IJKL-MNOP");
     const copyButton = [...document.body.querySelectorAll<HTMLButtonElement>("button")].find(
       (button) => button.textContent?.includes("复制邀请")
@@ -88,7 +88,7 @@ describe("ReferralInviteDialog", () => {
     await act(async () => copyButton?.click());
 
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining("好友激活码：ABCD-EFGH-IJKL-MNOP"));
-    expect(writeText).toHaveBeenCalledWith(expect.stringContaining("送你一份 Iterlay 永久授权"));
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining("送你一份 Tuda 永久授权"));
     expect(apiMocks.recordGiftActivationShare).toHaveBeenCalledWith("code-1");
   });
 

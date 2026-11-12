@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdir } from "node:fs/promises";
 import { chromium } from "playwright";
-const origin = process.env.ITERLAY_BROWSER_SMOKE_URL || "http://127.0.0.1:5293";
+const origin = process.env.TUDA_BROWSER_SMOKE_URL || "http://127.0.0.1:5293";
 const browser = await chromium.launch({ headless: true, channel: "chrome" });
 const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: "zh-CN" });
 const page = await context.newPage();
@@ -17,7 +17,7 @@ try {
     const api = window.imageWorkbench;
     const board = await api.createBoard("工具悬停与快捷键验证");
     await api.setLastOpenedBoard(board.id);
-    localStorage.setItem("iterlay.libraryOpen", "0");
+    localStorage.setItem("tuda.libraryOpen", "0");
     return board.id;
   });
   await page.reload(); await ready();
@@ -72,11 +72,11 @@ try {
   throw error;
 } finally {
   const sessionId = await page.evaluate(async boardId => {
-    const sessionId = window.sessionStorage.getItem("iterlay:browser-debug-session");
+    const sessionId = window.sessionStorage.getItem("tuda:browser-debug-session");
     if (boardId) await window.imageWorkbench.deleteBoard(boardId);
     return sessionId;
   }, boardId).catch(error => console.error("Cleanup:", error.message));
   await page.close();
-  if (sessionId) await context.request.post(`${origin}/__iterlay_dev/disconnect`, { data: { sessionId } });
+  if (sessionId) await context.request.post(`${origin}/__tuda_dev/disconnect`, { data: { sessionId } });
   await browser.close();
 }

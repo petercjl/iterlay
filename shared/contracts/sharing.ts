@@ -29,7 +29,7 @@ export interface OnlineShareSession {
   origin?: OnlineShareCanvasOrigin;
 }
 
-/** 公网分享页可被 Iterlay 一键导入的创作上下文。 */
+/** 公网分享页可被 Tuda 一键导入的创作上下文。 */
 export interface OnlineShareImportData {
   prompt: string;
   referenceUrls: string[];

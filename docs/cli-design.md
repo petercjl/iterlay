@@ -1,4 +1,4 @@
-# Iterlay CLI 与 Coding Agent
+# Tuda CLI 与 Coding Agent
 
 2026-10-16：本次实现把对外 MCP 服务迁移为 CLI + Skill。App 内部助手继续复用应用操作目录；MasterGo 的外部集成不属于这次移除范围。
 
@@ -13,24 +13,24 @@
 ## 已实现命令
 
 ```bash
-iterlay status --json
-iterlay providers list --kind image --json
-iterlay models list --provider <id> --json
-iterlay image generate --prompt "极简咖啡杯插画" --out ./cup.png --json
-iterlay image generate --reference ./product.jpg --prompt "改为摄影棚布光" --out ./product.png --json
-iterlay image edit --input ./cup.png --prompt "杯身改为米白色" --out ./cup-light.png --json
-iterlay video generate --prompt "林间的缓慢运镜" --async --json
-iterlay tasks get <id> --json
-iterlay tasks wait <id> --out ./result.png --json
-iterlay tasks wait <video-id> --kind video --json
-iterlay boards list
-iterlay boards create --name "产品图"
-iterlay assets import --input ./product.jpg --board <id> --json
-iterlay assets export --path <managed-path> --out ./product.png --json
-iterlay tools list --json
-iterlay call arrange_images --input '{"boardId":"<id>","nodeIds":["<a>","<b>"],"mode":"grid"}' --json
-iterlay add --agent codex
-iterlay remove --agent claude-code
+tuda status --json
+tuda providers list --kind image --json
+tuda models list --provider <id> --json
+tuda image generate --prompt "极简咖啡杯插画" --out ./cup.png --json
+tuda image generate --reference ./product.jpg --prompt "改为摄影棚布光" --out ./product.png --json
+tuda image edit --input ./cup.png --prompt "杯身改为米白色" --out ./cup-light.png --json
+tuda video generate --prompt "林间的缓慢运镜" --async --json
+tuda tasks get <id> --json
+tuda tasks wait <id> --out ./result.png --json
+tuda tasks wait <video-id> --kind video --json
+tuda boards list
+tuda boards create --name "产品图"
+tuda assets import --input ./product.jpg --board <id> --json
+tuda assets export --path <managed-path> --out ./product.png --json
+tuda tools list --json
+tuda call arrange_images --input '{"boardId":"<id>","nodeIds":["<a>","<b>"],"mode":"grid"}' --json
+tuda add --agent codex
+tuda remove --agent claude-code
 ```
 
 全部原工作台操作均保留在 `tools list` 目录中，通过 `call` 访问，包括画板读取、打开、聚焦、编排、版本切换、回收站、图片生成/编辑、视频生成/续写/重混、媒体导入与原有 ZIP 导出。
@@ -43,7 +43,7 @@ iterlay remove --agent claude-code
 
 - 主要按钮依据实际状态显示安装、迁移或复制示例。
 - 旧版 MCP / 插件包配置入口已移除；无需用户处理服务命令、参数或 Token。
-- 检测可执行文件与 Codex 桌面 App，残留配置仅标为 config-only；Iterlay 自己创建的 Skill 目录不能被视为已安装程序。
+- 检测可执行文件与 Codex 桌面 App，残留配置仅标为 config-only；Tuda 自己创建的 Skill 目录不能被视为已安装程序。
 - 配置状态不声称 Agent 会话已连接。Skill 安装后提示新开会话加载。
 - 失败显示具体错误，保留重试。CLI 同名路径冲突时不覆盖既有文件。
 - 未安装 Agent 也可预装 Skill；缺少模型时直接跳转现有模型设置。
@@ -51,7 +51,7 @@ iterlay remove --agent claude-code
 
 ## 分发与隔离
 
-`cli/` 的构建随 App 打包到 Resources/cli；启动器通过随 App 携带的 Electron Node 运行时执行，不依赖系统 Node/npm。macOS/Linux 使用 `~/.local/bin/iterlay`；Windows 使用同目录的 `iterlay.cmd`。支持用户 PATH 配置与启动器版本自检。临时 DMG 或 App Translocation 路径提示先移动 App。
+`cli/` 的构建随 App 打包到 Resources/cli；启动器通过随 App 携带的 Electron Node 运行时执行，不依赖系统 Node/npm。macOS/Linux 使用 `~/.local/bin/tuda`；Windows 使用同目录的 `tuda.cmd`。支持用户 PATH 配置与启动器版本自检。临时 DMG 或 App Translocation 路径提示先移动 App。
 
 网页开发使用隔离的 `userData/agent-home/` 作为安装目标；不会自动写入真实 CLI、shell 配置或 Agent 目录。测试启动器绑定开发 userData，避免误连正式工作区。
 
@@ -59,7 +59,7 @@ iterlay remove --agent claude-code
 
 ## 旧版迁移
 
-为目标 Agent 安装新 Skill 时，清理其原有 Iterlay MCP 条目，只处理 `[mcp_servers.iterlay]` 及 env，或 `mcpServers.iterlay`；保留其他服务、模型与用户配置。无效 JSON 报错并保留原文件。
+为目标 Agent 安装新 Skill 时，清理其原有 Tuda MCP 条目，只处理 `[mcp_servers.tuda]` 及 env，或 `mcpServers.tuda`；保留其他服务、模型与用户配置。无效 JSON 报错并保留原文件。
 
 Skill 通过临时目录替换托管副本，保留升级文件差异通知和现有拒绝自动安装策略。自行维护的同名 Skill 不被覆盖或删除；旧版官方 Skill 可按识别到的内容迁移。
 
@@ -93,11 +93,11 @@ CLI 默认画板可在「设置 → Coding Agent → CLI 创作」中配置。`-
 
 ## 首次交付引导（2026-10-18）
 
-「开始使用」已从单条试用提示词扩展为三项可复制任务：检查准备情况、生成第一张图、导出示例素材。`AgentStarterGuide` 与官网 `/#/agents` 共用 `shared/agent-starter.ts`，支持 Codex 的 `$using-iterlay` 与 Claude Code 的 `/using-iterlay` 手动入口及中英文任务。完整任务默认折叠，保留返回画板检查、下载 FIELD 包及导入已下载画板的实际入口；引导沿用现有设置页字体、颜色和滚动面板。
+「开始使用」已从单条试用提示词扩展为三项可复制任务：检查准备情况、生成第一张图、导出示例素材。`AgentStarterGuide` 与官网 `/#/agents` 共用 `shared/agent-starter.ts`，支持 Codex 的 `$using-tuda` 与 Claude Code 的 `/using-tuda` 手动入口及中英文任务。完整任务默认折叠，保留返回画板检查、下载 FIELD 包及导入已下载画板的实际入口；引导沿用现有设置页字体、颜色和滚动面板。
 
 - 检查任务只读连接和配置元数据，不创建画板或调用模型；已保存 Provider 配置不等于远端健康，Skill 安装也不等于当前 Agent 会话已加载。
 - 新创作先说明 Provider/模型、只生成 1 张及费用，等待确认；沿用默认或指定画板与稳定请求 ID。生成成功而导出失败时复用原任务，不重复计费生成。
 - 示例交付使用已有 `field-starter.itb`，不要求 Provider，不调用模型。未导入时引导通过 App 导入，不虚构 CLI 导入命令；导入后使用真实返回的重映射 ID，检查已有版本。
-- 文件链为橙色原图 → `./public/iterlay-starter/hero.png`、户外图 → `scene.png`、海报 → `campaign.png`。绿色变体及橙→绿版本链保留，默认不覆盖文件，核对实际尺寸、用途和路径后交还用户在画板检查。
+- 文件链为橙色原图 → `./public/tuda-starter/hero.png`、户外图 → `scene.png`、海报 → `campaign.png`。绿色变体及橙→绿版本链保留，默认不覆盖文件，核对实际尺寸、用途和路径后交还用户在画板检查。
 
 官网默认英文，`/#/agents?lang=zh` 为中文，提供成品静态网页、真实素材来源、画板包和完整项目。`examples/field/field-review.mp4` 为已有画板版本检查与滑块回看实录，不是新生成或外部 Agent 执行录像；本轮未承诺模型生成视频。网站本身不启动 App 或调用模型，复制出的 CLI 准备检查可为建立连接启动 App。

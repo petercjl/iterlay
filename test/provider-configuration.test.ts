@@ -15,7 +15,7 @@ import { workspaceFixture } from "./helpers/workspace-fixture.js";
 const directories: string[] = [];
 afterEach(async () => { await Promise.all(directories.splice(0).map((dir) => rm(dir, { recursive: true, force: true }))); });
 async function fixture() {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-provider-config-"));
+  const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-provider-config-"));
   vi.restoreAllMocks();
   directories.push(directory);
   return { directory, store: new SettingsStore(directory) };

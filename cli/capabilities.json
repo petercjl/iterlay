@@ -1,0 +1,300 @@
+{
+  "schemaVersion": 1,
+  "name": "@petercjl/tuda",
+  "version": "0.1.0",
+  "kind": "cli-skill",
+  "skills": [
+    "using-tuda"
+  ],
+  "platforms": {
+    "darwin": "development",
+    "win32": "customer"
+  },
+  "requiredRuntime": {
+    "node": ">=22.12.0",
+    "desktop": "Tuda for canvas operations"
+  },
+  "agentEligibility": "valid-name-with-generic-fallback",
+  "hostDiscoveryAuthority": "host",
+  "automaticUpdates": {
+    "enabled": true,
+    "install": false,
+    "intervalHours": 24,
+    "timeoutMs": 600,
+    "optOut": "TUDA_NO_UPDATE_CHECK=1"
+  },
+  "installationLifecycle": {
+    "skillRequired": true,
+    "updateRequiresSkillSync": true,
+    "required_components": [
+      "cli",
+      "skill"
+    ],
+    "install": "skill install --target <exact-directory>",
+    "update": "update install --target <exact-directory>",
+    "verification": "skill status --target <exact-directory> --json"
+  },
+  "commandContracts": {
+    "version": {
+      "options": {
+        "--json": {
+          "type": "boolean"
+        }
+      },
+      "sideEffects": "none"
+    },
+    "capabilities": {
+      "options": {
+        "--json": {
+          "type": "boolean"
+        }
+      },
+      "sideEffects": "none"
+    },
+    "doctor": {
+      "options": {
+        "--json": {
+          "type": "boolean"
+        }
+      },
+      "sideEffects": "none"
+    },
+    "skill source": {
+      "options": {
+        "--json": {
+          "type": "boolean"
+        },
+        "--target": {
+          "type": "string",
+          "semantics": "exact Skill directory"
+        },
+        "--agent": {
+          "type": "string"
+        },
+        "--name": {
+          "type": "string"
+        }
+      },
+      "sideEffects": "none"
+    },
+    "skill status": {
+      "options": {
+        "--json": {
+          "type": "boolean"
+        },
+        "--target": {
+          "type": "string",
+          "semantics": "exact Skill directory"
+        },
+        "--agent": {
+          "type": "string"
+        },
+        "--name": {
+          "type": "string"
+        }
+      },
+      "sideEffects": "none"
+    },
+    "skill install": {
+      "options": {
+        "--json": {
+          "type": "boolean"
+        },
+        "--target": {
+          "type": "string",
+          "semantics": "exact Skill directory"
+        },
+        "--agent": {
+          "type": "string"
+        },
+        "--name": {
+          "type": "string"
+        }
+      },
+      "sideEffects": "local-write"
+    },
+    "skill update": {
+      "options": {
+        "--json": {
+          "type": "boolean"
+        },
+        "--target": {
+          "type": "string",
+          "semantics": "exact Skill directory"
+        },
+        "--agent": {
+          "type": "string"
+        },
+        "--name": {
+          "type": "string"
+        }
+      },
+      "sideEffects": "local-write"
+    },
+    "update check": {
+      "options": {
+        "--json": {
+          "type": "boolean"
+        },
+        "--channel": {
+          "type": "string",
+          "enum": [
+            "latest",
+            "next"
+          ]
+        }
+      },
+      "sideEffects": "read"
+    },
+    "update install": {
+      "options": {
+        "--json": {
+          "type": "boolean"
+        },
+        "--target": {
+          "type": "string",
+          "semantics": "exact Skill directory"
+        },
+        "--agent": {
+          "type": "string"
+        },
+        "--name": {
+          "type": "string"
+        },
+        "--channel": {
+          "type": "string",
+          "enum": [
+            "latest",
+            "next"
+          ]
+        }
+      },
+      "sideEffects": "package-and-skill-update"
+    }
+  },
+  "discoveryContract": {
+    "schemaVersion": 1,
+    "entryPoints": [
+      {
+        "argv": [
+          "capabilities",
+          "--json"
+        ],
+        "result": "manifest"
+      }
+    ],
+    "commandsField": "commandContracts",
+    "version": {
+      "command": "version",
+      "argv": [
+        "version",
+        "--json"
+      ],
+      "fields": {
+        "package": {
+          "field": "package",
+          "type": "string"
+        },
+        "version": {
+          "field": "version",
+          "type": "string"
+        }
+      }
+    },
+    "skillCollection": {
+      "namesField": "skills",
+      "default": "using-tuda",
+      "selector": {
+        "option": "--name",
+        "type": "string"
+      },
+      "enumeration": {
+        "argv": [
+          "skill",
+          "source",
+          "--json"
+        ],
+        "itemsField": "skills",
+        "completeField": "complete"
+      },
+      "namedSource": [
+        "skill",
+        "source",
+        "--name",
+        "{skill}",
+        "--json"
+      ]
+    }
+  },
+  "maintenanceContract": {
+    "schemaVersion": 1,
+    "agentEligibility": "valid-name-with-generic-fallback",
+    "hostDiscoveryAuthority": "host",
+    "targetOptions": {
+      "--target": {
+        "type": "string",
+        "kind": "skill-directory"
+      }
+    },
+    "source": {
+      "name": {
+        "field": "name",
+        "type": "string"
+      },
+      "package": {
+        "field": "package",
+        "type": "string"
+      },
+      "version": {
+        "field": "version",
+        "type": "string"
+      },
+      "path": {
+        "field": "sourcePath",
+        "type": "string"
+      }
+    },
+    "status": {
+      "name": {
+        "field": "name",
+        "type": "string"
+      },
+      "package": {
+        "field": "package",
+        "type": "string"
+      },
+      "version": {
+        "field": "version",
+        "type": "string"
+      },
+      "target": {
+        "field": "target",
+        "type": "string"
+      },
+      "installed": {
+        "field": "installed",
+        "type": "boolean"
+      },
+      "managed": {
+        "field": "managed",
+        "type": "boolean"
+      },
+      "current": {
+        "field": "current",
+        "type": "boolean"
+      },
+      "edited": {
+        "field": "edited",
+        "type": "boolean"
+      },
+      "verification": {
+        "field": "verification",
+        "type": "object"
+      },
+      "recovery": {
+        "field": "recovery",
+        "type": "object"
+      }
+    }
+  }
+}

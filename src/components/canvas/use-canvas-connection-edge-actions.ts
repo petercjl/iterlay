@@ -20,7 +20,7 @@ import type {
 import { connectionDraftsEqual, type PersistedCanvasConnectionEdgeData } from "./ConnectionController";
 import { canvasSelectionSnapshot, type CanvasSelectionSnapshot } from "./canvas-history";
 
-const CONNECTION_SELECTION_HINT_STORAGE_KEY = "iterlay:connection-selection-hint-seen";
+const CONNECTION_SELECTION_HINT_STORAGE_KEY = "tuda:connection-selection-hint-seen";
 
 interface UseCanvasConnectionEdgeActionsOptions {
   nodesRef: MutableRefObject<Node[]>;

@@ -72,7 +72,7 @@ export function CodingAgentSettings({ disabled, providerReady, onOpenModels, onI
         setNotice(uiText("Skill 已安装，新开 Agent 会话后即可使用。"));
         setSelectedStep(2);
       }
-      window.dispatchEvent(new Event("iterlay:agent-status-changed"));
+      window.dispatchEvent(new Event("tuda:agent-status-changed"));
     } catch (e) {
       setError(getWorkbenchErrorMessage(e, "操作未完成，请重试。"));
     } finally {
@@ -98,7 +98,7 @@ export function CodingAgentSettings({ disabled, providerReady, onOpenModels, onI
   };
 
   return <div className="coding-agent-settings" data-testid="coding-agent-settings">
-    <SettingsPageHeader title="Coding Agent" description={uiText("在你习惯的编程工具里使用 Iterlay。")}/>
+    <SettingsPageHeader title="Coding Agent" description={uiText("在你习惯的编程工具里使用 Tuda。")}/>
     <div className="coding-agent-body">
     <SettingsGroup title={uiText("默认 Coding Agent")}>
       <SettingsRow title={uiText("接收修改建议")}
@@ -142,7 +142,7 @@ export function CodingAgentSettings({ disabled, providerReady, onOpenModels, onI
         <div className="coding-agent-setup-row">
           <div className="coding-agent-avatar" aria-hidden="true"><Terminal className="size-5" /></div>
           <div className="coding-agent-info">
-            <div className="coding-agent-name"><strong>Iterlay CLI</strong><Badge variant="secondary">{uiText(cliReady ? "已安装" : status ? "待安装" : "检测中")}</Badge></div>
+            <div className="coding-agent-name"><strong>Tuda CLI</strong><Badge variant="secondary">{uiText(cliReady ? "已安装" : status ? "待安装" : "检测中")}</Badge></div>
             <p>{uiText(cliReady ? status?.cli.pathConfigured ? "新开终端即可使用，也可直接使用下方完整路径。" : "启动器已安装，PATH 还需配置。可先使用完整路径。" : "随 App 提供，无需单独安装 Node.js 或 npm。")}</p>
           </div>
           <Button variant="outline" size="sm" disabled={locked || !status} onClick={() => void perform("cli", () => getImageWorkbenchApi().installCli())}>
@@ -163,7 +163,7 @@ export function CodingAgentSettings({ disabled, providerReady, onOpenModels, onI
           const installing = busy === `install:${agent.id}`;
           const migrated = agent.legacyConfigured;
           const installed = agent.skillInstalled && !migrated;
-          const description = installed ? "已安装 using-iterlay，新开会话后可手动调用。" : migrated ? "发现旧版本集成，一键迁移为 CLI Skill。" : agent.detected ? "已找到本机应用，安装 Skill 即可开始。" : agent.detection === "config-only" ? "发现配置，尚未确认程序安装；也可先安装 Skill。" : "暂未检测到程序，也可先安装 Skill，稍后使用。";
+          const description = installed ? "已安装 using-tuda，新开会话后可手动调用。" : migrated ? "发现旧版本集成，一键迁移为 CLI Skill。" : agent.detected ? "已找到本机应用，安装 Skill 即可开始。" : agent.detection === "config-only" ? "发现配置，尚未确认程序安装；也可先安装 Skill。" : "暂未检测到程序，也可先安装 Skill，稍后使用。";
           return <div className="coding-agent-setup-row" key={agent.id}>
             <div className="coding-agent-avatar" aria-hidden="true">{agent.id === "codex" ? <Terminal className="size-5" /> : <CodeXml className="size-5" />}</div>
             <div className="coding-agent-info"><div className="coding-agent-name"><strong>{title}</strong><Badge variant="outline">{uiText(installed ? "Skill 已安装" : agent.detected ? "已检测到" : "待配置")}</Badge></div><p>{uiText(description)}</p></div>
@@ -171,12 +171,12 @@ export function CodingAgentSettings({ disabled, providerReady, onOpenModels, onI
           </div>;
         })}
       </> : <>
-        <div className="coding-agent-panel-heading"><h3>{uiText("从准备检查，到第一份交付")}</h3><p>{uiText("新开 Agent 会话，选择一项任务。安装 Skill 不代表该会话已加载它。")}</p><p>{uiText("Codex 使用 $using-iterlay；Claude Code 使用 /using-iterlay。此入口仅在手动调用时启用。")}</p></div>
+        <div className="coding-agent-panel-heading"><h3>{uiText("从准备检查，到第一份交付")}</h3><p>{uiText("新开 Agent 会话，选择一项任务。安装 Skill 不代表该会话已加载它。")}</p><p>{uiText("Codex 使用 $using-tuda；Claude Code 使用 /using-tuda。此入口仅在手动调用时启用。")}</p></div>
         {installedAgents.length ? <div className="coding-agent-ready"><CheckCircle2 className="size-4" aria-hidden="true" /><span>{installedAgents.map((agent) => agent.id === "codex" ? "Codex" : "Claude Code").join(" / ")} · {uiText("Skill 已安装")}</span></div> : <p className="coding-agent-guidance">{uiText("先完成 Skill 安装，再在新会话中尝试。")}</p>}
         {!providerReady ? <div className="coding-agent-provider"><p>{uiText("还没有可用的图片服务。配置后即可开始生成。")}</p><Button variant="outline" size="sm" disabled={locked} onClick={onOpenModels}>{uiText("配置图片服务")}</Button></div> : null}
         <AgentStarterGuide disabled={locked} defaultAgent={defaultAgent ?? installedAgents[0]?.id ?? "codex"} onCopy={copy} copied={copied} onImportBoard={onImportBoard} onOpenBoards={onOpenBoards} />
         <p className="coding-agent-command-label">{uiText("也可以直接在终端运行")}</p>
-        <div className="coding-agent-command"><code>iterlay providers list --json</code><Button variant="ghost" size="icon" aria-label={uiText("复制终端命令")} onClick={() => void copy("iterlay providers list --json", "command")}>{copied === "command" ? <Check /> : <Copy />}</Button></div>
+        <div className="coding-agent-command"><code>tuda providers list --json</code><Button variant="ghost" size="icon" aria-label={uiText("复制终端命令")} onClick={() => void copy("tuda providers list --json", "command")}>{copied === "command" ? <Check /> : <Copy />}</Button></div>
       </>}
 
       {notice ? <p className="coding-agent-feedback" role="status"><CheckCircle2 className="size-4" aria-hidden="true" />{notice}</p> : null}
@@ -192,7 +192,7 @@ export function CodingAgentSettings({ disabled, providerReady, onOpenModels, onI
     <details className="coding-agent-details"><summary>{uiText("命令、安装位置与维护")}</summary><div className="coding-agent-detail-content">
       <p>{uiText("CLI 与 Skill 共用 App 的模型配置；安装 Skill 不会发起生成请求。")}</p>
       {status?.cli.path ? <div><strong>{uiText("CLI 位置")}</strong><code>{status.cli.path}</code><Button size="sm" variant="outline" onClick={() => void copy(status.cli.path, "path")}>{uiText(copied === "path" ? "已复制" : "复制路径")}</Button></div> : null}
-      {status?.clients.map((agent) => <div key={agent.id}><strong>{agent.id === "codex" ? "Codex" : "Claude Code"}</strong><code>{agent.skillPath}</code><div className="coding-agent-detail-actions"><Button size="sm" variant="outline" disabled={locked} onClick={() => void perform(`install:${agent.id}`, () => getImageWorkbenchApi().installAgentSkill(agent.id))}>{uiText("重新安装 Skill")}</Button>{agent.skillInstalled && agent.skillManaged ? <Button size="sm" variant="ghost" disabled={locked} onClick={() => { if (window.confirm(uiText("移除此 Agent 的 Iterlay Skill？之后不会再自动安装，可随时重新安装。"))) void perform(`remove:${agent.id}`, () => getImageWorkbenchApi().removeAgentSkill(agent.id)); }}><Trash2 />{uiText("移除 Skill")}</Button> : null}</div></div>)}
+      {status?.clients.map((agent) => <div key={agent.id}><strong>{agent.id === "codex" ? "Codex" : "Claude Code"}</strong><code>{agent.skillPath}</code><div className="coding-agent-detail-actions"><Button size="sm" variant="outline" disabled={locked} onClick={() => void perform(`install:${agent.id}`, () => getImageWorkbenchApi().installAgentSkill(agent.id))}>{uiText("重新安装 Skill")}</Button>{agent.skillInstalled && agent.skillManaged ? <Button size="sm" variant="ghost" disabled={locked} onClick={() => { if (window.confirm(uiText("移除此 Agent 的 Tuda Skill？之后不会再自动安装，可随时重新安装。"))) void perform(`remove:${agent.id}`, () => getImageWorkbenchApi().removeAgentSkill(agent.id)); }}><Trash2 />{uiText("移除 Skill")}</Button> : null}</div></div>)}
     </div></details>
     </div>
   </div>;

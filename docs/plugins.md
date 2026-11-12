@@ -1,10 +1,10 @@
 # 工具插件（API v1，实验版）
 
-Iterlay 的工具插件是一个独立安装包，可以注册画板侧栏入口，提供完整的 React 工具界面和设置页。短剧助手是第一个官方工具，界面从安装包加载，不再编译进主程序。1.2.0 起，短剧插件占据整个项目工作区，默认页面是分镜网格，不再挂载节点画板。主程序保留短剧领域数据兼容、版本校验和可信 Agent 执行能力，插件通过 SDK 调用。1.3.2 起，角色画面策略、项目初始化和兼容助手的创作规划在已安装的插件沙箱中运行，不再从宿主静态导入插件业务源码。
+Tuda 的工具插件是一个独立安装包，可以注册画板侧栏入口，提供完整的 React 工具界面和设置页。短剧助手是第一个官方工具，界面从安装包加载，不再编译进主程序。1.2.0 起，短剧插件占据整个项目工作区，默认页面是分镜网格，不再挂载节点画板。主程序保留短剧领域数据兼容、版本校验和可信 Agent 执行能力，插件通过 SDK 调用。1.3.2 起，角色画面策略、项目初始化和兼容助手的创作规划在已安装的插件沙箱中运行，不再从宿主静态导入插件业务源码。
 
 ## 使用
 
-在画板左上方的插件工具栏点击 `＋` 打开插件市场。可安装随应用发布的官方工具，也可导入 `.iterlay-plugin` 文件。安装前展示开发者、版本和权限。支持停用、启用、卸载及同 ID 更新。
+在画板左上方的插件工具栏点击 `＋` 打开插件市场。可安装随应用发布的官方工具，也可导入 `.tuda-plugin` 文件。安装前展示开发者、版本和权限。支持停用、启用、卸载及同 ID 更新。
 
 第一版的“市场”是随应用发布的官方目录，并非已上线的第三方在线服务。第三方发布审核、远程下载、签名验证、自动更新，以及 Provider 插件运行机制尚未实现。
 
@@ -12,7 +12,7 @@ Iterlay 的工具插件是一个独立安装包，可以注册画板侧栏入口
 
 ## 插件包
 
-`.iterlay-plugin` 是 ZIP，包含且只包含两个文件：
+`.tuda-plugin` 是 ZIP，包含且只包含两个文件：
 
 - `manifest.json`：ID、名称、版本、API 版本、权限和设置页声明。
 - `index.html`：自包含的界面文件，JavaScript、CSS、字体和静态图片都应内联；运行时不允许直接访问网络。
@@ -21,23 +21,23 @@ Iterlay 的工具插件是一个独立安装包，可以注册画板侧栏入口
 
 ## React 开发
 
-源码示例位于 `plugins/short-drama/src/`，SDK 位于 `packages/plugin-sdk/src/`。在本仓库可以直接引用 SDK 源码；`@iterlay/plugin-sdk` 目前尚未发布到 npm。`pnpm plugins:build` 同时构建独立 SDK（含类型声明），第三方项目可用 `npm install /绝对路径/packages/plugin-sdk` 本地安装，然后从 `@iterlay/plugin-sdk` 导入；SDK 构建产物不依赖仓库外部源码。
+源码示例位于 `plugins/short-drama/src/`，SDK 位于 `packages/plugin-sdk/src/`。在本仓库可以直接引用 SDK 源码；`@tuda/plugin-sdk` 目前尚未发布到 npm。`pnpm plugins:build` 同时构建独立 SDK（含类型声明），第三方项目可用 `npm install /绝对路径/packages/plugin-sdk` 本地安装，然后从 `@tuda/plugin-sdk` 导入；SDK 构建产物不依赖仓库外部源码。
 
 ```tsx
-import { iterlay, usePluginContext } from "../../../packages/plugin-sdk/src";
+import { tuda, usePluginContext } from "../../../packages/plugin-sdk/src";
 
 export function MyTool() {
   const context = usePluginContext();
   return <button onClick={async () => {
-    const snapshot = await iterlay.board.snapshot();
+    const snapshot = await tuda.board.snapshot();
     console.log(context?.boardId, snapshot.nodes);
   }}>读取当前画板</button>;
 }
 ```
 
-`pnpm plugins:build` 使用 esbuild 打包官方 React 插件，输出 `resources/plugins/dev.iterlay.short-drama.iterlay-plugin`。开发启动和前端构建会自动运行它。修改插件源码后需重建，再在插件管理器导入新包；已经安装的包不会被源码修改悄悄替换。发行包把官方插件放在 Electron resources 的 `plugins/` 目录。
+`pnpm plugins:build` 使用 esbuild 打包官方 React 插件，输出 `resources/plugins/dev.tuda.short-drama.tuda-plugin`。开发启动和前端构建会自动运行它。修改插件源码后需重建，再在插件管理器导入新包；已经安装的包不会被源码修改悄悄替换。发行包把官方插件放在 Electron resources 的 `plugins/` 目录。
 
-第三方可复用 `scripts/build-plugins.mjs` 的打包方式：React 打包为浏览器 IIFE，内联 CSS，写入 HTML，再将 HTML 与声明打成 ZIP。插件不得依赖 Iterlay 内部组件、React 实例或私有模块。
+第三方可复用 `scripts/build-plugins.mjs` 的打包方式：React 打包为浏览器 IIFE，内联 CSS，写入 HTML，再将 HTML 与声明打成 ZIP。插件不得依赖 Tuda 内部组件、React 实例或私有模块。
 
 ## 宿主 API
 

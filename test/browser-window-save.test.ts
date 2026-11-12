@@ -51,7 +51,7 @@ describe("browser window save lifecycle", () => {
     expect(saved.defaultPrevented).toBe(false);
     expect(flush).toHaveBeenCalledOnce();
     const waitUntil = vi.fn();
-    window.dispatchEvent(new CustomEvent("iterlay:browser-workbench-before-reload", { detail: { waitUntil } }));
+    window.dispatchEvent(new CustomEvent("tuda:browser-workbench-before-reload", { detail: { waitUntil } }));
     expect(waitUntil).toHaveBeenCalledWith(expect.any(Promise));
     expect(flush).toHaveBeenCalledTimes(2);
   });

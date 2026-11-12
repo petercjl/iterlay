@@ -29,7 +29,7 @@ export function AgentStarterGuide({ disabled, defaultAgent, onCopy, copied, onIm
   const prompt = buildAgentStarterPrompt(agent, language, mode);
   const task = TASKS.find((item) => item.id === mode)!;
   const copyKey = `starter:${agent}:${language}:${mode}`;
-  const site = `https://davied-h.github.io/iterlay/`;
+  const site = `https://petercjl.github.io/iterlay/`;
 
   return <div className="agent-starter-guide">
     <div className="agent-starter-agent" role="group" aria-label={uiText("任务使用的 Agent")}>
@@ -43,10 +43,10 @@ export function AgentStarterGuide({ disabled, defaultAgent, onCopy, copied, onIm
         <p>{uiText("先下载并导入 FIELD 画板包，通过画板左上的示例章节定位源图、改色、场景和海报，再导出三个交付结果。导入与浏览不会调用模型。")}</p>
         <div className="agent-starter-links"><a href={`${site}${AGENT_STARTER.archivePath}`} target="_blank" rel="noreferrer">{uiText("下载 FIELD 画板包")}<ArrowUpRight aria-hidden="true" /></a>{onImportBoard ? <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={onImportBoard}><Import />{uiText("导入已下载的画板包")}</Button> : null}</div>
       </div>}
-      <div className="agent-starter-prompt-actions"><Button type="button" size="sm" disabled={disabled} aria-label={uiText(task.copy)} onClick={() => void onCopy(prompt, copyKey)}>{copied === copyKey ? <Check /> : <Copy />}{uiText(copied === copyKey ? "已复制" : task.copy)}</Button><span className="agent-starter-invocation">{agent === "codex" ? "$using-iterlay" : "/using-iterlay"}</span></div>
+      <div className="agent-starter-prompt-actions"><Button type="button" size="sm" disabled={disabled} aria-label={uiText(task.copy)} onClick={() => void onCopy(prompt, copyKey)}>{copied === copyKey ? <Check /> : <Copy />}{uiText(copied === copyKey ? "已复制" : task.copy)}</Button><span className="agent-starter-invocation">{agent === "codex" ? "$using-tuda" : "/using-tuda"}</span></div>
       <details className="agent-starter-prompt"><summary>{uiText("查看完整任务")}</summary><pre>{prompt}</pre></details>
     </section>
-    <div className="agent-starter-handoff"><div><strong>{uiText("拿到结果后，回到画板检查")}</strong><p>{uiText("按 Agent 返回的画板名称打开结果，比较并选择版本。导出文件保存在项目的 public/iterlay-starter 目录，已有文件不会覆盖。")}</p></div>{onOpenBoards ? <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={onOpenBoards}><FolderOpen />{uiText("查看画板与结果")}</Button> : null}</div>
+    <div className="agent-starter-handoff"><div><strong>{uiText("拿到结果后，回到画板检查")}</strong><p>{uiText("按 Agent 返回的画板名称打开结果，比较并选择版本。导出文件保存在项目的 public/tuda-starter 目录，已有文件不会覆盖。")}</p></div>{onOpenBoards ? <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={onOpenBoards}><FolderOpen />{uiText("查看画板与结果")}</Button> : null}</div>
     <a className="agent-starter-case-link" href={`${site}#/agents?lang=${language}`} target="_blank" rel="noreferrer">{uiText("查看完整案例与交付步骤")}<ArrowUpRight aria-hidden="true" /></a>
   </div>;
 }

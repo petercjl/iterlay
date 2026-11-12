@@ -11,14 +11,14 @@ const sourceWorkspace = path.join(
   process.env.HOME,
   "Library",
   "Application Support",
-  "Iterlay",
+  "Tuda",
   "workspace"
 );
 const boardId = "7f1b9dd9-ac0d-4021-a8b5-ff0d537cbf7b";
 const sourceNodeId = "7dc26f35-bacc-4ef5-936c-3708a654488c";
 const targetNodeId = "6b028b52-a452-456e-a9ef-7744e6d6a791";
 const outputDirectory = path.join(projectRoot, "output", "playwright");
-const qaUserDataDirectory = await realpath(await mkdtemp(path.join(tmpdir(), "iterlay-connection-alignment-")));
+const qaUserDataDirectory = await realpath(await mkdtemp(path.join(tmpdir(), "tuda-connection-alignment-")));
 const qaWorkspace = path.join(qaUserDataDirectory, "workspace");
 const qaBoards = path.join(qaWorkspace, "boards");
 const qaOutputs = path.join(qaWorkspace, "outputs");
@@ -57,12 +57,12 @@ await Promise.all([
 const electronApp = await electron.launch({
   args: [`--user-data-dir=${qaUserDataDirectory}`, "."],
   cwd: projectRoot,
-  ...(process.env.ITERLAY_E2E_ELECTRON
-    ? { executablePath: process.env.ITERLAY_E2E_ELECTRON }
+  ...(process.env.TUDA_E2E_ELECTRON
+    ? { executablePath: process.env.TUDA_E2E_ELECTRON }
     : {}),
   env: {
     ...process.env,
-    ITERLAY_PLAYWRIGHT: "1",
+    TUDA_PLAYWRIGHT: "1",
     VITE_DEV_SERVER_URL: process.env.VITE_DEV_SERVER_URL ?? "http://127.0.0.1:5180"
   },
   timeout: 30_000

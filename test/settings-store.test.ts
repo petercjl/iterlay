@@ -6,7 +6,7 @@ import { normalizeProvider,SettingsStore } from "../electron/storage/settings-st
 
 describe("SettingsStore provider normalization", () => {
   it("migrates the legacy board-only Agent switch to the global assistant switch", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-settings-"));
     try {
       await writeFile(path.join(directory, "settings.json"), JSON.stringify({
         providers: [],
@@ -24,7 +24,7 @@ describe("SettingsStore provider normalization", () => {
   });
 
   it("defaults language to system and persists explicit preferences", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-settings-"));
     try {
       const store = new SettingsStore(directory);
       const defaults = store.getSettings();
@@ -38,7 +38,7 @@ describe("SettingsStore provider normalization", () => {
   });
 
   it("persists every app preference through independent incremental updates", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-settings-"));
     try {
       const store = new SettingsStore(directory);
       const preferences = {
@@ -79,7 +79,7 @@ describe("SettingsStore provider normalization", () => {
   });
 
   it("defaults trash retention to three days and persists supported values", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-settings-"));
     try {
       const store = new SettingsStore(directory);
       const settings = store.getSettings();
@@ -93,7 +93,7 @@ describe("SettingsStore provider normalization", () => {
   });
 
   it("requires a self-configured provider for a new install", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-settings-"));
     try {
       const settings = new SettingsStore(directory).getSettings();
       expect(settings.activeProviderId).toBe("openai-compatible");
@@ -106,7 +106,7 @@ describe("SettingsStore provider normalization", () => {
   });
 
   it("does not inject official providers when saving", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-settings-"));
     try {
       const store = new SettingsStore(directory);
       const defaults = store.getSettings();
@@ -121,7 +121,7 @@ describe("SettingsStore provider normalization", () => {
   });
 
   it("preserves the active custom provider during upgrade", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-settings-"));
     try {
       await writeFile(
         path.join(directory, "settings.json"),
@@ -245,7 +245,7 @@ describe("SettingsStore provider normalization", () => {
   });
 
   it("defaults image double-click to edit and persists alternate actions", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-settings-"));
     try {
       const store = new SettingsStore(directory);
       const defaults = store.getSettings();
@@ -262,7 +262,7 @@ describe("SettingsStore provider normalization", () => {
   });
 
   it("defaults canvas thumbnail previews to on and preserves an explicit opt-out", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-settings-"));
     try {
       const store = new SettingsStore(directory);
       const defaults = store.getSettings();
@@ -276,7 +276,7 @@ describe("SettingsStore provider normalization", () => {
   });
 
   it("disables online image sharing by default and retains the stored preference for future availability", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-settings-"));
     try {
       const store = new SettingsStore(directory);
       const defaults = store.getSettings();
@@ -292,7 +292,7 @@ describe("SettingsStore provider normalization", () => {
   it.each(["boardCommentsEnabled", "boardGalleryEnabled"] as const)(
     "defaults %s to off in existing settings and persists independent opt-ins",
     async (preference) => {
-      const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
+      const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-settings-"));
       try {
         await writeFile(path.join(directory, "settings.json"), JSON.stringify({
           providers: [], activeProviderId: "", theme: "system"
@@ -314,7 +314,7 @@ describe("SettingsStore provider normalization", () => {
   );
 
   it("defaults the canvas minimap to visible and persists an explicit opt-out", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-settings-"));
     try {
       const store = new SettingsStore(directory);
       const defaults = store.getSettings();
@@ -328,7 +328,7 @@ describe("SettingsStore provider normalization", () => {
   });
 
   it("defaults image toolbar hover activation to off and persists an explicit opt-in", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-settings-"));
     try {
       const store = new SettingsStore(directory);
       const defaults = store.getSettings();
@@ -342,7 +342,7 @@ describe("SettingsStore provider normalization", () => {
   });
 
   it("defaults relationship hover highlighting to off and persists an explicit opt-in", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-settings-"));
     try {
       const store = new SettingsStore(directory);
       const defaults = store.getSettings();
@@ -356,7 +356,7 @@ describe("SettingsStore provider normalization", () => {
   });
 
   it("defaults prompt dock anchor expansion to off and persists an explicit opt-in", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-settings-"));
     try {
       const store = new SettingsStore(directory);
       const defaults = store.getSettings();
@@ -370,7 +370,7 @@ describe("SettingsStore provider normalization", () => {
   });
 
   it("defaults advanced video modes to off and persists an explicit opt-in", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-settings-"));
     try {
       const store = new SettingsStore(directory);
       const defaults = store.getSettings();
@@ -384,7 +384,7 @@ describe("SettingsStore provider normalization", () => {
   });
 
   it("defaults board smart suggestions to off and persists an explicit opt-in", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-settings-"));
     try {
       const store = new SettingsStore(directory);
       const defaults = store.getSettings();
@@ -398,7 +398,7 @@ describe("SettingsStore provider normalization", () => {
   });
 
   it("defaults every board AI feature on and persists explicit opt-outs", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-settings-"));
     try {
       const store = new SettingsStore(directory);
       const defaults = store.getSettings();
@@ -406,8 +406,8 @@ describe("SettingsStore provider normalization", () => {
       expect(defaults.boardAssistantAgentModeEnabled).toBe(false);
       expect(defaults.assistantAgentModeEnabled).toBe(false);
       expect(defaults.piAgentBuiltinTools).toEqual(["read", "grep", "find", "ls"]);
-      expect(defaults.piAgentIterlayTools).toHaveLength(28);
-      expect(defaults.piAgentIterlayTools).toEqual(expect.arrayContaining(["create_canvas", "update_canvas"]));
+      expect(defaults.piAgentTudaTools).toHaveLength(28);
+      expect(defaults.piAgentTudaTools).toEqual(expect.arrayContaining(["create_canvas", "update_canvas"]));
       expect(defaults.piAgentMaxTurns).toBe(12);
       expect(defaults.piAgentWebSearchMaxResults).toBe(5);
       expect(defaults.boardAssistantAwarenessEnabled).toBe(true);
@@ -420,7 +420,7 @@ describe("SettingsStore provider normalization", () => {
         boardAssistantAgentModeEnabled: true,
         assistantAgentModeEnabled: true,
         piAgentBuiltinTools: ["read", "bash"],
-        piAgentIterlayTools: ["get_board"],
+        piAgentTudaTools: ["get_board"],
         piAgentSkillPaths: ["/tmp/skill/SKILL.md"],
         piAgentExtensionPaths: ["/tmp/extension.ts"],
         piAgentMaxTurns: 20,
@@ -434,7 +434,7 @@ describe("SettingsStore provider normalization", () => {
         boardAssistantAgentModeEnabled: true,
         assistantAgentModeEnabled: true,
         piAgentBuiltinTools: ["read", "bash"],
-        piAgentIterlayTools: ["get_board"],
+        piAgentTudaTools: ["get_board"],
         piAgentSkillPaths: ["/tmp/skill/SKILL.md"],
         piAgentExtensionPaths: ["/tmp/extension.ts"],
         piAgentMaxTurns: 20,
@@ -449,7 +449,7 @@ describe("SettingsStore provider normalization", () => {
   });
 
   it("defaults edit smart suggestions to on and persists an explicit opt-out", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-settings-"));
     try {
       const store = new SettingsStore(directory);
       const defaults = store.getSettings();
@@ -466,7 +466,7 @@ describe("SettingsStore provider normalization", () => {
   });
 
   it("defaults assistant memory to on and persists its usage level", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-settings-"));
     try {
       const store = new SettingsStore(directory);
       const defaults = store.getSettings();
@@ -484,7 +484,7 @@ describe("SettingsStore provider normalization", () => {
   });
 
   it("persists the automatic download directory across restarts", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-settings-"));
     try {
       const store = new SettingsStore(directory);
       expect(store.getSettings().downloadDirectory).toBe("");
@@ -498,7 +498,7 @@ describe("SettingsStore provider normalization", () => {
   });
 
   it("defaults version separation to copy and persists direct separation", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-settings-"));
     try {
       const store = new SettingsStore(directory);
       const defaults = store.getSettings();
@@ -512,7 +512,7 @@ describe("SettingsStore provider normalization", () => {
   });
 
   it("hides WeChat sticker export by default and persists the experimental toggle", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-settings-"));
     try {
       const store = new SettingsStore(directory);
       const defaults = store.getSettings();
@@ -526,7 +526,7 @@ describe("SettingsStore provider normalization", () => {
   });
 
   it("defaults copied images to PNG and persists GIF output", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-settings-"));
     try {
       const store = new SettingsStore(directory);
       const defaults = store.getSettings();
@@ -540,7 +540,7 @@ describe("SettingsStore provider normalization", () => {
   });
 
   it("defaults the generate button to folded and persists alternate styles", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-settings-"));
     try {
       const store = new SettingsStore(directory);
       const defaults = store.getSettings();
@@ -560,7 +560,7 @@ describe("SettingsStore provider normalization", () => {
   });
 
   it("defaults to the brand app icon and persists the mascot icon", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-settings-"));
     try {
       const store = new SettingsStore(directory);
       expect(store.getSettings().appIcon).toBe("default");
@@ -573,7 +573,7 @@ describe("SettingsStore provider normalization", () => {
   });
 
   it("persists custom app icon history and falls back to the mascot when the active custom icon is deleted", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-settings-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-settings-"));
     try {
       const store = new SettingsStore(directory);
       const customIcon = {
@@ -600,7 +600,7 @@ describe("SettingsStore provider normalization", () => {
 });
 
 it("defaults screen access to ask and persists only explicit permission choices", async () => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-screen-settings-"));
+  const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-screen-settings-"));
   try {
     const store = new SettingsStore(directory);
     expect(store.getSettings().assistantScreenAccess).toBe("ask");

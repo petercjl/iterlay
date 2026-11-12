@@ -1,6 +1,6 @@
 import { useCallback, useMemo, type Dispatch, type SetStateAction } from "react";
 import { toast } from "sonner";
-import { iterlayToast } from "@/components/ui/iterlay-toast";
+import { tudaToast } from "@/components/ui/tuda-toast";
 import { translateSourceText } from "@/i18n/ui-text";
 import type { GeneratedImage } from "@/components/canvas/image-node-model";
 import { createCustomScene, createCustomSceneFromScene, updateCustomScene, writeCustomScenes, writeFavoriteSceneIds, type NewSceneInput, type SceneDefinition } from "@/lib/scene-library";
@@ -91,7 +91,7 @@ export function useTemplateLibrary({ setFavoriteSceneIds, setCustomScenes, setLi
       writeCustomScenes(next);
       return next;
     });
-    iterlayToast.templateSaved({ name: scene.name, onNavigate: () => openTemplateDetail(scene) });
+    tudaToast.templateSaved({ name: scene.name, onNavigate: () => openTemplateDetail(scene) });
     return scene;
   }, [openTemplateDetail, setCustomScenes]);
 
@@ -106,7 +106,7 @@ export function useTemplateLibrary({ setFavoriteSceneIds, setCustomScenes, setLi
       writeCustomScenes(next);
       return next;
     });
-    iterlayToast.templateSaved({ name: updated.name, updated: true, onNavigate: () => openTemplateDetail(updated) });
+    tudaToast.templateSaved({ name: updated.name, updated: true, onNavigate: () => openTemplateDetail(updated) });
     return updated;
   }, [openTemplateDetail, setCustomScenes]);
 
@@ -131,7 +131,7 @@ export function useTemplateLibrary({ setFavoriteSceneIds, setCustomScenes, setLi
     try {
       const result = await api.exportScene(scene);
       if (result.ok && result.path) {
-        iterlayToast.exported({ title: translateSourceText("模板已导出"), path: result.path });
+        tudaToast.exported({ title: translateSourceText("模板已导出"), path: result.path });
       }
     } catch (error) {
       reportWorkbenchError(error);

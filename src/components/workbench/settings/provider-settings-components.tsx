@@ -116,8 +116,8 @@ export interface ProviderSettingsDialogProps {
   onBoardAssistantAgentModeEnabledChange: (value: boolean) => void;
   piAgentBuiltinTools: PiAgentBuiltinToolName[];
   onPiAgentBuiltinToolsChange: (value: PiAgentBuiltinToolName[]) => void;
-  piAgentIterlayTools: string[];
-  onPiAgentIterlayToolsChange: (value: string[]) => void;
+  piAgentTudaTools: string[];
+  onPiAgentTudaToolsChange: (value: string[]) => void;
   piAgentSkillPaths: string[];
   onPiAgentSkillPathsChange: (value: string[]) => void;
   piAgentExtensionPaths: string[];
@@ -2105,7 +2105,7 @@ export function AiConfigurationOverview({
             <div className="flex min-w-0 items-start justify-between gap-4 pr-10">
               <div className="min-w-0">
                 <h3 className="text-sm font-medium text-foreground">{uiText("默认模型")}</h3>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">{uiText("Iterlay 会在对应功能中自动使用这些模型。")}</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">{uiText("Tuda 会在对应功能中自动使用这些模型。")}</p>
               </div>
               <Button
                 type="button"

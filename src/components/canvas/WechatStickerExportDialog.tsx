@@ -94,7 +94,7 @@ export function WechatStickerExportDialog({
   const [background, setBackground] = useState<WechatStickerBackground>("transparent");
   const [createZip, setCreateZip] = useState(true);
   const [albumName, setAlbumName] = useState("我的微信表情");
-  const [description, setDescription] = useState("由 Iterlay 创作");
+  const [description, setDescription] = useState("由 Tuda 创作");
   const [copyright, setCopyright] = useState("");
   const [bannerBackground, setBannerBackground] = useState("#dff7ef");
   const [meanings, setMeanings] = useState<string[]>([]);

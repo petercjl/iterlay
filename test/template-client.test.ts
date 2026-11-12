@@ -26,7 +26,7 @@ describe("ManagerTemplateClient", () => {
     });
     const client = new ManagerTemplateClient(
       { createSignedRequest, markCredentialRejected: vi.fn() },
-      "https://iterlay.example/api/v1",
+      "https://tuda.example/api/v1",
       fetchImpl as typeof fetch
     );
 
@@ -62,7 +62,7 @@ describe("ManagerTemplateClient", () => {
     });
     const client = new ManagerTemplateClient(
       { createSignedRequest, markCredentialRejected: vi.fn() },
-      "https://iterlay.example/api/v1/",
+      "https://tuda.example/api/v1/",
       fetchImpl as typeof fetch
     );
 
@@ -78,7 +78,7 @@ describe("ManagerTemplateClient", () => {
       sourceTemplateId: "custom:test"
     }));
     expect(fetchImpl).toHaveBeenCalledWith(
-      "https://iterlay.example/api/v1/template-submissions/status",
+      "https://tuda.example/api/v1/template-submissions/status",
       expect.objectContaining({ method: "POST" })
     );
   });
@@ -96,7 +96,7 @@ describe("ManagerTemplateClient", () => {
         })),
         markCredentialRejected: vi.fn()
       },
-      "https://iterlay.example/api/v1",
+      "https://tuda.example/api/v1",
       vi.fn(async () => new Response(JSON.stringify({
         code: "not_found",
         message: "资源不存在"
@@ -119,7 +119,7 @@ describe("ManagerTemplateClient", () => {
         })),
         markCredentialRejected: vi.fn()
       },
-      "https://iterlay.example/api/v1",
+      "https://tuda.example/api/v1",
       vi.fn(async () => new Response("404 page not found", { status: 404 })) as typeof fetch
     );
 

@@ -88,7 +88,7 @@ describe("RootErrorBoundary", () => {
 
     expect(writeText).toHaveBeenCalledOnce();
     const report = writeText.mock.calls[0]?.[0] ?? "";
-    expect(report).toContain("Iterlay renderer diagnostics");
+    expect(report).toContain("Tuda renderer diagnostics");
     expect(report).toContain("App version:");
     expect(report).toContain("~/private.ts?token=[redacted]");
     expect(report).toContain("Bearer [redacted]");

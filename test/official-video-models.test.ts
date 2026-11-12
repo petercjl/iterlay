@@ -3,7 +3,7 @@ import { mergeOfficialVideoCatalog } from "../src/lib/official-video-models.js";
 import type { VideoProviderConfig } from "../shared/types.js";
 
 const providers: VideoProviderConfig[] = [
-  { id: "official", name: "Iterlay 官方", type: "official", baseUrl: "", model: "官方视频模型" },
+  { id: "official", name: "Tuda 官方", type: "official", baseUrl: "", model: "官方视频模型" },
   { id: "ark", name: "Ark", type: "ark", baseUrl: "https://ark.test", model: "ark-model" }
 ];
 

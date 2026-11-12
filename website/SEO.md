@@ -10,7 +10,7 @@
 
 ## 路由与部署
 
-默认站点为 `https://davied-h.github.io/iterlay/`。英文产品页为 `/iterlay/en/`，中文为 `/iterlay/zh/`，根页面保留中文 HTML 并 canonical 到中文产品页。`/#/agents` 仍默认英文，`/#/agents?lang=zh` 为中文。旧 Hash 入口、功能与子操作参数会在浏览器中转换，原二维码仍能使用。
+默认站点为 `https://petercjl.github.io/iterlay/`。英文产品页为 `/tuda/en/`，中文为 `/tuda/zh/`，根页面保留中文 HTML 并 canonical 到中文产品页。`/#/agents` 仍默认英文，`/#/agents?lang=zh` 为中文。旧 Hash 入口、功能与子操作参数会在浏览器中转换，原二维码仍能使用。
 
 页面由 `scripts/prerender.mjs` 在 Vite 构建后输出为对应目录下的 `index.html`。GitHub Pages 直接提供这些文件；不依赖 SPA 回退。`404.html` 使用 noindex，部署主机应对未知地址返回 HTTP 404，不能统一返回 200 的首页。
 
@@ -34,19 +34,19 @@ PAGES_BASE_PATH=/ VITE_SITE_ORIGIN=https://your-domain.example npm run build
 
 ### robots.txt 的主机根路径限制
 
-构建会输出 `robots.txt`，但爬虫只认主机根目录的 `/robots.txt`。当前 `/iterlay/robots.txt` **不控制** `davied-h.github.io` 整个主机。当前项目无法单独修改用户站点仓库的根文件；发布时需要核对 `https://davied-h.github.io/robots.txt`。
+构建会输出 `robots.txt`，但爬虫只认主机根目录的 `/robots.txt`。当前 `/tuda/robots.txt` **不控制** `davied-h.github.io` 整个主机。当前项目无法单独修改用户站点仓库的根文件；发布时需要核对 `https://davied-h.github.io/robots.txt`。
 
 使用独立域名并部署到 `/` 后，生成的文件即可直接生效。默认允许爬取，不设置训练爬虫黑名单，也不因技术抓取许可而授予内容许可证；若要限制特定训练用途，应先选择策略并在主机根 robots 中单独配置。llms.txt 在项目路径可以直接访问，但不保证各工具自动发现它。
 
 ## Google Search Console 与 Bing Webmaster Tools
 
-1. Google Search Console 添加 URL 前缀属性 `https://davied-h.github.io/iterlay/`；不要尝试验证不属于你的 `github.io` 域名 DNS。Bing 添加相同站点，也可使用已验证的 Google 属性导入。
+1. Google Search Console 添加 URL 前缀属性 `https://petercjl.github.io/iterlay/`；不要尝试验证不属于你的 `github.io` 域名 DNS。Bing 添加相同站点，也可使用已验证的 Google 属性导入。
 2. 选择 HTML meta 验证，取 Google `google-site-verification` 或 Bing `msvalidate.01` 的 **content 值**，不要粘贴整段 HTML。
 3. 在 GitHub 仓库 Settings → Secrets and variables → Actions → Variables 设置公开变量：
    - `GOOGLE_SITE_VERIFICATION`
    - `BING_SITE_VERIFICATION`
 4. 重新运行 Pages 工作流，在源 HTML 确认 meta 后到平台点验证。
-5. 两个平台提交 `https://davied-h.github.io/iterlay/sitemap.xml`，抽查 `/en/`、`/zh/`、`/en/agents/` 与教程页面的 URL 检查和渲染结果。
+5. 两个平台提交 `https://petercjl.github.io/iterlay/sitemap.xml`，抽查 `/en/`、`/zh/`、`/en/agents/` 与教程页面的 URL 检查和渲染结果。
 
 本地构建对应变量为 `VITE_GOOGLE_SITE_VERIFICATION` / `VITE_BING_SITE_VERIFICATION`。这些是公开站点验证值，不是 API 密钥。仅添加配置不会自动完成账号验证或 sitemap 提交。
 
@@ -75,7 +75,7 @@ npm run build
 npm run check:seo
 npm run preview -- --host 127.0.0.1 --port 4174
 # 发布后检查线上；更换域名时设置完整站点 URL：
-SEO_SITE_URL=https://davied-h.github.io/iterlay/ npm run check:live
+SEO_SITE_URL=https://petercjl.github.io/iterlay/ npm run check:live
 ```
 
 `build` 自动检查 40 页的正文、唯一标题、canonical、多语言元信息、JSON-LD、站内链接、静态素材与 404 noindex。新增页面后同步更新校验脚本的预期数量。
@@ -88,14 +88,14 @@ Pages 工作流依次执行单测、类型检查、构建校验、部署与线�
 
 - Google/Bing：提交页数、已收录页数、未收录原因、自然搜索展示与点击、品牌词与非品牌词。
 - 访问：自然搜索与 AI 来源访问、产品到下载入口的点击比例、安装包点击数。AI 工具可能不传 referrer，不能据此认定没有 AI 来源。
-- AI 搜索：在同一批目标问题中检查是否出现 Iterlay、引用了哪个 URL、是否准确描述产品边界；记录日期、平台、问题原文、模型或模式、回答证据和纠错项。
+- AI 搜索：在同一批目标问题中检查是否出现 Tuda、引用了哪个 URL、是否准确描述产品边界；记录日期、平台、问题原文、模型或模式、回答证据和纠错项。
 
 固定问题建议：
 
 1. 有什么开源的 AI 图片编辑无限画板工具？
 2. 如何用 Coding Agent 生成并导出网站素材？
-3. Iterlay 免费吗？模型调用是否收费？
-4. Iterlay 的图片是否完全离线处理？
+3. Tuda 免费吗？模型调用是否收费？
+4. Tuda 的图片是否完全离线处理？
 5. How can I compare AI image edit versions on a local canvas?
 6. How do I use a coding agent to deliver existing image assets without generating again?
 
@@ -105,5 +105,5 @@ Pages 工作流依次执行单测、类型检查、构建校验、部署与线�
 
 - 产品首页面向视觉创作者，主定位为「图片、视频与创作工作流，一张画布串起来」；以图片生成与编辑、视频生成、版本比较、模板复用、素材整理和导出呈现具体流程。主要行动是下载 App 和了解创作工具。创作工作流不等于通用节点编辑器或全自动流水线；模型能力与费用由服务商决定。
 - `/agents/` 面向开发者，主线为外部 Coding Agent 通过 CLI + Skill 连接 App、自动化创作与交付代码项目文件；主要行动是配置集成。
-- 两条入口具有独立标题、描述、分享图、内容主题与受众标记。结构化数据将桌面 App 作为 SoftwareApplication，将 CLI + Skill 作为属于同一产品的 SoftwareSourceCode 集成，不将 Iterlay 描述成独立编程 Agent。
+- 两条入口具有独立标题、描述、分享图、内容主题与受众标记。结构化数据将桌面 App 作为 SoftwareApplication，将 CLI + Skill 作为属于同一产品的 SoftwareSourceCode 集成，不将 Tuda 描述成独立编程 Agent。
 - 指南目录分开列出桌面产品教程与 Coding Agent 教程；相关文章优先链接同一主题。llms.txt 同样分节解释二者关系，避免 AI 将集成功能当作产品的唯一用途。

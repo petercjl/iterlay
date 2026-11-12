@@ -1,0 +1,16 @@
+{
+  "name": "Tuda",
+  "nickname": "图塔",
+  "appId": "io.github.petercjl.tuda",
+  "cli": "tuda",
+  "skill": "using-tuda",
+  "packageName": "@petercjl/tuda",
+  "scheme": "tuda",
+  "assetScheme": "tuda-asset",
+  "repository": "https://github.com/petercjl/iterlay",
+  "helpUrl": "https://github.com/petercjl/iterlay#readme",
+  "downloadUrl": "https://github.com/petercjl/iterlay/releases",
+  "blue": "#0755F5",
+  "green": "#00C8AE",
+  "autoOnboarding": false
+}

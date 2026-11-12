@@ -192,7 +192,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
   const [tab, setTab] = useState<LibraryTab>(() => {
     if (props.initialTab) return props.initialTab;
     try {
-      const stored = localStorage.getItem("iterlay.libraryTab") ?? localStorage.getItem("ir.libraryTab");
+      const stored = localStorage.getItem("tuda.libraryTab") ?? localStorage.getItem("ir.libraryTab");
       if (stored === "create" || stored === "assets" || stored === "scenes" || stored === "trash") return stored;
       if (stored === "inspiration" || stored === "boards") return stored;
       return "boards";
@@ -239,7 +239,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
   }, [refreshTrash]);
   useEffect(() => {
     try {
-      localStorage.setItem("iterlay.libraryTab", tab);
+      localStorage.setItem("tuda.libraryTab", tab);
     } catch {
       /* localStorage 不可用时忽略 */
     }
@@ -549,7 +549,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
               draggable={false}
               className="h-8 w-8 shrink-0 rounded-md"
             />
-            <span className="library-sidebar-label truncate text-lg font-semibold tracking-tight">Iterlay</span>
+            <span className="library-sidebar-label truncate text-lg font-semibold tracking-tight">{uiText("Tuda · 图塔")}</span>
           </div>
           <CompactSidebarTooltip compact={compactSidebar} label={compactSidebar ? uiText("展开侧边栏") : uiText("收起侧边栏")}>
             <button

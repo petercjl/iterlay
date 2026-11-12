@@ -21,7 +21,7 @@ export interface PiTemplateAgentTask {
   logs: PiTemplateAgentLog[];
 }
 
-const STORAGE_KEY = "iterlay.template-agent-tasks.v1";
+const STORAGE_KEY = "tuda.template-agent-tasks.v1";
 const MAX_TASKS = 30;
 let tasks = recoverInterruptedTasks(readTasks());
 let activeTaskId: string | null = tasks.find((task) => isRunning(task.phase))?.id ?? null;

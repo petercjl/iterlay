@@ -5,7 +5,7 @@ import type { SceneTemplateData, TemplateExtractionScenario } from "../shared/ty
 import { buildArchiveInWorker, parseArchiveInWorker } from "./archive-worker-client.js";
 import type { StoredSceneMedia } from "./storage/scene-media-store.js";
 
-export const SCENE_ARCHIVE_FORMAT = "iterlay-template";
+export const SCENE_ARCHIVE_FORMAT = "tuda-template";
 export const SCENE_ARCHIVE_VERSION = 1;
 const MAX_ARCHIVE_BYTES = 512 * 1024 * 1024;
 
@@ -110,7 +110,7 @@ export async function parseSceneArchive(buffer: Buffer): Promise<ParsedSceneArch
   const entryMap = new Map(archiveEntries);
   const manifest = readJsonEntry<SceneArchiveManifest>(entryMap, "manifest.json");
   if (!manifest) throw new Error("模板包缺少 manifest.json。");
-  if (manifest.format !== SCENE_ARCHIVE_FORMAT) throw new Error("这不是 Iterlay 模板文件。");
+  if (manifest.format !== SCENE_ARCHIVE_FORMAT && manifest.format !== "iterlay-template") throw new Error("这不是 Tuda 模板文件。");
   if (typeof manifest.formatVersion !== "number" || manifest.formatVersion > SCENE_ARCHIVE_VERSION) {
     throw new Error("模板包版本过高，请升级应用后再导入。");
   }

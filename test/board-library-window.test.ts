@@ -9,8 +9,8 @@ function BoardLibrary(props: ComponentProps<typeof BoardLibraryComponent>): Reac
   return createElement(I18nProvider, null, createElement(BoardLibraryComponent, props));
 }
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-beforeEach(() => window.localStorage.setItem("iterlay:language", "zh-CN"));
-afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); window.localStorage.removeItem("iterlay:language"); });
+beforeEach(() => window.localStorage.setItem("tuda:language", "zh-CN"));
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); window.localStorage.removeItem("tuda:language"); });
 describe("large board library interaction", () => {
   it("keeps a thousand boards reachable while rendering only the viewport", async () => {
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => setTimeout(() => callback(performance.now()), 0));

@@ -20,13 +20,13 @@ describe("development browser wire codec", () => {
   });
 
   it("keeps marker-shaped user objects intact and requires an exact binary marker", () => {
-    const marker = { __iterlayDevWire: "ArrayBuffer", data: "AA==" };
+    const marker = { __tudaDevWire: "ArrayBuffer", data: "AA==" };
     expect(roundTrip(marker)).toEqual(marker);
     const extra = { ...marker, imagePath: "/an/ordinary/asset" };
     expect(decodeDevBrowserWire(extra)).toEqual(extra);
     const invalid = { ...marker, data: "not base64" };
     expect(decodeDevBrowserWire(invalid)).toEqual(invalid);
-    const fakeUndefined = { __iterlayDevWire: "undefined", text: "a user value" };
+    const fakeUndefined = { __tudaDevWire: "undefined", text: "a user value" };
     expect(decodeDevBrowserWire(fakeUndefined)).toEqual(fakeUndefined);
   });
 
@@ -76,7 +76,7 @@ describe("development browser wire codec", () => {
   });
 
   it("requires exact attachment markers and rejects missing attachments", () => {
-    const marker = { __iterlayDevWire: "ArrayBuffer", attachment: 0 };
+    const marker = { __tudaDevWire: "ArrayBuffer", attachment: 0 };
     expect(() => decodeDevBrowserWire(marker)).toThrow("附件不存在");
     expect(() => decodeDevBrowserWire(marker, () => undefined)).toThrow("附件不存在");
     const data = new ArrayBuffer(1);

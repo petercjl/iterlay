@@ -1,11 +1,11 @@
 {
-  "name": "iterlay",
-  "version": "0.1.70",
-  "description": "CLI for Iterlay: images, videos, and creative workflows on one canvas. Generate, edit, organize, and export with your configured models.",
+  "name": "@petercjl/tuda",
+  "version": "0.1.0",
+  "description": "CLI for Tuda: images, videos, and creative workflows on one canvas. Generate, edit, organize, and export with your configured models.",
   "type": "module",
   "license": "MIT",
   "bin": {
-    "iterlay": "dist/main.js"
+    "tuda": "dist/main.js"
   },
   "engines": {
     "node": ">=22.12.0"
@@ -14,16 +14,39 @@
     "dist/main.js",
     "guard/**",
     "skills/**",
-    "README.md"
+    "README.md",
+    "INSTALL.md",
+    "UPDATE.md",
+    "capabilities.json",
+    "release-manifest.json",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+    "scripts/validate-package.mjs"
   ],
   "scripts": {
     "build": "node scripts/sync-skill.mjs && esbuild src/main.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/main.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "prepublishOnly": "npm run typecheck && node scripts/sync-skill.mjs && npm run build"
+    "prepublishOnly": "npm run typecheck && node scripts/sync-skill.mjs && npm run build",
+    "prepack": "node scripts/validate-package.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
     "esbuild": "^0.25.5",
     "typescript": "^5.9.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/petercjl/iterlay.git",
+    "directory": "cli"
+  },
+  "agentPackage": {
+    "kind": "cli-skill",
+    "canonicalSkill": "skills/using-tuda",
+    "capabilities": "capabilities.json",
+    "installGuide": "INSTALL.md",
+    "updateGuide": "UPDATE.md"
   }
 }

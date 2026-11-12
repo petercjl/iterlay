@@ -24,7 +24,7 @@ const recipe: ImageDeliveryRecipe = {
 };
 const board: BoardData = { id: "board", name: "Test", createdAt: "2026-10-19", updatedAt: "2026-10-19", nodes: [node], deliveryRecipes: [recipe] };
 let directory: string;
-beforeEach(async () => { directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-delivery-")); });
+beforeEach(async () => { directory = await mkdtemp(path.join(os.tmpdir(), "tuda-delivery-")); });
 afterEach(async () => { await rm(directory, { recursive: true, force: true }); });
 
 describe("final version and delivery identity", () => {

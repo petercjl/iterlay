@@ -1,7 +1,7 @@
 import { useLocation } from 'react-router-dom'
 
 export type SiteLanguage = 'en' | 'zh'
-export const languagePreferenceKey = 'iterlay.site-language'
+export const languagePreferenceKey = 'tuda.site-language'
 
 export function preferredSiteLanguage(languages: readonly string[], saved?: string | null): SiteLanguage {
   if (saved === 'zh' || saved === 'en') return saved

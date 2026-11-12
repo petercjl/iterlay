@@ -22,7 +22,7 @@ export interface ImageDeliveryRecipe {
   updatedAt: string;
 }
 export interface ImageDeliveryManifest {
-  format: "iterlay-image-delivery";
+  format: "tuda-image-delivery";
   version: 1;
   boardId: string;
   recipeId: string;

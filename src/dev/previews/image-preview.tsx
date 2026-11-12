@@ -27,12 +27,12 @@ function Preview(): React.ReactElement {
           title="建筑视觉方案 01"
           metadata={{
             name: "建筑视觉方案 01",
-            model: "Iterlay Image",
+            model: "Tuda Image",
             fileType: "PNG",
             fileSize: "2.4 MB",
             resolution: "1024 × 1024",
             createdAt: "2026/03/24 14:32",
-            createdBy: "Iterlay"
+            createdBy: "Tuda"
           }}
           onDownload={() => undefined}
           onNext={() => undefined}

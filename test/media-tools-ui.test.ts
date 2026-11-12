@@ -56,7 +56,7 @@ beforeEach(() => {
   state = { ...missing };
   listener = undefined;
   unsubscribe = vi.fn();
-  window.localStorage.setItem("iterlay:language", "zh-CN");
+  window.localStorage.setItem("tuda:language", "zh-CN");
   api = {
     getMediaToolsState: vi.fn(async () => state),
     installMediaTools: vi.fn(async (): Promise<MediaToolsState> => ({ ...state, status: "ready" })),

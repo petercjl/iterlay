@@ -153,7 +153,7 @@ function App(): React.ReactElement {
   return (
     <div className="compact-toast-lab">
       <header className="compact-lab-header">
-        <div><img src={appIcon} alt="" /><strong>Iterlay</strong><i /><span>Compact Toast Lab</span></div>
+        <div><img src={appIcon} alt="" /><strong>Tuda</strong><i /><span>Compact Toast Lab</span></div>
         <span className="compact-lab-status"><i />Focused study · v4</span>
       </header>
 
@@ -331,4 +331,4 @@ function ToastStack({ replayKey }: { replayKey: number }): React.ReactElement {
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode><App /></React.StrictMode>
 );
-performance.mark("iterlay:startup-shell-ready");
+performance.mark("tuda:startup-shell-ready");

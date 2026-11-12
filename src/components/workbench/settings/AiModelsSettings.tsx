@@ -87,7 +87,7 @@ import {
 const KINDS = ["image", "text", "video"] as const;
 const KIND_LABELS = { image: "图片生成", text: "文本模型", video: "视频生成" };
 const PLATFORM_LABELS: Record<string, string> = {
-  official: "Iterlay",
+  official: "Tuda",
   "codex-oauth": "Codex / ChatGPT",
   "openai-compatible": "OpenAI Compatible",
   fal: "fal.ai",
@@ -1058,7 +1058,7 @@ export function AiModelsSettings({
                       </Field>
                     </>
                   ) : (
-                    <p className="model-field-note">{uiText("内置服务由 Iterlay 管理。")}</p>
+                    <p className="model-field-note">{uiText("内置服务由 Tuda 管理。")}</p>
                   )}
                 </div>
               </section>

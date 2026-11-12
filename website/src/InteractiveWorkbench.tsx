@@ -126,7 +126,7 @@ export default function InteractiveWorkbench({ initialCase = 0, onExit }: { init
     if (value.image) setPosition(next)
     else setPan(next)
   }
-  return <div className="demo-workbench" data-step={step} aria-label={t("Iterlay 分步体验工作台")}>
+  return <div className="demo-workbench" data-step={step} aria-label={t("Tuda 分步体验工作台")}>
     <nav className="demo-stepbar" aria-label={t("体验步骤")}>
       {steps.map((item, index) => <button key={item.label} disabled={working || index > reachedStep} aria-current={step === index ? 'step' : undefined} onClick={() => goToStep(index as Step)}><span>{index < reachedStep && index !== step ? <Check size={13} /> : index + 1}</span><strong>{item.label}</strong>{index < 2 && <i aria-hidden="true" />}</button>)}
     </nav>
@@ -144,7 +144,7 @@ export default function InteractiveWorkbench({ initialCase = 0, onExit }: { init
                 <button className="demo-edit-button" aria-label={t("编辑图片")} disabled={working} onClick={beginEdit}><Pencil size={13} />{t("编辑")}</button>
 
                 {step === 2 && <button aria-label={t("比较原图与结果")} aria-pressed={compare} onClick={() => { setCompare(value => !value); setVersion(1) }}><SplitSquareHorizontal size={14} /></button>}
-                <a download={`Iterlay-${imageName.includes('.') ? imageName : `${imageName}.jpg`}`} href={asset(imageName)} aria-label={t("下载演示图片")}><Download size={14} /></a>
+                <a download={`Tuda-${imageName.includes('.') ? imageName : `${imageName}.jpg`}`} href={asset(imageName)} aria-label={t("下载演示图片")}><Download size={14} /></a>
               </div>}
               <div className="demo-node-media">
                 <button className="demo-node-image" aria-label={t("选中产品原图")} aria-pressed={selected} onClick={() => setSelected(true)}><img key={imageName} src={asset(imageName)} alt={showingResult ? `${current.resultName} · ${t("案例效果")}` : `${current.subject}: ${current.sourceName}`} draggable={false} /></button>
@@ -170,7 +170,7 @@ export default function InteractiveWorkbench({ initialCase = 0, onExit }: { init
       </div>
       <aside className="demo-guide" aria-label={t("当前步骤与案例")}>
         <div className="demo-step-copy" key={step}><span className="demo-step-count">{step + 1} / 3</span><h2>{step === 0 ? current.title : steps[step].title}</h2><p>{steps[step].description}</p>{step === 0 && <div className="demo-guide-detail"><MousePointer2 size={16} /><span>{selected ? t("已选中。点击图片上方的「编辑」。") : t("图片可以像 App 中一样拖动、选中。")}</span></div>}{step === 1 && <div className="demo-guide-detail"><ImagePlus size={16} /><span>{t("图片已带入编辑目标，直接描述调整即可。")}</span></div>}{step === 2 && <button className="demo-guide-compare" aria-pressed={compare} onClick={() => { setCompare(value => !value); setVersion(1) }}><SplitSquareHorizontal size={15} />{compare ? t("退出对比") : t("比较原图与新版本")}</button>}</div>
-        <div className="demo-guide-bottom">{step === 2 ? <><h3>{t("轮到你的想法了。")}</h3><p>{t("下载 Iterlay，用自己的图片继续创作。")}</p><Link to={sitePath("/download", language)}>{t("下载 Iterlay")}<ArrowUpRight size={14} /></Link><button onClick={onExit}>{t("换个案例")}<ArrowRight size={12} /></button></> : <p className="demo-guide-footnote">{t("本体验还原 App 的核心操作，")}<br />{t("使用预制素材，无需登录或配置模型。")}</p>}</div>
+        <div className="demo-guide-bottom">{step === 2 ? <><h3>{t("轮到你的想法了。")}</h3><p>{t("下载 Tuda，用自己的图片继续创作。")}</p><Link to={sitePath("/download", language)}>{t("下载 Tuda")}<ArrowUpRight size={14} /></Link><button onClick={onExit}>{t("换个案例")}<ArrowRight size={12} /></button></> : <p className="demo-guide-footnote">{t("本体验还原 App 的核心操作，")}<br />{t("使用预制素材，无需登录或配置模型。")}</p>}</div>
       </aside>
     </div><p className="sr-only" role="status">{announcement}</p>
   </div>

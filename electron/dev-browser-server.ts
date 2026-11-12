@@ -8,8 +8,8 @@ import { collectWorkbenchChannels } from "../shared/workbench-client.js";
 import { WINDOW_RENDERER_READY, WINDOW_SAVE_REQUEST, WINDOW_SAVE_RESULT, type WindowSaveResult } from "../shared/window-lifecycle.js";
 import { WindowSaveRequests } from "./window-save-requests.js";
 
-export const DEV_BROWSER_PREFIX = "/__iterlay_dev";
-export const DEV_BROWSER_TOKEN_HEADER = "x-iterlay-dev-token";
+export const DEV_BROWSER_PREFIX = "/__tuda_dev";
+export const DEV_BROWSER_TOKEN_HEADER = "x-tuda-dev-token";
 export const MAX_DEV_BROWSER_REQUEST_BYTES = 768 * 1024 * 1024;
 
 async function readRequestPayload(request: IncomingMessage, url: URL): Promise<{
@@ -126,7 +126,7 @@ export async function startDevBrowserServer(options: ServerOptions) {
       json(response, 403, { error: "网页开发服务拒绝了该连接。" }); return;
     }
     const url = new URL(request.url ?? "/", options.origin);
-    // Launcher-only endpoint: Vite forwards only /__iterlay_dev/*.
+    // Launcher-only endpoint: Vite forwards only /__tuda_dev/*.
     if (request.method === "POST" && url.pathname === "/_control/quit" && options.requestQuit) {
       json(response, 200, { result: true });
       setImmediate(options.requestQuit);

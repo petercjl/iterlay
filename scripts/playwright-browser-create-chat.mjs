@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 import { chromium } from "playwright";
 
 // Run against an isolated pnpm dev workspace, never the user's active editing session.
-const origin = process.env.ITERLAY_BROWSER_SMOKE_URL || "http://127.0.0.1:5299";
+const origin = process.env.TUDA_BROWSER_SMOKE_URL || "http://127.0.0.1:5299";
 assert(["127.0.0.1", "localhost"].includes(new URL(origin).hostname));
 await mkdir("output/playwright", { recursive: true });
 const videoFixturePath = "output/playwright/create-chat-fixture.mp4";
@@ -110,8 +110,8 @@ try {
       boardAssistantAwarenessEnabled: false, boardAssistantIntentSuggestionsEnabled: false,
       boardSmartSuggestionsEnabled: false, editSmartSuggestionsEnabled: false, language: "zh-CN", theme: "light"
     });
-    for (const key of ["board", "library", "gallery", "edit", "demo-start"]) await api.markOnboardingSeen(`iterlay.onboarding.${key}.v1`, "completed");
-    localStorage.setItem("iterlay.libraryOpen", "1");
+    for (const key of ["board", "library", "gallery", "edit", "demo-start"]) await api.markOnboardingSeen(`tuda.onboarding.${key}.v1`, "completed");
+    localStorage.setItem("tuda.libraryOpen", "1");
     return { originalSettings, originalBoardId };
   }, providerOrigin));
   await page.reload(); await ready();
@@ -190,9 +190,9 @@ try {
   await page.waitForFunction(async () => (await window.imageWorkbench.listCreationSessions()).some((session) =>
     session.artifacts.some((artifact) => artifact.kind === "video" && artifact.status === "ready" && artifact.path)
     && session.messages.some((message) => message.role === "assistant" && message.content.includes("视频已生成并保存到画板。"))));
-  const savedSessionId = await page.evaluate(() => localStorage.getItem("iterlay:creation:active"));
+  const savedSessionId = await page.evaluate(() => localStorage.getItem("tuda:creation:active"));
   await page.reload(); await ready();
-  await page.waitForFunction((id) => localStorage.getItem("iterlay:creation:active") === id && document.querySelector('.creation-artifact-panel video'), savedSessionId);
+  await page.waitForFunction((id) => localStorage.getItem("tuda:creation:active") === id && document.querySelector('.creation-artifact-panel video'), savedSessionId);
   assert.equal(await page.getByRole("button", { name: "确认生成", exact: true }).count(), 0,
     "A delivered artifact must settle the old plan after reload");
   assert.equal(await page.locator(".creation-run-strip, .creation-run-details").count(), 0);
@@ -257,12 +257,12 @@ try {
   await recent.getByRole("button", { name: "创作回归项目", exact: true }).waitFor();
   await currentRow.getByRole("button", { name: /会话操作/ }).click();
   await page.getByRole("menuitem", { name: "创作回归项目", exact: true }).click();
-  const projectId = await page.evaluate(() => JSON.parse(localStorage.getItem("iterlay:creation:projects") ?? "[]")[0]?.id);
+  const projectId = await page.evaluate(() => JSON.parse(localStorage.getItem("tuda:creation:projects") ?? "[]")[0]?.id);
   await page.waitForFunction(async ({ id, projectId }) => (await window.imageWorkbench.listCreationSessions()).find((session) => session.id === id)?.projectId === projectId, { id: savedSessionId, projectId });
   await recent.getByRole("button", { name: "项目操作：创作回归项目" }).click();
   await page.getByRole("menuitem", { name: "删除项目", exact: true }).click();
   await page.waitForFunction(async ({ id }) => (await window.imageWorkbench.listCreationSessions()).find((session) => session.id === id)?.projectId == null
-    && JSON.parse(localStorage.getItem("iterlay:creation:projects") ?? "[]").length === 0, { id: savedSessionId });
+    && JSON.parse(localStorage.getItem("tuda:creation:projects") ?? "[]").length === 0, { id: savedSessionId });
   await page.getByRole("complementary", { name: "创作成果" }).getByRole("button", { name: "在画板中打开" }).click();
   await page.locator(".prompt-fusion .assistant-chat").waitFor();
   await page.locator('.prompt-fusion .assistant-chat [data-assistant-message-body]')
@@ -283,8 +283,8 @@ try {
     for (const id of createdBoardIds) await api.deleteBoard(id);
   }, { originalSettings, originalBoardId, createdBoardIds }).catch(() => {});
   await page.evaluate(async () => {
-    const sessionId = window.sessionStorage.getItem("iterlay:browser-debug-session");
-    if (sessionId) await fetch("/__iterlay_dev/disconnect", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId }) });
+    const sessionId = window.sessionStorage.getItem("tuda:browser-debug-session");
+    if (sessionId) await fetch("/__tuda_dev/disconnect", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId }) });
   }).catch(() => {});
   await browser.close();
   await new Promise((resolve) => provider.close(resolve));

@@ -1,4 +1,4 @@
-export const OPEN_ASSISTANT_PERMISSIONS_EVENT = "iterlay:open-assistant-permissions";
+export const OPEN_ASSISTANT_PERMISSIONS_EVENT = "tuda:open-assistant-permissions";
 export type ScreenAccessPolicy = "ask" | "allow" | "deny";
 export type ScreenPermissionDecision = "allow_once" | "allow_always" | "deny";
 export interface ScreenAccessStatus {

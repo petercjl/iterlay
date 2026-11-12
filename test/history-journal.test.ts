@@ -10,7 +10,7 @@ const job = (id: string, boardId = "board"): GenerationJob => ({
 });
 describe("incremental history durability", () => {
   it("loads legacy snapshots and appends updates without rewriting the whole file", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-history-journal-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-history-journal-"));
     try {
       const snapshot = JSON.stringify([job("old")]);
       await writeFile(path.join(directory, "history.json"), snapshot);
@@ -21,7 +21,7 @@ describe("incremental history durability", () => {
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
   it("recovers an interrupted final write before accepting another append", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-history-journal-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-history-journal-"));
     try {
       await new HistoryStore(directory).addJob(job("complete"));
       await appendFile(path.join(directory, "history-journal.jsonl"), '{"version":1,"upsert":[');
@@ -31,7 +31,7 @@ describe("incremental history durability", () => {
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
   it("checkpoints repeated commits and preserves deletions across restart", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-history-journal-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-history-journal-"));
     try {
       const store = new HistoryStore(directory);
       for (let index = 0; index < 202; index++) await store.addJob(job("id-" + index, index % 2 ? "other" : "board"));
@@ -45,7 +45,7 @@ describe("incremental history durability", () => {
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
   it("produces a current legacy checkpoint when accepted writes are flushed", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-history-journal-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-history-journal-"));
     try {
       const store = new HistoryStore(directory);
       await store.addJob(job("latest"));

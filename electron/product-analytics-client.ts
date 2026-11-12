@@ -26,7 +26,7 @@ export class ManagerProductAnalyticsClient {
       if (status.state === "UNACTIVATED" || status.reason === "free_open_source") {
         const anonymousId = status.reason === "free_open_source"
           ? this.sessionAnonymousId
-          : createHash("sha256").update(`iterlay-analytics-v1\x00${await this.license.getDeviceId()}`).digest("hex");
+          : createHash("sha256").update(`tuda-analytics-v1\x00${await this.license.getDeviceId()}`).digest("hex");
         await this.fetchImpl(`${this.baseUrl.trim().replace(/\/+$/, "")}/analytics/anonymous-events`, {
           method: "POST",
           headers: { Accept: "application/json", "Content-Type": "application/json" },

@@ -717,7 +717,7 @@ export async function segmentPhotoLayer(
   target: "foreground" | "person" = "foreground",
   focus?: PhotoLayerFocusRect
 ): Promise<Buffer> {
-  const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "iterlay-photo-layer-"));
+  const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "tuda-photo-layer-"));
   const inputPath = path.join(temporaryDirectory, "input.png");
   const outputPath = path.join(temporaryDirectory, "output.png");
   try {

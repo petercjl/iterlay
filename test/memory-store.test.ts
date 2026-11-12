@@ -11,7 +11,7 @@ afterEach(async () => {
 });
 
 async function createStore(): Promise<MemoryStore> {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-memory-"));
+  const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-memory-"));
   directories.push(directory);
   return new MemoryStore(directory);
 }

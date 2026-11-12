@@ -15,7 +15,7 @@ export interface AssistantUiExtensionCallbacks {
 
 export function createAssistantUiExtension(callbacks: AssistantUiExtensionCallbacks): InlineExtension {
   return {
-    name: "iterlay-assistant-ui",
+    name: "tuda-assistant-ui",
     factory: (pi) => {
       if (callbacks.captureScreen) pi.registerTool({
         name: "inspect_screen",
@@ -74,7 +74,7 @@ export function createAssistantUiExtension(callbacks: AssistantUiExtensionCallba
       pi.registerTool({
         name: "present_choices",
         label: "显示选项",
-        description: "使用 Iterlay 现有底部选择器让用户选择一个或多个选项，并等待提交。",
+        description: "使用 Tuda 现有底部选择器让用户选择一个或多个选项，并等待提交。",
         parameters: Type.Object({
           title: Type.String({ minLength: 1 }),
           description: Type.Optional(Type.String()),
@@ -115,7 +115,7 @@ export function createAssistantUiExtension(callbacks: AssistantUiExtensionCallba
       pi.registerTool({
         name: "present_confirmation",
         label: "请求确认",
-        description: "使用 Iterlay 现有底部确认框请求用户确认，并等待用户操作。",
+        description: "使用 Tuda 现有底部确认框请求用户确认，并等待用户操作。",
         parameters: Type.Object({
           title: Type.String({ minLength: 1 }),
           description: Type.Optional(Type.String()),
@@ -152,7 +152,7 @@ export function createAssistantUiExtension(callbacks: AssistantUiExtensionCallba
       pi.registerTool({
         name: "present_directions",
         label: "显示创意方向",
-        description: "把结构化创意方向交给 Iterlay 现有方向卡片展示。",
+        description: "把结构化创意方向交给 Tuda 现有方向卡片展示。",
         parameters: Type.Object({
           directions: Type.Array(Type.Object({
             id: Type.String({ minLength: 1 }),
@@ -186,7 +186,7 @@ export function createAssistantUiExtension(callbacks: AssistantUiExtensionCallba
       if (callbacks.finish) pi.registerTool({
         name: "finish_assistant_result",
         label: "完成助手回复",
-        description: "提交经过结构校验的最终 Iterlay 助手结果。",
+        description: "提交经过结构校验的最终 Tuda 助手结果。",
         parameters: Type.Object({ result: assistantResultSchema }),
         executionMode: "sequential",
         execute: async (_toolCallId, params) => {

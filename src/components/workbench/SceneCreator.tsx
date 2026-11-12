@@ -35,7 +35,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { iterlayToast } from "@/components/ui/iterlay-toast";
+import { tudaToast } from "@/components/ui/tuda-toast";
 import { extractClipboardImageFiles } from "@/lib/clipboard-images";
 import { isSendEnter } from "@/lib/send-on-enter";
 import { ImageZoomLightbox } from "@/components/workbench/asset/ImageZoomLightbox";
@@ -1266,7 +1266,7 @@ export function SceneCreator({
     setGeneratingExample(true);
     let delayedNoticeId: string | number | undefined;
     const delayedNoticeTimer = window.setTimeout(() => {
-      delayedNoticeId = iterlayToast.generationPending();
+      delayedNoticeId = tudaToast.generationPending();
     }, GENERATION_ESTIMATE_MS);
     try {
       const prompt = (await onOptimize(scene, brief, scene.prompt)).trim();
@@ -1293,8 +1293,8 @@ export function SceneCreator({
       await onMediaChange();
       finishActiveSceneGeneration(scene.id, activeGeneration.id);
       window.clearTimeout(delayedNoticeTimer);
-      if (delayedNoticeId !== undefined) iterlayToast.dismiss(delayedNoticeId);
-      iterlayToast.result({
+      if (delayedNoticeId !== undefined) tudaToast.dismiss(delayedNoticeId);
+      tudaToast.result({
         count: result.images.length,
         title: translateSourceText("已生成 {{ui:0}} 张示例", [result.images.length]),
         detail: translateSourceText("示例已保存到当前模板"),
@@ -1312,7 +1312,7 @@ export function SceneCreator({
       toast.error(getWorkbenchErrorMessage(error, "示例生成失败。"));
     } finally {
       window.clearTimeout(delayedNoticeTimer);
-      if (delayedNoticeId !== undefined) iterlayToast.dismiss(delayedNoticeId);
+      if (delayedNoticeId !== undefined) tudaToast.dismiss(delayedNoticeId);
       finishActiveSceneGeneration(scene.id, activeGeneration.id);
       setGeneratingExample(false);
     }

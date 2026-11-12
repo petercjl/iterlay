@@ -17,13 +17,13 @@ function BoardLibrary(props: ComponentProps<typeof BoardLibraryComponent>): Reac
 let root: Root | undefined;
 let container: HTMLDivElement | undefined;
 
-beforeEach(() => window.localStorage.setItem("iterlay:language", "zh-CN"));
+beforeEach(() => window.localStorage.setItem("tuda:language", "zh-CN"));
 afterEach(async () => {
   if (root) await act(async () => root?.unmount());
   root = undefined;
   container?.remove();
   container = undefined;
-  window.localStorage.removeItem("iterlay:language");
+  window.localStorage.removeItem("tuda:language");
 });
 
 describe("BoardLibrary layout", () => {

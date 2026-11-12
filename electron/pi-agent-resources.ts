@@ -46,7 +46,7 @@ export async function discoverPiAgentResources(
 
   return {
     builtinTools: BUILTIN_TOOLS,
-    iterlayTools: listWorkspaceTools().map((tool) => ({
+    tudaTools: listWorkspaceTools().map((tool) => ({
       name: typeof tool.name === "string" ? tool.name : "",
       description: typeof tool.description === "string" ? tool.description : ""
     })).filter((tool) => tool.name),

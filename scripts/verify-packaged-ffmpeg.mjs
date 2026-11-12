@@ -31,7 +31,7 @@ for (const binary of [ffmpeg, ffprobe]) {
   assert.equal(architecture.trim(), "arm64");
   console.log(version.split("\n", 1)[0]);
 }
-const temp = await mkdtemp(path.join(os.tmpdir(), "iterlay-media-tools-verify-"));
+const temp = await mkdtemp(path.join(os.tmpdir(), "tuda-media-tools-verify-"));
 try {
   const source = path.join(temp, "source.mp4");
   await run(ffmpeg, ["-y", "-f", "lavfi", "-i", "color=c=red:s=320x240:d=1", "-f", "lavfi", "-i", "sine=frequency=440:duration=1", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", source], { timeout: 30_000 });

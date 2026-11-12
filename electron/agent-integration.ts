@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { access, cp, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import os from "node:os";
 import type { CodingAgentId, AgentSkillUpgradeDetail } from "../shared/agent-integration.js";
 
 export type { CodingAgentId } from "../shared/agent-integration.js";
@@ -26,7 +27,7 @@ export interface SkillAutoInstallPolicy {
   declined: Partial<Record<CodingAgentId, boolean>>;
 }
 
-const MANAGED_SKILL_FILE = ".iterlay-managed.json";
+const MANAGED_SKILL_FILE = ".tuda-managed.json";
 const SKILL_AUTO_INSTALL_POLICY_FILE = "mcp-skill-policy.json";
 
 interface SkillSnapshot {
@@ -38,7 +39,7 @@ export async function getAgentIntegrationStatus(homeDir: string): Promise<AgentI
   return { clients: await Promise.all(SUPPORTED_AGENT_IDS.map((client) => agentStatus(client, homeDir))) };
 }
 
-const AGENT_SKILL_NAMES = ["using-iterlay"] as const;
+const AGENT_SKILL_NAMES = ["using-tuda"] as const;
 type AgentSkillName = typeof AGENT_SKILL_NAMES[number];
 
 async function bundledAgentSkills(bundledSkillPath: string) {
@@ -48,7 +49,7 @@ async function bundledAgentSkills(bundledSkillPath: string) {
   }));
   for (const { source } of bundles) {
     try { await access(path.join(source, "SKILL.md")); }
-    catch { throw new Error("Iterlay 内置 Skill 不完整，请重新安装 App 后重试。"); }
+    catch { throw new Error("Tuda 内置 Skill 不完整，请重新安装 App 后重试。"); }
   }
   return Promise.all(bundles.map(async (bundle) => ({ ...bundle, snapshot: await snapshotSkill(bundle.source) })));
 }
@@ -82,7 +83,7 @@ export async function upgradeInstalledAgentSkills(
   const clients = (await getAgentIntegrationStatus(homeDir)).clients;
   const targets: CodingAgentId[] = [];
   for (const client of clients) {
-    if (await isSkillInstalled(client.skillPath) || await readManagedSkillDigest(path.join(path.dirname(client.skillPath), "iterlay-workspace"))) targets.push(client.id);
+    if (await isSkillInstalled(client.skillPath) || await readManagedSkillDigest(path.join(path.dirname(client.skillPath), "tuda-workspace"))) targets.push(client.id);
   }
   return syncSkillsForClients(homeDir, bundledSkillPath, targets);
 }
@@ -159,30 +160,30 @@ export async function setSkillAutoInstallDeclined(
 export async function syncAgentSkills(
   homeDir: string,
   bundledSkillPath: string,
-  options: { userDataPath: string }
+  options: { userDataPath: string; selectedAgents?: CodingAgentId[] }
 ): Promise<AgentIntegrationStatus> {
   const policy = await readSkillAutoInstallPolicy(options.userDataPath);
-  const targets = (await detectCodingAgents(homeDir)).filter((client) => !policy.declined[client]);
+  const targets = (await detectCodingAgents(homeDir)).filter((client) => (options.selectedAgents ?? ["codex"]).includes(client) && !policy.declined[client]);
   return syncSkillsForClients(homeDir, bundledSkillPath, targets);
 }
 
 export async function uninstallAgentSkill(client: CodingAgentId, homeDir: string): Promise<AgentIntegrationStatus> {
   const targets = AGENT_SKILL_NAMES.map((name) => getSkillPath(client, homeDir, name));
   for (const target of targets) {
-    if (await pathExists(target) && !await readManagedSkillDigest(target)) throw new Error("此 Skill 未由 Iterlay 管理，未移除。");
+    if (await pathExists(target) && !await readManagedSkillDigest(target) && !await readOptional(path.join(target, ".tuda-skill.json")).then((text) => { try { return JSON.parse(text).package === "@petercjl/tuda"; } catch { return false; } })) throw new Error("此 Skill 未由 Tuda 管理，未移除。");
   }
   for (const target of targets) await rm(target, { recursive: true, force: true });
   await removeManagedWorkspaceSkill(client, homeDir);
   return getAgentIntegrationStatus(homeDir);
 }
 
-/** Only retire old copies installed by Iterlay; preserve user-maintained Skills. */
+/** Only retire old copies installed by Tuda; preserve user-maintained Skills. */
 async function removeManagedWorkspaceSkill(client: CodingAgentId, homeDir: string): Promise<void> {
-  const legacyPath = path.join(path.dirname(getSkillPath(client, homeDir)), "iterlay-workspace");
+  const legacyPath = path.join(path.dirname(getSkillPath(client, homeDir)), "tuda-workspace");
   if (await readManagedSkillDigest(legacyPath)) await rm(legacyPath, { recursive: true, force: true });
 }
 
-/** Migration only: remove Iterlay's old entry, preserving every unrelated server. */
+/** Migration only: remove Tuda's old entry, preserving every unrelated server. */
 export async function removeLegacyIntegration(client: CodingAgentId, homeDir: string): Promise<void> {
   if (client !== "codex" && client !== "claude-code") return;
   const configPath = path.join(homeDir, client === "codex" ? ".codex/config.toml" : ".claude.json");
@@ -190,13 +191,13 @@ export async function removeLegacyIntegration(client: CodingAgentId, homeDir: st
   if (!current.trim()) return;
   let next = current;
   if (client === "codex") {
-    next = removeTomlTable(current, "mcp_servers.iterlay");
+    next = removeTomlTable(current, "mcp_servers.tuda");
   } else {
     let config: unknown;
     try { config = JSON.parse(current); } catch { throw new Error("Claude Code 配置不是有效 JSON，未修改该文件。"); }
     if (!isRecord(config)) throw new Error("Claude Code 配置格式无效，未修改该文件。");
-    if (!isRecord(config.mcpServers) || !("iterlay" in config.mcpServers)) return;
-    delete config.mcpServers.iterlay;
+    if (!isRecord(config.mcpServers) || !("tuda" in config.mcpServers)) return;
+    delete config.mcpServers.tuda;
     next = JSON.stringify(config, null, 2) + "\n";
   }
   if (next !== current) await writeWithParent(configPath, next);
@@ -204,7 +205,7 @@ export async function removeLegacyIntegration(client: CodingAgentId, homeDir: st
 
 async function agentStatus(client: CodingAgentId, homeDir: string): Promise<CodingAgentStatus> {
   const executable = AGENT_EXECUTABLES[client];
-  const directories = [...(process.env.PATH ?? "").split(path.delimiter), path.join(homeDir, ".local/bin"), path.join(homeDir, ".npm-global/bin"), "/opt/homebrew/bin", "/usr/local/bin"];
+  const directories = [...(process.env.PATH ?? "").split(path.delimiter), path.join(homeDir, ".local/bin"), path.join(homeDir, ".npm-global/bin"), ...(homeDir === os.homedir() ? ["/opt/homebrew/bin", "/usr/local/bin"] : [])];
   let executablePath: string | undefined;
   for (const directory of directories.filter(Boolean)) {
     const candidate = path.join(directory, executable + (process.platform === "win32" ? ".cmd" : ""));
@@ -214,12 +215,12 @@ async function agentStatus(client: CodingAgentId, homeDir: string): Promise<Codi
   const configPath = path.join(homeDir, client === "codex" ? ".codex/config.toml" : client === "claude-code" ? ".claude.json" : AGENT_CONFIG_PATHS[client]);
   const content = await readOptional(configPath);
   let legacyConfigured = false;
-  if (client === "codex") legacyConfigured = /\[mcp_servers\.iterlay\]/u.test(content);
-  else { try { legacyConfigured = Boolean(JSON.parse(content).mcpServers?.iterlay); } catch { /* Report separately when migrating. */ } }
+  if (client === "codex") legacyConfigured = /\[mcp_servers\.tuda\]/u.test(content);
+  else { try { legacyConfigured = Boolean(JSON.parse(content).mcpServers?.tuda); } catch { /* Report separately when migrating. */ } }
   const skillPath = getSkillPath(client, homeDir);
   const skillPaths = AGENT_SKILL_NAMES.map((name) => getSkillPath(client, homeDir, name));
   const skillInstalled = (await Promise.all(skillPaths.map((target, index) => isSkillInstalled(target, AGENT_SKILL_NAMES[index])))).every(Boolean);
-  const skillManaged = (await Promise.all(skillPaths.map(readManagedSkillDigest))).every(Boolean);
+  const skillManaged = (await Promise.all(skillPaths.map(async (target) => await readManagedSkillDigest(target) || await readOptional(path.join(target, ".tuda-skill.json")).then((text) => { try { return JSON.parse(text).package === "@petercjl/tuda"; } catch { return false; } })))).every(Boolean);
   const detected = Boolean(executablePath || desktop);
   return { id: client, detected, detection: detected ? "installed" : content.trim() ? "config-only" : "not-found", executablePath, skillInstalled, skillManaged, skillPath, legacyConfigured };
 }
@@ -228,9 +229,9 @@ const SUPPORTED_AGENT_IDS = ["codex", "claude-code", "workbuddy", "cursor", "win
 const AGENT_EXECUTABLES: Record<CodingAgentId, string> = { codex: "codex", "claude-code": "claude", workbuddy: "workbuddy", cursor: "cursor", windsurf: "windsurf", cline: "cline", "roo-cline": "roo", "gemini-cli": "gemini", opencode: "opencode" };
 const AGENT_SKILL_DIRS: Record<CodingAgentId, string> = { codex: ".codex/skills", "claude-code": ".claude/skills", workbuddy: ".workbuddy/skills", cursor: ".cursor/skills", windsurf: ".codeium/windsurf/skills", cline: ".cline/skills", "roo-cline": ".roo/skills", "gemini-cli": ".gemini/skills", opencode: ".config/opencode/skills" };
 const AGENT_CONFIG_PATHS: Record<Exclude<CodingAgentId, "codex" | "claude-code">, string> = { workbuddy: ".workbuddy/config.json", cursor: ".cursor/config.json", windsurf: ".codeium/windsurf/config.json", cline: ".cline/config.json", "roo-cline": ".roo/config.json", "gemini-cli": ".gemini/settings.json", opencode: ".config/opencode/config.json" };
-function getSkillPath(client: CodingAgentId, homeDir: string, name: AgentSkillName = "using-iterlay"): string { return path.join(homeDir, AGENT_SKILL_DIRS[client], name); }
+function getSkillPath(client: CodingAgentId, homeDir: string, name: AgentSkillName = "using-tuda"): string { return path.join(homeDir, AGENT_SKILL_DIRS[client], name); }
 
-async function isSkillInstalled(skillPath: string, name: AgentSkillName = "using-iterlay"): Promise<boolean> {
+async function isSkillInstalled(skillPath: string, name: AgentSkillName = "using-tuda"): Promise<boolean> {
   try {
     const content = await readFile(path.join(skillPath, "SKILL.md"), "utf8");
     return new RegExp(`^name:\\s*${name}\\s*$`, "mu").test(content);

@@ -50,7 +50,7 @@ export class HttpUpdateApiClient implements UpdateApiClient {
     if (query.channel) params.set("channel", query.channel);
     if (query.deviceId) params.set("deviceId", query.deviceId);
 
-    // appVersion 用于让 iterlay-manage 优先返回强制更新目标。
+    // appVersion 用于让 tuda-manage 优先返回强制更新目标。
     const response = await this.fetcher(`${this.baseUrl}/releases/latest?${params.toString()}`, {
       headers: { Accept: "application/json" },
       signal: AbortSignal.timeout(8_000)

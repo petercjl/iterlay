@@ -1,0 +1,6 @@
+Brand: Tuda · 图塔
+Direction: 绿色折塔
+Tool: Codex built-in imagegen
+Transparent background: true
+
+Use case: logo-brand. One sophisticated minimalist desktop app icon for Tuda 图塔, an ecommerce visual creation infinite-canvas workspace. Direction B: emerald folded tower. A single continuous folded geometric ribbon forms an abstract upward tower, with two bold steps and a clean tall central negative space; the visual should feel like image layers being built into a composition. Distinctive sculptural geometry rendered as crisp almost-flat vector art, emerald green and mint, restrained tonal separation, premium calm software brand. An emerald rounded-square app tile occupying 88% of the square image, centered light mint ribbon symbol with generous breathing space. Transparent pixels outside tile. Strong legibility at 24px, confident thick geometry. No literal castle, no photo mountains, no words or lettering, no shiny plastic, no realistic materials, no mockup or presentation sheet.

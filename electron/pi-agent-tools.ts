@@ -35,19 +35,19 @@ const SEQUENTIAL_TOOLS = new Set([
   "focus_nodes",
   "stop_video_polling",
   "export_assets",
-  "open_iterlay"
+  "open_tuda"
 ]);
 
-export interface IterlayAgentToolOptions {
+export interface TudaAgentToolOptions {
   boardId?: string;
   preserveView?: boolean;
   referenceImagePaths?: string[];
   referenceNodeIds?: string[];
 }
 
-export function createIterlayAgentTools(
+export function createTudaAgentTools(
   userDataPath: string,
-  options: IterlayAgentToolOptions = {},
+  options: TudaAgentToolOptions = {},
   callBridge: LocalApiCall = callLocalApi
 ): AgentTool[] {
   return listWorkspaceTools().map((definition) => {
@@ -93,7 +93,7 @@ function toolLabel(name: string): string {
 }
 
 function stringValue(value: unknown): string {
-  if (typeof value !== "string" || !value.trim()) throw new Error("Iterlay 工作台 工具定义无效。");
+  if (typeof value !== "string" || !value.trim()) throw new Error("Tuda 工作台 工具定义无效。");
   return value.trim();
 }
 

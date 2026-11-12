@@ -141,17 +141,17 @@ describe("imageWorkbench preload", () => {
       activateDeepLinks: () => Promise<string[]>;
       onDeepLink: (listener: (url: string) => void) => () => void;
     };
-    electronMocks.invoke.mockResolvedValueOnce(["iterlay://boards"]);
+    electronMocks.invoke.mockResolvedValueOnce(["tuda://boards"]);
     const listener = vi.fn();
 
-    await expect(api.activateDeepLinks()).resolves.toEqual(["iterlay://boards"]);
+    await expect(api.activateDeepLinks()).resolves.toEqual(["tuda://boards"]);
     const unsubscribe = api.onDeepLink(listener);
     const handler = electronMocks.on.mock.calls.at(-1)?.[1] as (event: unknown, url: string) => void;
-    handler({}, "iterlay://assets");
+    handler({}, "tuda://assets");
     unsubscribe();
 
     expect(electronMocks.invoke).toHaveBeenCalledWith("deep-link:ready");
-    expect(listener).toHaveBeenCalledWith("iterlay://assets");
+    expect(listener).toHaveBeenCalledWith("tuda://assets");
     expect(electronMocks.removeListener).toHaveBeenCalledWith("deep-link:open", handler);
   });
 
@@ -304,23 +304,23 @@ describe("imageWorkbench preload", () => {
       clearOnboardingSeen: (key: string) => Promise<unknown>;
     };
     const state = {
-      "iterlay.onboarding.board.v1": { status: "completed", at: "2026-07-20T08:00:00.000Z" }
+      "tuda.onboarding.board.v1": { status: "completed", at: "2026-07-20T08:00:00.000Z" }
     };
     electronMocks.invoke.mockResolvedValue(state);
 
     await api.getOnboardingState(state);
-    await api.markOnboardingSeen("iterlay.onboarding.board.v1", "completed");
-    await api.clearOnboardingSeen("iterlay.onboarding.board.v1");
+    await api.markOnboardingSeen("tuda.onboarding.board.v1", "completed");
+    await api.clearOnboardingSeen("tuda.onboarding.board.v1");
 
     expect(electronMocks.invoke).toHaveBeenCalledWith("onboarding:get", state);
     expect(electronMocks.invoke).toHaveBeenCalledWith(
       "onboarding:mark",
-      "iterlay.onboarding.board.v1",
+      "tuda.onboarding.board.v1",
       "completed"
     );
     expect(electronMocks.invoke).toHaveBeenCalledWith(
       "onboarding:clear",
-      "iterlay.onboarding.board.v1"
+      "tuda.onboarding.board.v1"
     );
   });
 

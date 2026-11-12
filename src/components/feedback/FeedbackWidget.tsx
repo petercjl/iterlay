@@ -9,9 +9,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import type { FeedbackKind } from "../../../shared/feedback";
 import { buildGithubFeedbackIssue, GITHUB_ISSUES_URL } from "@/lib/github-feedback";
 
-const POSITION_KEY = "iterlay:feedback-widget-position:v1";
-const DRAFT_KEY = "iterlay:feedback-draft:v1";
-const NUDGE_KEY = "iterlay:feedback-incentive-nudge:v1";
+const POSITION_KEY = "tuda:feedback-widget-position:v1";
+const DRAFT_KEY = "tuda:feedback-draft:v1";
+const NUDGE_KEY = "tuda:feedback-incentive-nudge:v1";
 const WIDGET_HITBOX_WIDTH = 48;
 const WIDGET_HITBOX_HEIGHT = 56;
 const VIEWPORT_MARGIN = 16;
@@ -61,9 +61,9 @@ const kindPlaceholders: Record<FeedbackKind, string> = {
 };
 
 const feedbackNudges = [
-  { title: "哪一步不顺手？", description: "在 GitHub Issues 告诉我们，帮助改进 Iterlay。", action: "说说问题" },
+  { title: "哪一步不顺手？", description: "在 GitHub Issues 告诉我们，帮助改进 Tuda。", action: "说说问题" },
   { title: "一个好点子，值得被看见", description: "在 GitHub Issues 分享你想要的功能。", action: "提交点子" },
-  { title: "帮 Iterlay 再好用一点", description: "你的工作流建议，可能变成下一次更新。", action: "参与共创" },
+  { title: "帮 Tuda 再好用一点", description: "你的工作流建议，可能变成下一次更新。", action: "参与共创" },
   { title: "我们正在收集真实创作体验", description: "遇到卡点或有新想法？到 GitHub Issues 留下建议。", action: "留下建议" }
 ] as const;
 

@@ -379,11 +379,11 @@ export class MasterGoBridge {
     let analysisRegionCount = 0;
     const evolutionEnabled = request.evolutionEnabled !== false;
     const fauxProvider = registerFauxProvider({
-      api: `iterlay-mastergo-${state.snapshot.id}`,
-      provider: "iterlay",
+      api: `tuda-mastergo-${state.snapshot.id}`,
+      provider: "tuda",
       models: [{
         id: "editable-ui-reconstruction",
-        name: "Iterlay MasterGo Reconstruction",
+        name: "Tuda MasterGo Reconstruction",
         input: ["text", "image"],
         contextWindow: 128_000,
         maxTokens: 32_000
@@ -1083,7 +1083,7 @@ export class MasterGoBridge {
       stderr: "pipe"
     });
     const client = new Client(
-      { name: "iterlay-mastergo", version: this.appVersion },
+      { name: "tuda-mastergo", version: this.appVersion },
       { capabilities: {} }
     );
     await client.connect(transport);

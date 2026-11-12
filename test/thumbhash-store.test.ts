@@ -11,7 +11,7 @@ afterEach(async () => {
 });
 
 async function createStore(): Promise<{ directory: string; store: ThumbHashStore }> {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-thumbhash-"));
+  const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-thumbhash-"));
   temporaryDirectories.push(directory);
   return { directory, store: new ThumbHashStore(directory) };
 }

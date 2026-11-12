@@ -51,7 +51,7 @@ const [piAgentBuiltinTools, setPiAgentBuiltinTools] = useState<AppSettings["piAg
     "find",
     "ls"
   ]);
-const [piAgentIterlayTools, setPiAgentIterlayTools] = useState<string[]>([]);
+const [piAgentTudaTools, setPiAgentTudaTools] = useState<string[]>([]);
 const [piAgentSkillPaths, setPiAgentSkillPaths] = useState<string[]>([]);
 const [piAgentExtensionPaths, setPiAgentExtensionPaths] = useState<string[]>([]);
 const [piAgentCustomSkillPaths, setPiAgentCustomSkillPaths] = useState<string[]>([]);
@@ -118,8 +118,8 @@ return {
     setBoardAssistantAgentModeEnabled,
     piAgentBuiltinTools,
     setPiAgentBuiltinTools,
-    piAgentIterlayTools,
-    setPiAgentIterlayTools,
+    piAgentTudaTools,
+    setPiAgentTudaTools,
     piAgentSkillPaths,
     setPiAgentSkillPaths,
     piAgentExtensionPaths,

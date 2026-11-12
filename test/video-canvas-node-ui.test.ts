@@ -541,7 +541,7 @@ describe("video canvas node UI", () => {
       sourceVideoPath: "/source.mp4",
       model: "官方视频模型",
       providerOptions: [
-        { id: "official-video", name: "Iterlay 官方", type: "official", baseUrl: "", model: "官方视频模型" }
+        { id: "official-video", name: "Tuda 官方", type: "official", baseUrl: "", model: "官方视频模型" }
       ],
       referenceVideos: [{ id: "source", name: "source.mp4", path: "/source.mp4" }],
       duration: 5,
@@ -552,7 +552,7 @@ describe("video canvas node UI", () => {
 
     renderCanvasNode({ id: "generator", type: "videoGenerationNode", position: { x: 0, y: 0 }, data: data as unknown as Record<string, unknown> }, { videoGenerationNode: VideoGenerationNode });
 
-    expect(document.querySelector(".video-generation-mode-detail")?.textContent).toContain("Iterlay 官方暂不支持改编视频");
+    expect(document.querySelector(".video-generation-mode-detail")?.textContent).toContain("Tuda 官方暂不支持改编视频");
     expect(document.querySelector<HTMLButtonElement>(".canvas-generation-run")?.disabled).toBe(true);
   });
 
@@ -589,7 +589,7 @@ describe("video canvas node UI", () => {
       providerId: "ark-video",
       model: "doubao-seedance-1-5-pro-250528",
       providerOptions: [
-        { id: "official-video", name: "Iterlay 官方", type: "official", baseUrl: "", model: "官方视频模型" },
+        { id: "official-video", name: "Tuda 官方", type: "official", baseUrl: "", model: "官方视频模型" },
         { id: "ark-video", name: "火山方舟", type: "ark", baseUrl: "https://ark.example", model: "doubao-seedance-1-5-pro-250528", models: ["doubao-seedance-1-5-pro-250528", "doubao-seedance-2-0-pro"] },
         { id: "fal-video", name: "fal.ai 视频", type: "fal", baseUrl: "https://queue.fal.run", model: "fal-ai/kling-video/v2.1/standard/text-to-video" }
       ],
@@ -640,7 +640,7 @@ describe("video canvas node UI", () => {
       providerId: "official-video",
       model: "官方视频模型",
       providerOptions: [
-        { id: "official-video", name: "Iterlay 官方", type: "official", baseUrl: "", model: "官方视频模型" },
+        { id: "official-video", name: "Tuda 官方", type: "official", baseUrl: "", model: "官方视频模型" },
         { id: "ark-video", name: "火山方舟", type: "ark", baseUrl: "https://ark.example", model: "seedance" }
       ],
       goldBeanBalance: 995_918,
@@ -656,9 +656,9 @@ describe("video canvas node UI", () => {
     await openVideoModelMenu();
 
     const officialProvider = Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]'))
-      .find((item) => item.textContent?.includes("Iterlay 官方"));
+      .find((item) => item.textContent?.includes("Tuda 官方"));
     expect(officialProvider?.textContent).toContain("余额 995918");
-    const options = await openVideoProviderSubmenu("Iterlay 官方");
+    const options = await openVideoProviderSubmenu("Tuda 官方");
     expect(options[0].textContent).toContain("2 金豆/秒");
   });
 
@@ -698,7 +698,7 @@ describe("video canvas node UI", () => {
       providerId: "removed-video",
       model: "removed/model",
       providerOptions: [
-        { id: "official-video", name: "Iterlay 官方", type: "official", baseUrl: "", model: "官方视频模型" }
+        { id: "official-video", name: "Tuda 官方", type: "official", baseUrl: "", model: "官方视频模型" }
       ],
       duration: 5,
       aspectRatio: "16:9",

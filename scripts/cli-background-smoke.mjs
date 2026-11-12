@@ -11,12 +11,12 @@ import { _electron } from "playwright";
 const root = path.resolve(import.meta.dirname, "..");
 const require = createRequire(import.meta.url);
 const exec = promisify(execFile);
-const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-background-"));
+const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-background-"));
 await mkdir(path.join(directory, "workspace")); // Prevent importing legacy user data.
-const env = { ...process.env, ITERLAY_PLAYWRIGHT: "1", ITERLAY_E2E_USER_DATA: directory };
+const env = { ...process.env, TUDA_PLAYWRIGHT: "1", TUDA_E2E_USER_DATA: directory };
 delete env.ELECTRON_RUN_AS_NODE;
 delete env.VITE_DEV_SERVER_URL;
-delete env.ITERLAY_BROWSER_DEV;
+delete env.TUDA_BROWSER_DEV;
 
 async function cli(...args) {
   const { stdout } = await exec(process.execPath, [path.join(root, "cli/dist/main.js"), ...args, "--user-data-path", directory, "--no-launch", "--json"], { cwd: root, timeout: 30_000 });
@@ -26,7 +26,7 @@ async function cli(...args) {
 }
 
 async function start() {
-  const application = await _electron.launch({ executablePath: require("electron"), args: [root, "--iterlay-background"], cwd: root, env, timeout: 30_000 });
+  const application = await _electron.launch({ executablePath: require("electron"), args: [root, "--tuda-background"], cwd: root, env, timeout: 30_000 });
   const startupLogs = [];
   application.process().stderr?.on("data", chunk => startupLogs.push(String(chunk)));
   application.process().stdout?.on("data", chunk => startupLogs.push(String(chunk)));
@@ -65,7 +65,7 @@ try {
   await cli("status");
   await assertHidden(application);
   // Another background launcher must never bring the existing session forward.
-  await application.evaluate(({ app }) => app.emit("second-instance", {}, ["Iterlay", "--iterlay-background"], process.cwd()));
+  await application.evaluate(({ app }) => app.emit("second-instance", {}, ["Tuda", "--tuda-background"], process.cwd()));
   await assertHidden(application);
   await application.close();
   application = undefined;

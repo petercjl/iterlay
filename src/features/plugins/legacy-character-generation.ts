@@ -165,7 +165,7 @@ export function useLegacyCharacterGeneration({ boardId: currentBoardId, workflow
     } catch (error) {
       const message = getWorkbenchErrorMessage(error, "角色图片生成准备失败。");
       if (isCurrentCharacter(character, boardId)) updateWorkflowNode(character.id, { status: "failed", generationError: message });
-      toast.error(message, { action: { label: "插件市场", onClick: () => window.dispatchEvent(new Event("iterlay:manage-plugins")) } });
+      toast.error(message, { action: { label: "插件市场", onClick: () => window.dispatchEvent(new Event("tuda:manage-plugins")) } });
     } finally {
       paidSubmissionInFlightRef.current.delete(character.id);
     }

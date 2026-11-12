@@ -17,7 +17,7 @@ import { normalizeProvider,SettingsStore } from "../electron/storage/settings-st
 const tempDirs: string[] = [];
 
 function makeDataDir(): string {
-  const dir = mkdtempSync(path.join(tmpdir(), "iterlay-settings-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "tuda-settings-"));
   tempDirs.push(dir);
   return dir;
 }
@@ -303,7 +303,7 @@ describe("SettingsStore 文本 Provider 迁移", () => {
   });
 
   it("round-trips multiple models on the same image provider", () => {
-    const dir = mkdtempSync(path.join(tmpdir(), "iterlay-settings-"));
+    const dir = mkdtempSync(path.join(tmpdir(), "tuda-settings-"));
     const store = new SettingsStore(dir);
     const base = store.getSettings();
     store.saveSettings({

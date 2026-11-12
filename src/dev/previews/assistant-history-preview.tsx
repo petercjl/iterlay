@@ -7,7 +7,7 @@ import "@/styles.css";
 
 const previewLanguage = new URLSearchParams(window.location.search).get("lang");
 if (previewLanguage === "zh-CN" || previewLanguage === "en-US") {
-  window.localStorage.setItem("iterlay:language", previewLanguage);
+  window.localStorage.setItem("tuda:language", previewLanguage);
 }
 
 const conversations: AssistantHistoryConversation[] = [

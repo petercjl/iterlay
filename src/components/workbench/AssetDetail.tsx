@@ -32,7 +32,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { iterlayToast } from "@/components/ui/iterlay-toast";
+import { tudaToast } from "@/components/ui/tuda-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { getThumbHashRatio } from "@/lib/thumbhash-placeholder";
@@ -252,18 +252,18 @@ export function AssetDetail({
       const resp = await fetch(currentDataUrl);
       const blob = await resp.blob();
       await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-      iterlayToast.copied({ title: translateSourceText("已复制图片"), detail: translateSourceText("可粘贴到其他应用") });
+      tudaToast.copied({ title: translateSourceText("已复制图片"), detail: translateSourceText("可粘贴到其他应用") });
     } catch {
       // Fallback: copy data URL.
       void navigator.clipboard.writeText(currentDataUrl);
-      iterlayToast.copied({ title: translateSourceText("已复制 Data URL") });
+      tudaToast.copied({ title: translateSourceText("已复制 Data URL") });
     }
   }, [currentDataUrl]);
 
   const handleDownload = useCallback(async () => {
     try {
       const result = await getImageWorkbenchApi().saveAsset(currentImagePath);
-      if (result?.ok) iterlayToast.exported({ title: translateSourceText("图片已导出"), path: result.path });
+      if (result?.ok) tudaToast.exported({ title: translateSourceText("图片已导出"), path: result.path });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : translateSourceText("导出失败"));
     }
@@ -312,7 +312,7 @@ export function AssetDetail({
     if (!shareCard) return;
     try {
       const result = await getImageWorkbenchApi().saveImageDataUrl(shareCard, "share-card.png");
-      if (result?.ok) iterlayToast.exported({ title: translateSourceText("分享卡已导出"), path: result.path });
+      if (result?.ok) tudaToast.exported({ title: translateSourceText("分享卡已导出"), path: result.path });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : translateSourceText("导出失败"));
     }
@@ -538,7 +538,7 @@ export function AssetDetail({
                             e.stopPropagation();
                             try {
                               const r = await getImageWorkbenchApi().saveAsset(version.imagePath);
-                              if (r?.ok) iterlayToast.exported({ title: translateSourceText("v{{ui:0}} 已导出", [index + 1]), path: r.path });
+                              if (r?.ok) tudaToast.exported({ title: translateSourceText("v{{ui:0}} 已导出", [index + 1]), path: r.path });
                             } catch {
                               toast.error(translateSourceText("导出失败"));
                             }
@@ -870,7 +870,7 @@ export function AssetDetail({
                 className="gap-1.5"
                 onClick={() => {
                   void navigator.clipboard.writeText(shareCard);
-                  iterlayToast.copied({ title: translateSourceText("已复制分享卡 Data URL") });
+                  tudaToast.copied({ title: translateSourceText("已复制分享卡 Data URL") });
                 }}
               >
                 <Copy className="h-4 w-4" />
@@ -923,7 +923,7 @@ function ReferenceThumb({
           e.stopPropagation();
           try {
             const r = await getImageWorkbenchApi().saveAsset(reference.imagePath);
-            if (r?.ok) iterlayToast.exported({ title: translateSourceText("引用图已导出"), path: r.path });
+            if (r?.ok) tudaToast.exported({ title: translateSourceText("引用图已导出"), path: r.path });
           } catch {
             toast.error(translateSourceText("导出失败"));
           }

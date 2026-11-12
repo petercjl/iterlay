@@ -61,7 +61,7 @@ export class DirectDownloadDriver implements UpdateDriver {
 
     const headers = new Headers();
     const deviceId = await this.options.deviceIdProvider?.().catch(() => undefined);
-    if (deviceId) headers.set("X-Iterlay-Device-ID", deviceId);
+    if (deviceId) headers.set("X-Tuda-Device-ID", deviceId);
     const response = await this.fetcher(manifest.downloadUrl, { signal, headers });
     if (!response.ok) throw new Error(`安装包下载失败 (${response.status})`);
     if (!response.body) throw new Error("安装包下载失败：响应为空");
@@ -139,7 +139,7 @@ function defaultApplicationPath(platform: UpdatePlatform): string {
 }
 
 async function prepareMacApplication(installerPath: string, applicationPath: string): Promise<void> {
-  const mountDir = await mkdtemp(path.join(os.tmpdir(), "iterlay-update-"));
+  const mountDir = await mkdtemp(path.join(os.tmpdir(), "tuda-update-"));
   const stagedApp = `${applicationPath}.update`;
   const backupApp = `${applicationPath}.previous`;
   let mounted = false;
@@ -156,7 +156,7 @@ async function prepareMacApplication(installerPath: string, applicationPath: str
     mounted = true;
     const entries = await readdir(mountDir, { withFileTypes: true });
     const sourceApp = entries.find((entry) => entry.isDirectory() && entry.name.endsWith(".app"));
-    if (!sourceApp) throw new Error("安装包中未找到 Iterlay 应用，请重新下载。");
+    if (!sourceApp) throw new Error("安装包中未找到 Tuda 应用，请重新下载。");
 
     await rm(stagedApp, { recursive: true, force: true });
     await rm(backupApp, { recursive: true, force: true });
@@ -197,7 +197,7 @@ async function replaceMacApplicationAfterExit(processId: number, applicationPath
   await new Promise<void>((resolve, reject) => {
     const helper = spawn(
       "/bin/sh",
-      ["-c", script, "iterlay-updater", String(processId), applicationPath],
+      ["-c", script, "tuda-updater", String(processId), applicationPath],
       { detached: true, stdio: "ignore" }
     );
     helper.once("error", reject);
@@ -283,7 +283,7 @@ function installerFileName(manifest: UpdateManifest): string {
   }
   const extension = manifest.platform === "win32" ? "exe" : "dmg";
   const arch = manifest.arch ? `-${manifest.arch}` : "";
-  return `Iterlay-${manifest.version}${arch}.${extension}`;
+  return `Tuda-${manifest.version}${arch}.${extension}`;
 }
 
 function sanitizeFileName(name: string): string {

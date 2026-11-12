@@ -109,7 +109,7 @@ export function createSettingsActions(dependencies: SettingsActionDependencies) 
   providerKeyStatus,
   setBoardAssistantAgentModeEnabled,
   setPiAgentBuiltinTools,
-  setPiAgentIterlayTools,
+  setPiAgentTudaTools,
   setPiAgentSkillPaths,
   setPiAgentExtensionPaths,
   setPiAgentCustomSkillPaths,
@@ -316,9 +316,9 @@ function changePiAgentBuiltinTools(next: NonNullable<AppSettings["piAgentBuiltin
     persistSettingsPatch({ piAgentBuiltinTools: next });
   }
 
-function changePiAgentIterlayTools(next: string[]): void {
-    setPiAgentIterlayTools(next);
-    persistSettingsPatch({ piAgentIterlayTools: next });
+function changePiAgentTudaTools(next: string[]): void {
+    setPiAgentTudaTools(next);
+    persistSettingsPatch({ piAgentTudaTools: next });
   }
 
 function changePiAgentSkillPaths(next: string[]): void {
@@ -420,7 +420,7 @@ return {
     changeBoardAssistantEnabled,
     changeBoardAssistantAgentModeEnabled,
     changePiAgentBuiltinTools,
-    changePiAgentIterlayTools,
+    changePiAgentTudaTools,
     changePiAgentSkillPaths,
     changePiAgentExtensionPaths,
     changePiAgentCustomSkillPaths,

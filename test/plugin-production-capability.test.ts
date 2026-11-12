@@ -5,7 +5,7 @@ import { createNode } from "../plugins/short-drama/src/model";
 import { validateImageRecipe } from "../src/features/plugins/validate-image-recipe";
 import { requestPluginCapability } from "../src/features/plugins/request-plugin-capability";
 import type { ComicCharacterNode, ComicDramaBoardSnapshot } from "../shared/comic-drama";
-const api = vi.hoisted(() => ({ listPlugins: vi.fn(async () => [{ enabled: true, manifest: { id: "dev.iterlay.short-drama", version: "1.3.2" } }]), authorizePlugin: vi.fn(async () => undefined), getPluginFrameUrl: vi.fn(async () => "http://localhost/plugin") }));
+const api = vi.hoisted(() => ({ listPlugins: vi.fn(async () => [{ enabled: true, manifest: { id: "dev.tuda.short-drama", version: "1.3.2" } }]), authorizePlugin: vi.fn(async () => undefined), getPluginFrameUrl: vi.fn(async () => "http://localhost/plugin") }));
 vi.mock("../src/lib/image-workbench-api", () => ({ getImageWorkbenchApi: () => api }));
 const snapshot: ComicDramaBoardSnapshot = { boardId: "board", revision: 3, nodes: [], connections: [], groups: [] };
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); document.querySelectorAll("iframe").forEach(frame => frame.remove()); });
@@ -28,7 +28,7 @@ describe("installed short drama production capability", () => {
   });
   it("accepts capability output only from the installed sandbox and cleans it up", async () => {
     let requestId = "";
-    const pending = requestPluginCapability("dev.iterlay.short-drama", "character.prepareGeneration", { id: "character" });
+    const pending = requestPluginCapability("dev.tuda.short-drama", "character.prepareGeneration", { id: "character" });
     await vi.waitFor(() => expect(document.querySelector("iframe")).not.toBeNull());
     const frame = document.querySelector("iframe")!;
     const post = vi.spyOn(frame.contentWindow!, "postMessage").mockImplementation(message => { requestId = message.id; });
@@ -39,26 +39,26 @@ describe("installed short drama production capability", () => {
     window.dispatchEvent(new MessageEvent("message", { source: frame.contentWindow, data: { source: "iterlay-plugin", type: "capability-result", id: requestId, result: { prompt: "real", size: "1024x1792", useCase: "illustration-story", creationMode: "general" } } }));
     await expect(pending).resolves.toEqual({ prompt: "real", size: "1024x1792", useCase: "illustration-story", creationMode: "general" });
     expect(document.querySelector("iframe")).toBeNull();
-    expect(api.authorizePlugin).toHaveBeenCalledWith("dev.iterlay.short-drama", "assistant:comic-drama");
+    expect(api.authorizePlugin).toHaveBeenCalledWith("dev.tuda.short-drama", "assistant:comic-drama");
   });
 });
 
 describe("capability lifecycle and installed-package compatibility", () => {
   it("rejects a stale installed version before creating an iframe", async () => {
-    api.listPlugins.mockResolvedValueOnce([{ enabled: true, manifest: { id: "dev.iterlay.short-drama", version: "1.3.1" } }]);
-    await expect(requestPluginCapability("dev.iterlay.short-drama", "character.prepareGeneration", {})).rejects.toThrow("更新至 1.3.2");
+    api.listPlugins.mockResolvedValueOnce([{ enabled: true, manifest: { id: "dev.tuda.short-drama", version: "1.3.1" } }]);
+    await expect(requestPluginCapability("dev.tuda.short-drama", "character.prepareGeneration", {})).rejects.toThrow("更新至 1.3.2");
     expect(document.querySelector("iframe")).toBeNull();
   });
   it("removes a pending sandbox immediately when its owner aborts", async () => {
     const owner = new AbortController();
-    const pending = requestPluginCapability("dev.iterlay.short-drama", "character.prepareGeneration", {}, { signal: owner.signal });
+    const pending = requestPluginCapability("dev.tuda.short-drama", "character.prepareGeneration", {}, { signal: owner.signal });
     const rejected = expect(pending).rejects.toThrow("取消");
     await vi.waitFor(() => expect(document.querySelector("iframe")).not.toBeNull());
     owner.abort(); await rejected;
     expect(document.querySelector("iframe")).toBeNull();
   });
   it("does not accept a recipe after the plugin loses authorization", async () => {
-    const pending = requestPluginCapability("dev.iterlay.short-drama", "character.prepareGeneration", {});
+    const pending = requestPluginCapability("dev.tuda.short-drama", "character.prepareGeneration", {});
     const rejected = expect(pending).rejects.toThrow("停用");
     await vi.waitFor(() => expect(document.querySelector("iframe")).not.toBeNull());
     const frame = document.querySelector("iframe")!;

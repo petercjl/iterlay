@@ -454,7 +454,7 @@ function LibraryGalleryScene({ assets, fadeIn, fadeOut }: SceneProps): React.Rea
     <DemoShell fadeIn={fadeIn} fadeOut={fadeOut}>
       <div style={{ position: "absolute", inset: "30px 34px", overflow: "hidden", borderRadius: 10, background: "#f5f5f2", boxShadow: "0 8px 24px rgb(24 24 27 / 0.16)" }}>
         <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 150, padding: "18px 14px", background: "#252a33", color: "#fafafa" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 11, fontWeight: 700 }}><FolderKanban size={14} />Iterlay</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 11, fontWeight: 700 }}><FolderKanban size={14} />Tuda</div>
           {["画板", "素材库", "模版库", "生成画廊"].map((item, index) => <div key={item} style={{ display: "flex", height: 38, alignItems: "center", gap: 7, marginTop: index === 0 ? 24 : 4, borderRadius: 7, padding: "0 9px", color: index === (galleryIn > 0.3 ? 3 : boardIn > 0.3 ? 0 : 1) ? "#091b3f" : "rgb(250 250 250 / 0.62)", background: index === (galleryIn > 0.3 ? 3 : boardIn > 0.3 ? 0 : 1) ? "#78a4ff" : "transparent", fontSize: 9 }}><span>{item}</span></div>)}
         </div>
         <div style={{ position: "absolute", inset: "0 0 0 150px", padding: 20, opacity: 1 - galleryIn }}>

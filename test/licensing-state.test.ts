@@ -14,7 +14,7 @@ function verify(payload: LicenseGrantPayload | TrialGrantPayload) {
 function license(overrides: Partial<LicenseGrantPayload> = {}) {
   return verify({
     subjectType: "license",
-    productId: "iterlay",
+    productId: "tuda",
     licenseId: "license-1",
     deviceId: "device-1",
     devicePublicKey: "public-key",
@@ -29,7 +29,7 @@ function license(overrides: Partial<LicenseGrantPayload> = {}) {
 function trial(overrides: Partial<TrialGrantPayload> = {}) {
   return verify({
     subjectType: "trial",
-    productId: "iterlay",
+    productId: "tuda",
     trialId: "trial-1",
     deviceId: "device-1",
     devicePublicKey: "public-key",

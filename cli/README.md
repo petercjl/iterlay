@@ -1,24 +1,24 @@
-# Iterlay CLI
+# Tuda CLI
 
-Iterlay 把图片、视频与创作工作流放在同一张画布上。CLI 让你和 Coding Agent 通过命令生成图片、修改素材、制作视频、整理画板并导出结果，复用 App 已保存的模型服务与授权。
+Tuda 把图片、视频与创作工作流放在同一张画布上。CLI 让你和 Coding Agent 通过命令生成图片、修改素材、制作视频、整理画板并导出结果，复用 App 已保存的模型服务与授权。
 
-安装 App 后首次打开会自动安装随包 CLI。新开终端后运行 `iterlay help`。
+安装 App 后首次打开会自动安装随包 CLI。新开终端后运行 `tuda help`。
 
-日常使用无需先打开 App：CLI 会连接已有服务，或自动启动隐藏的后台工作台，不弹窗口、不抢焦点，macOS 不显示 Dock 图标。后台复用 App 已保存的模型配置、授权和数据；CLI 退出或停止等待不会终止生成任务。主动打开 App（或调用 `open_iterlay`）会显示同一工作区。由 CLI 启动的工作台关闭窗口后继续在后台运行；通过 App 的退出命令可完全退出。
+日常使用无需先打开 App：CLI 会连接已有服务，或自动启动隐藏的后台工作台，不弹窗口、不抢焦点，macOS 不显示 Dock 图标。后台复用 App 已保存的模型配置、授权和数据；CLI 退出或停止等待不会终止生成任务。主动打开 App（或调用 `open_tuda`）会显示同一工作区。由 CLI 启动的工作台关闭窗口后继续在后台运行；通过 App 的退出命令可完全退出。
 
 这仍依赖已安装的 App/Electron 运行时，并非独立的无桌面服务器程序。`--no-launch` 禁止自动启动；服务未运行时会返回连接错误。帮助、版本、工具列表和 Guard 描述可离线读取。
 
 ```bash
-iterlay providers list --json
-iterlay image generate --prompt "极简咖啡杯插画" --out ./cup.png --json
-iterlay image edit --input ./cup.png --prompt "改成米白色" --out ./cup-light.png --json
-iterlay tasks wait <task-id> --out ./result.png --json
-iterlay tools list --json
+tuda providers list --json
+tuda image generate --prompt "极简咖啡杯插画" --out ./cup.png --json
+tuda image edit --input ./cup.png --prompt "改成米白色" --out ./cup-light.png --json
+tuda tasks wait <task-id> --out ./result.png --json
+tuda tools list --json
 ```
 
-完整工作台操作使用 `iterlay call <operation> --input '<JSON>' --json`，操作与 schema 由 `tools list` 返回。
+完整工作台操作使用 `tuda call <operation> --input '<JSON>' --json`，操作与 schema 由 `tools list` 返回。
 
-`--reference`、`image edit --input` 和 `assets import --input` 按原始文件字节数校验：每个非空素材最多 20 MiB（20,971,520 字节）。Base64 编码后的数据使用独立的媒体校验，不占用提示词的 100,000 字符额度；CLI 会先导入原始素材，再把受管路径用于生成，不会自动压缩图片。超限错误会包含文件名、实际大小和上限；可压缩后重试，或先通过 App 导入，再用 `iterlay call` 传入受管路径。模型服务自身仍可能有更低的参考图限制。此修复需要更新 App 后台，仅更新 CLI 无法修复旧版 App 的导入校验。
+`--reference`、`image edit --input` 和 `assets import --input` 按原始文件字节数校验：每个非空素材最多 20 MiB（20,971,520 字节）。Base64 编码后的数据使用独立的媒体校验，不占用提示词的 100,000 字符额度；CLI 会先导入原始素材，再把受管路径用于生成，不会自动压缩图片。超限错误会包含文件名、实际大小和上限；可压缩后重试，或先通过 App 导入，再用 `tuda call` 传入受管路径。模型服务自身仍可能有更低的参考图限制。此修复需要更新 App 后台，仅更新 CLI 无法修复旧版 App 的导入校验。
 
 ## 配置视频与旁白模型
 
@@ -26,60 +26,60 @@ iterlay tools list --json
 
 ```bash
 # 查看配置，不返回密钥
-iterlay providers list --kind video --json
-iterlay providers show <provider-id> --json
+tuda providers list --kind video --json
+tuda providers show <provider-id> --json
 
 # 修改已有视频默认模型；保留地址、凭证及其它已保存模型
-iterlay models set --kind video --provider <provider-id> --model <model-id> --json
+tuda models set --kind video --provider <provider-id> --model <model-id> --json
 
 # 新增 TTS：从已有环境变量读取密钥，不把密钥放进命令参数
-iterlay providers set --kind audio --provider narration --name "旁白" \
+tuda providers set --kind audio --provider narration --name "旁白" \
   --base-url https://api.openai.com --model gpt-4o-mini-tts --voice nova \
   --api-key-env OPENAI_API_KEY --default --json
 
-iterlay providers set --kind audio --provider narration --voice alloy --json
-iterlay providers default narration --kind audio --json
-iterlay providers list --kind audio --json
-iterlay models list --provider narration --json
-iterlay providers remove narration --kind audio --json
+tuda providers set --kind audio --provider narration --voice alloy --json
+tuda providers default narration --kind audio --json
+tuda providers list --kind audio --json
+tuda models list --provider narration --json
+tuda providers remove narration --kind audio --json
 ```
 
 新增视频服务使用 `providers set --kind video --type <协议> --base-url <地址> --model <模型>`，可用 `--provider` 自定 ID，省略则生成 ID。重复 `--saved-model <模型>` 会替换已保存列表，并始终包含 `--model` 指定的默认模型；省略则保留列表。`--default` 同时将此服务设为该类别默认服务。内置官方服务不可修改或删除，图片、文本配置暂不开放修改。
 
 TTS 的 `--speech-endpoint` 默认 `/v1/audio/speech`，表示相对 `--base-url` 的接口路径；例如地址为 `https://api.openai.com/v1` 时可设 `/audio/speech`。模型及音色 ID 由服务商决定，保存配置不代表远端模型可用。`models list` 只列已保存模型，不查询远程目录。
 
-凭证可通过 `--api-key-env <变量名>` 或管道配合 `--api-key-stdin` 输入，二者不可同时使用；查询仅返回 `authConfigured`。省略凭证选项会保留原密钥；`--clear-api-key` 显式清除。App 使用系统安全存储加密，无法加密时整次修改回滚。不要把真实密钥放进 `iterlay call --input`、聊天或日志。
+凭证可通过 `--api-key-env <变量名>` 或管道配合 `--api-key-stdin` 输入，二者不可同时使用；查询仅返回 `authConfigured`。省略凭证选项会保留原密钥；`--clear-api-key` 显式清除。App 使用系统安全存储加密，无法加密时整次修改回滚。不要把真实密钥放进 `tuda call --input`、聊天或日志。
 
 fal / OpenRouter 视频可用 `--connection-provider <同类型图片服务ID>` 复用其地址和凭证。复用时不能设置独立密钥；用 `--connection-provider none` 解除关联，再设置独立连接。CLI 与 App 共用设置，需要配套运行包含此功能的新版后台服务；仅替换 CLI 无法让旧 App 支持配置操作。
 
-`iterlay guard descriptor` 可离线输出随包携带的 HOL Guard 命令描述；它不会安装 Guard 或改变 Agent 权限。生成/编辑、文件导出、配置安装与通用调用按影响分类，最终决策仍受 Guard 全局策略控制。参见 [说明](../docs/guard.md)。
+`tuda guard descriptor` 可离线输出随包携带的 HOL Guard 命令描述；它不会安装 Guard 或改变 Agent 权限。生成/编辑、文件导出、配置安装与通用调用按影响分类，最终决策仍受 Guard 全局策略控制。参见 [说明](../docs/guard.md)。
 
-Coding Agent 在 App 的设置 → Coding Agent 中一键安装 `using-iterlay` Skill，或运行 `npx iterlay add --agent <id>`。支持 `codex`、`claude-code`、`workbuddy`、`cursor`、`windsurf`、`cline`、`roo-cline`、`gemini-cli` 和 `opencode`；省略 `--agent` 时自动安装到已检测到的 Agent。WorkBuddy 的安装位置为 `~/.workbuddy/skills/using-iterlay`。`using-iterlay` 仅供手动调用：Codex 使用 `$using-iterlay`，Claude Code 使用 `/using-iterlay`，其他支持 Skills 的 Agent 直接按其 Skill 调用语法使用。迁移会移除 Codex/Claude Code 原来的 Iterlay MCP 条目，保留其他服务。此版本不再提供 MCP server。
+Coding Agent 在 App 的设置 → Coding Agent 中一键安装 `using-tuda` Skill，或运行 `npx tuda add --agent <id>`。支持 `codex`、`claude-code`、`workbuddy`、`cursor`、`windsurf`、`cline`、`roo-cline`、`gemini-cli` 和 `opencode`；省略 `--agent` 时自动安装到已检测到的 Agent。WorkBuddy 的安装位置为 `~/.workbuddy/skills/using-tuda`。`using-tuda` 仅供手动调用：Codex 使用 `$using-tuda`，Claude Code 使用 `/using-tuda`，其他支持 Skills 的 Agent 直接按其 Skill 调用语法使用。迁移会移除 Codex/Claude Code 原来的 Tuda MCP 条目，保留其他服务。此版本不再提供 MCP server。
 
-指定 `--user-data-path` 或 `ITERLAY_USER_DATA_PATH` 时只连接指定工作区，不自动启动另一个工作区。生成默认等待，`--async` 提交即返回；结束等待不会取消远端任务。导出失败后可重试导出，不必重新生成。
+指定 `--user-data-path` 或 `TUDA_USER_DATA_PATH` 时只连接指定工作区，不自动启动另一个工作区。生成默认等待，`--async` 提交即返回；结束等待不会取消远端任务。导出失败后可重试导出，不必重新生成。
 
 开发：`npm ci && npm run build`。发布前自动同步 App 的 Skill，版本保持一致。
 
 ### 本地切图
 
 ```sh
-iterlay image slice --path <受管图片路径> --board <画板ID> --rows 3 --columns 4 --out ./avatars --json
-iterlay image slice --input ./sheet.png --rows 3 --columns 4 --margin 12 --gap 8 --json
-iterlay image slice --node <节点ID> --board <画板ID> --crops '[{"x":10,"y":20,"width":300,"height":300}]' --json
+tuda image slice --path <受管图片路径> --board <画板ID> --rows 3 --columns 4 --out ./avatars --json
+tuda image slice --input ./sheet.png --rows 3 --columns 4 --margin 12 --gap 8 --json
+tuda image slice --node <节点ID> --board <画板ID> --crops '[{"x":10,"y":20,"width":300,"height":300}]' --json
 ```
 
-复用 App 本地切图，不调用模型；保留原图，切片保存为受管 PNG 并加入画板。源参数三选一，宫格与 crops 互斥；每轴最多 8 格、最多 64 个区域。坐标、边距和间距均为原图像素；不自动去底、识别主体或统一输出尺寸。返回 images、crops、nodeIds 和可选 exportedPaths；--out 为目录，已有文件默认不覆盖。高级入口为 `iterlay call slice_image --input '<JSON>' --json`，精确 schema 见 tools list。
+复用 App 本地切图，不调用模型；保留原图，切片保存为受管 PNG 并加入画板。源参数三选一，宫格与 crops 互斥；每轴最多 8 格、最多 64 个区域。坐标、边距和间距均为原图像素；不自动去底、识别主体或统一输出尺寸。返回 images、crops、nodeIds 和可选 exportedPaths；--out 为目录，已有文件默认不覆盖。高级入口为 `tuda call slice_image --input '<JSON>' --json`，精确 schema 见 tools list。
 
 ### 可复用图片模板
 
 模板规则保存到当前工作区的模板库，与 App 自定义模板共用。创建/更新模板不调用模型、不产生生成费用。
 
 ```sh
-iterlay templates create --name "品牌海报" --prompt "米白背景、黑色大标题、充足留白" --category marketing
-iterlay templates list
-iterlay templates show 'custom:返回的ID'
-iterlay templates update 'custom:返回的ID' --description "品牌系列海报"
-iterlay image generate --template 'custom:返回的ID' --prompt "春季咖啡新品，标题：春日第一杯" --out poster.png
+tuda templates create --name "品牌海报" --prompt "米白背景、黑色大标题、充足留白" --category marketing
+tuda templates list
+tuda templates show 'custom:返回的ID'
+tuda templates update 'custom:返回的ID' --description "品牌系列海报"
+tuda image generate --template 'custom:返回的ID' --prompt "春季咖啡新品，标题：春日第一杯" --out poster.png
 ```
 
 `--prompt` 在创建/更新时表示固定模板规则，在生成时表示本次内容；使用模板不会修改模板本身。生成记录保留模板 ID，结果沿用普通图片任务的等待、导出和画板流程。编辑模板使用 `--mode edit`，配合 `image edit --template ... --input ... --prompt ...`。

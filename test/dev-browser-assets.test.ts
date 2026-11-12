@@ -13,7 +13,7 @@ afterEach(async () => {
 });
 
 async function fixture() {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-dev-assets-"));
+  const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-dev-assets-"));
   temporaryDirectories.push(directory);
   const store = new AssetStore(directory);
   const bytes = Buffer.from(Array.from({ length: 32 }, (_, index) => index));
@@ -76,7 +76,7 @@ describe("development browser asset response", () => {
 
     const resolver = vi.fn(() => "/etc/passwd");
     for (const suffix of ["", "%2fetc%2fpasswd", "file:///etc/passwd", "token/extra"]) {
-      const response = await createDevBrowserAssetResponse(new Request(`http://127.0.0.1:5180/__iterlay_dev/assets/${suffix}`), resolver);
+      const response = await createDevBrowserAssetResponse(new Request(`http://127.0.0.1:5180/__tuda_dev/assets/${suffix}`), resolver);
       expect(response?.status).toBe(404);
     }
     expect(resolver).not.toHaveBeenCalled();

@@ -30,7 +30,7 @@ describe("comic drama Agent routing", () => {
     expect(host).toContain('assistantSurface: "comic-drama"');
     expect(host).toContain("agentMode: true");
     expect(host).toContain("respondToInteraction");
-    expect(tool).toContain("iterlay.assistant.cancel()");
+    expect(tool).toContain("tuda.assistant.cancel()");
     expect(tool).toContain("setConversationId(crypto.randomUUID())");
     expect(workspace).toContain("<PluginTools workspace");
     expect(workspace).not.toContain("createComicDramaMutationPlan");

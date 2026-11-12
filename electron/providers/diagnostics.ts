@@ -109,12 +109,12 @@ export async function checkProviderConnection(
 
 function connectionProbe(config: DiagnosticConfig, kind: "image" | "text" | "video"): { url: string; kind: "models" | "auth" | "task" } {
   const base = config.baseUrl.trim().replace(/\/+$/, "");
-  if (config.type === "fal") return { url: `${base}/${config.model.replace(/^\/+|\/+$/g, "")}/requests/iterlay-connection-test/status`, kind: "task" };
+  if (config.type === "fal") return { url: `${base}/${config.model.replace(/^\/+|\/+$/g, "")}/requests/tuda-connection-test/status`, kind: "task" };
   if (config.type === "poe") return { url: `${base}/usage/current_balance`, kind: "auth" };
   if (config.type === "openrouter" && kind === "image") return { url: `${base.replace(/\/v1$/, "")}/v1/key`, kind: "auth" };
   if (config.type === "openrouter" && kind === "video") return { url: `${openRouterVideoApiRoot(base)}/videos/models`, kind: "models" };
   if (config.type === "bailian") return { url: `${base}/compatible-mode/v1/models`, kind: "models" };
-  if (config.type === "ark" && kind === "video") return { url: `${base}/contents/generations/tasks/non-existent-iterlay-test`, kind: "task" };
+  if (config.type === "ark" && kind === "video") return { url: `${base}/contents/generations/tasks/non-existent-tuda-test`, kind: "task" };
   return { url: `${base}${/\/(?:v\d+|api\/v\d+)$/.test(base) ? "" : "/v1"}/models`, kind: "models" };
 }
 

@@ -15,7 +15,7 @@ export type GrantSubjectType = "license" | "trial";
 export type LicensePlanType = "perpetual" | "annual";
 export type SupportedLicensePlatform = "darwin" | "win32";
 
-export const ITERLAY_PRODUCT_ID = "iterlay";
+export const TUDA_PRODUCT_ID = "tuda";
 
 export const LICENSE_CHECK_INTERVAL_MS = 30 * 24 * 60 * 60 * 1_000;
 export const LICENSE_OFFLINE_VALIDITY_MS = 45 * 24 * 60 * 60 * 1_000;
@@ -54,7 +54,7 @@ export type GrantPayload = LicenseGrantPayload | TrialGrantPayload;
 
 export interface CompactGrantHeader {
   alg: "EdDSA";
-  typ: "ITERLAY-GRANT";
+  typ: "TUDA-GRANT";
   v: 1;
   kid: string;
 }

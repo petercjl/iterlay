@@ -24,7 +24,7 @@ class FakeEventSource extends EventTarget {
 
 const fetchMock = vi.fn<typeof fetch>();
 const beaconMock = vi.fn(() => true);
-const host = window as Window & { __iterlayBrowserWorkbench?: { dispose(): void } };
+const host = window as Window & { __tudaBrowserWorkbench?: { dispose(): void } };
 
 beforeEach(() => {
   FakeEventSource.connections = [];
@@ -39,8 +39,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  host.__iterlayBrowserWorkbench?.dispose();
-  delete host.__iterlayBrowserWorkbench;
+  host.__tudaBrowserWorkbench?.dispose();
+  delete host.__tudaBrowserWorkbench;
   delete window.imageWorkbench;
   Reflect.deleteProperty(navigator, "locks");
   vi.unstubAllGlobals();
@@ -77,7 +77,7 @@ describe("development browser workbench", () => {
     const source = await connect();
     const api = window.imageWorkbench!;
     expect(isBrowserWorkbench()).toBe(true);
-    expect(window.sessionStorage.getItem("iterlay:browser-debug-session")).toBe("tab-session");
+    expect(window.sessionStorage.getItem("tuda:browser-debug-session")).toBe("tab-session");
     expect(document.documentElement.dataset.workbenchConnection).toBe("connected");
 
     const bytes = new Uint8Array([0, 255]).buffer;
@@ -108,14 +108,14 @@ describe("development browser workbench", () => {
     await vi.waitFor(() => expect(fetchMock.mock.calls.some(([, init]) => String(init?.body).includes("window:renderer-ready"))).toBe(true));
     window.dispatchEvent(new PageTransitionEvent("pagehide"));
     expect(source.closed).toBe(true);
-    expect(beaconMock).toHaveBeenCalledWith("/__iterlay_dev/disconnect", expect.any(Blob));
+    expect(beaconMock).toHaveBeenCalledWith("/__tuda_dev/disconnect", expect.any(Blob));
   });
 
   it("shows the backend's editing-session conflict without injecting a partial API", async () => {
     fetchMock.mockResolvedValue(Response.json({ error: "已有另一个网页正在编辑，请先关闭它。" }, { status: 409 }));
     await expect(initializeBrowserWorkbench()).rejects.toThrow("已有另一个网页正在编辑");
     expect(window.imageWorkbench).toBeUndefined();
-    expect(host.__iterlayBrowserWorkbench).toBeUndefined();
+    expect(host.__tudaBrowserWorkbench).toBeUndefined();
     expect(FakeEventSource.connections).toHaveLength(0);
   });
 
@@ -132,21 +132,21 @@ describe("development browser workbench", () => {
       (event as CustomEvent<{ waitUntil(task: Promise<void>): void }>).detail.waitUntil(pendingSave);
     };
     const reload = vi.fn((event: Event) => event.preventDefault());
-    window.addEventListener("iterlay:browser-workbench-before-reload", beforeReload);
-    window.addEventListener("iterlay:browser-workbench-reload", reload);
+    window.addEventListener("tuda:browser-workbench-before-reload", beforeReload);
+    window.addEventListener("tuda:browser-workbench-reload", reload);
     try {
       sessionId = "restarted-session";
       source.onerror?.();
       await vi.waitFor(() => expect(document.documentElement.dataset.workbenchConnection).toBe("restarting"));
-      expect(window.sessionStorage.getItem("iterlay:browser-debug-session")).toBe(sessionId);
+      expect(window.sessionStorage.getItem("tuda:browser-debug-session")).toBe(sessionId);
       expect(source.closed).toBe(true);
       expect(reload).not.toHaveBeenCalled();
       saved();
       await vi.waitFor(() => expect(reload).toHaveBeenCalledOnce());
       expect(fetchMock.mock.calls.some(([input]) => String(input).includes("/session?sessionId=original-session"))).toBe(true);
     } finally {
-      window.removeEventListener("iterlay:browser-workbench-before-reload", beforeReload);
-      window.removeEventListener("iterlay:browser-workbench-reload", reload);
+      window.removeEventListener("tuda:browser-workbench-before-reload", beforeReload);
+      window.removeEventListener("tuda:browser-workbench-reload", reload);
     }
   });
 
@@ -161,7 +161,7 @@ describe("development browser workbench", () => {
     source.ready();
     await vi.waitFor(() => expect(readyCalls()).toHaveLength(2));
     expect(FakeEventSource.connections).toHaveLength(1);
-    expect(window.sessionStorage.getItem("iterlay:browser-debug-session")).toBe("same-session");
+    expect(window.sessionStorage.getItem("tuda:browser-debug-session")).toBe("same-session");
   });
 
   it("reports a prolonged backend outage and continues retrying", async () => {
@@ -197,11 +197,11 @@ describe("development browser workbench", () => {
   });
 
   it("rejects a duplicated tab's copied session ID before it can replace the active SSE stream", async () => {
-    window.sessionStorage.setItem("iterlay:browser-debug-session", "copied-active-session");
+    window.sessionStorage.setItem("tuda:browser-debug-session", "copied-active-session");
     const request = vi.fn(async (_name: string, _options: object, callback: (lock: { name: string } | null) => Promise<void>) => callback(null));
     Object.defineProperty(navigator, "locks", { configurable: true, value: { request } });
     await expect(initializeBrowserWorkbench()).rejects.toThrow("已有网页正在调试此工作区");
-    expect(request).toHaveBeenCalledWith("iterlay:browser-debug-editor", { mode: "exclusive", ifAvailable: true }, expect.any(Function));
+    expect(request).toHaveBeenCalledWith("tuda:browser-debug-editor", { mode: "exclusive", ifAvailable: true }, expect.any(Function));
     expect(fetchMock).not.toHaveBeenCalled();
     expect(FakeEventSource.connections).toHaveLength(0);
     expect(window.imageWorkbench).toBeUndefined();
@@ -227,7 +227,7 @@ describe("development browser workbench", () => {
     FakeEventSource.connections[1].ready();
     expect(held).toBe(true);
     expect(request).toHaveBeenCalledTimes(2);
-    host.__iterlayBrowserWorkbench?.dispose();
+    host.__tudaBrowserWorkbench?.dispose();
     await vi.waitFor(() => expect(held).toBe(false));
   });
 
@@ -238,13 +238,13 @@ describe("development browser workbench", () => {
     const bytes = new Uint8Array(1024 * 1024);
     await window.imageWorkbench!.importVideo(bytes.buffer, "video/mp4");
     const [url, request] = fetchMock.mock.calls[1];
-    expect(url).toBe("/__iterlay_dev/invoke");
+    expect(url).toBe("/__tuda_dev/invoke");
     expect(request?.headers).toBeUndefined();
     expect(request?.body).toBeInstanceOf(FormData);
     const form = request!.body as FormData;
     const payload = JSON.parse(String(form.get("payload")));
     expect(payload.channel).toBe("video:import");
-    expect(payload.args[0]).toEqual({ __iterlayDevWire: "ArrayBuffer", attachment: 0 });
+    expect(payload.args[0]).toEqual({ __tudaDevWire: "ArrayBuffer", attachment: 0 });
     expect((form.get("attachment:0") as Blob).size).toBe(bytes.byteLength);
   });
 });

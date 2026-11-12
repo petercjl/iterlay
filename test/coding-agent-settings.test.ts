@@ -8,7 +8,7 @@ import { loadUiTextCatalog } from "../src/i18n/ui-text";
 const mock = vi.hoisted(() => ({ getCodingAgentStatus: vi.fn(), installAgentSkill: vi.fn(), installCli: vi.fn(), removeAgentSkill: vi.fn(), getSettings: vi.fn(), listBoards: vi.fn(), updateSettings: vi.fn() }));
 vi.mock("../src/lib/image-workbench-api", () => ({ getImageWorkbenchApi: () => mock, getWorkbenchErrorMessage: (error: Error) => error.message }));
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-const state: CodingAgentIntegrationStatus = { development: true, cli: { installed: true, pathConfigured: true, path: "/test/bin/iterlay" }, clients: [{ id: "codex", detected: true, detection: "installed", skillInstalled: false, skillManaged: false, skillPath: "/test/skills/using-iterlay", legacyConfigured: true }] };
+const state: CodingAgentIntegrationStatus = { development: true, cli: { installed: true, pathConfigured: true, path: "/test/bin/tuda" }, clients: [{ id: "codex", detected: true, detection: "installed", skillInstalled: false, skillManaged: false, skillPath: "/test/skills/using-tuda", legacyConfigured: true }] };
 afterEach(() => { vi.resetAllMocks(); document.documentElement.lang = "zh-CN"; });
 async function render(options: { providerReady?: boolean; state?: CodingAgentIntegrationStatus } = {}) {
   const container = document.createElement("div"); document.body.append(container);
@@ -83,7 +83,7 @@ describe("Coding Agent setup", () => {
     const f = await render({ state: { ...state, clients: [{ ...state.clients[0], skillInstalled: true, skillManaged: true, legacyConfigured: false }] } });
     await f.click("Claude Code");
     await f.click("复制检查任务");
-    expect(writeText.mock.calls[0][0]).toMatch(/^\/using-iterlay/u);
+    expect(writeText.mock.calls[0][0]).toMatch(/^\/using-tuda/u);
     expect(writeText.mock.calls[0][0]).toContain("不要创建画板");
     const exportTask = [...f.container.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent?.includes("导出示例素材"));
     expect(exportTask).toBeDefined();
@@ -111,7 +111,7 @@ describe("Coding Agent setup", () => {
     expect(createTask).toBeDefined();
     await act(async () => createTask!.click());
     await f.click("Copy generation task");
-    expect(writeText.mock.calls[0][0]).toMatch(/^\/using-iterlay/u);
+    expect(writeText.mock.calls[0][0]).toMatch(/^\/using-tuda/u);
     expect(writeText.mock.calls[0][0]).toContain("Wait for my confirmation");
     expect(writeText.mock.calls[0][0]).toContain("hero.png");
     expect(mock.installAgentSkill).not.toHaveBeenCalled();

@@ -9,7 +9,7 @@ describe("VideoTaskStore", () => {
   let dir: string;
 
   beforeEach(async () => {
-    dir = await mkdtemp(path.join(os.tmpdir(), "iterlay-video-history-"));
+    dir = await mkdtemp(path.join(os.tmpdir(), "tuda-video-history-"));
   });
 
   afterEach(async () => {

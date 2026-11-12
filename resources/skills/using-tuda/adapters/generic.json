@@ -1,0 +1,21 @@
+{
+  "schema": "portable-skill-adapter",
+  "schema_version": "1.0.0",
+  "platform": "generic",
+  "mappings": [
+    {
+      "capability_id": "command.execute",
+      "status": "implemented",
+      "features": [
+        "node22",
+        "local-process",
+        "json-output",
+        "filesystem"
+      ],
+      "implementation": {
+        "kind": "cli",
+        "discovery": "Resolve Node.js from the current host; use the selected Skill directory .runtime/dist/main.js or the installed tuda executable. Probe version --json and capabilities --json."
+      }
+    }
+  ]
+}

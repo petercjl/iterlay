@@ -9,8 +9,6 @@ import './download.css'
 const platformsZh = [
   { id: 'win32-x64', label: 'Windows', detail: '适用于 Windows x64 设备', system: 'windows' },
   { id: 'win32-arm64', label: 'Windows ARM64', detail: '适用于搭载 ARM 处理器的 Windows 设备', system: 'windows' },
-  { id: 'darwin-x64', label: 'macOS Intel 芯片版', detail: '适用于搭载 Intel 处理器的 Mac', system: 'apple' },
-  { id: 'darwin-arm64', label: 'macOS Apple 芯片版', detail: '适用于搭载 Apple M 系列芯片的 Mac', system: 'apple' },
 ] as const
 
 function PlatformIcon({ system }: { system: 'windows' | 'apple' }) {
@@ -22,7 +20,7 @@ export default function DownloadPage() {
   const english = language === 'en'
   const t = (zh: string, en: string) => english ? en : zh
   const platforms = platformsZh.map(platform => ({ ...platform, label: english ? ({ 'win32-x64': 'Windows x64', 'win32-arm64': 'Windows ARM64', 'darwin-x64': 'macOS Intel', 'darwin-arm64': 'macOS Apple silicon' }[platform.id]) : platform.label, detail: english ? ({ 'win32-x64': 'For Windows devices with an x64 processor', 'win32-arm64': 'For Windows devices with an ARM processor', 'darwin-x64': 'For Mac computers with an Intel processor', 'darwin-arm64': 'For Mac computers with an Apple M-series processor' }[platform.id]) : platform.detail }))
-  const [variant, setVariant] = useState<InstallerVariant>('darwin-arm64')
+  const [variant, setVariant] = useState<InstallerVariant>('win32-x64')
   const [releases, setReleases] = useState<GitHubRelease[]>([])
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [retry, setRetry] = useState(0)
@@ -36,7 +34,7 @@ export default function DownloadPage() {
       if (!active) return
       const os = info.platform === 'Windows' ? 'win32' : info.platform === 'macOS' ? 'darwin' : null
       const arch = info.architecture === 'arm' ? 'arm64' : info.architecture === 'x86' ? 'x64' : null
-      if (os && arch) { const id = `${os}-${arch}` as InstallerVariant; setDetected(id); setVariant(id) }
+      if (os === 'win32' && arch) { const id = `${os}-${arch}` as InstallerVariant; setDetected(id); setVariant(id) }
     }).catch(() => {})
     return () => { active = false }
   }, [])
@@ -51,7 +49,7 @@ export default function DownloadPage() {
   const platformName = platforms.find(platform => platform.id === variant)?.label
   return <div className="dl-page">
     <section className="dl-heading" aria-labelledby="download-title">
-      <div className="dl-title-wrap"><div className="dl-doodle dl-doodle-left" aria-hidden="true"><svg viewBox="0 0 65 40"><path d="m8 32 7-20 9 12L34 5l9 21 15-8" /></svg><img src={`${import.meta.env.BASE_URL}iterlay-logo.png`} alt="" /></div><h1 id="download-title">{t("下载 ","Download ")}<span>Iterlay<svg viewBox="0 0 360 38" preserveAspectRatio="none" aria-hidden="true"><path d="M9 24C98 1 221 3 348 11M72 34c71-17 159-21 240-16" /></svg></span>{t(" 客户端","")}</h1><div className="dl-doodle dl-doodle-right" aria-hidden="true"><div><Layers3 size={28} /></div><svg viewBox="0 0 85 35"><path d="M6 27Q38 5 76 8M24 32Q50 17 69 18" /></svg></div></div>
+      <div className="dl-title-wrap"><div className="dl-doodle dl-doodle-left" aria-hidden="true"><svg viewBox="0 0 65 40"><path d="m8 32 7-20 9 12L34 5l9 21 15-8" /></svg><img src={`${import.meta.env.BASE_URL}tuda-logo.png`} alt="" /></div><h1 id="download-title">{t("下载 ","Download ")}<span>Tuda<svg viewBox="0 0 360 38" preserveAspectRatio="none" aria-hidden="true"><path d="M9 24C98 1 221 3 348 11M72 34c71-17 159-21 240-16" /></svg></span>{t(" 客户端","")}</h1><div className="dl-doodle dl-doodle-right" aria-hidden="true"><div><Layers3 size={28} /></div><svg viewBox="0 0 85 35"><path d="M6 27Q38 5 76 8M24 32Q50 17 69 18" /></svg></div></div>
       <p className="dl-subtitle">{t("图片、视频与创作工作流，在同一个 App 开始","Bring images, videos and creative workflows together in one app.")}</p>
       <div className="dl-meta"><p>{t("支持 macOS、Windows，桌面客户端免费开源","Free, open-source desktop app for macOS and Windows.")}</p><p>{t("请保持客户端为最新版本，获取最新功能。","Use a current version for the latest changes. ")}<a href={releasesUrl}>{t("查看更新说明","Read release notes")}</a></p><p>{t("开发者：Davied-H","Developer: Davied-H")}<span className="dl-meta-divider">|</span><a href={`${repository}/blob/main/LICENSE`}>{t("开源许可","License")}</a><span className="dl-meta-divider">|</span>{status === 'loading' ? t('正在读取版本信息…','Loading release information…') : stable ? <>{t('版本号：','Version: ')}{stable.tag_name}<span className="dl-meta-divider">|</span>{t('更新时间：','Updated: ')}{new Date(stable.published_at).toLocaleDateString(english ? 'en-US' : 'zh-CN').replaceAll('/', '–')}</> : status === 'error' ? t('版本信息暂不可用','Release information unavailable') : t('暂无稳定版本','No stable release listed')}</p></div>
     </section>
@@ -68,7 +66,7 @@ export default function DownloadPage() {
           </article>
         })}<article className="dl-platform-row dl-source-row"><div className="dl-platform-content"><h3><Code2 size={23} />{t("从源码运行","Run from source")}</h3><p>{t("查看开源代码、本地开发与构建说明。","Read the source, development and build instructions. ")}<a href={english ? `${repository}#develop-and-contribute` : `${repository}/blob/main/README.zh-CN.md#开发与贡献`}>{t("开发文档","Development guide")}</a></p></div><a className="dl-row-download" href={repository} aria-label={t("查看源码","View source")}><ArrowUpRight size={24} /></a></article></div>
       </div>
-      <aside className="dl-companion-panel"><h2>{t("其他设备","Another device")}</h2><div className="dl-qr"><img src={`${import.meta.env.BASE_URL}download-qr.svg`} width="200" height="200" alt={t("扫码打开 Iterlay 官方下载页面","QR code for the Iterlay official download page")} /></div><p className="dl-scan-label">{t("扫码打开官方下载页","Scan to open the official download page")}</p><div className="dl-device-note"><Monitor size={31} strokeWidth={1.5} /><h3>{t("创作，在电脑上继续","Continue creating on your computer")}</h3><p>{t("Iterlay 为桌面创作而设计。","Iterlay is designed for desktop work.")}<br />{t("在 Mac 或 Windows 上下载安装，","Install it on a Mac or Windows device")}<br />{t("连接你自己的 AI 服务商。","and connect your own AI provider.")}</p><span><Check size={13} />{t("免费开源，无需激活","Free and open source; no activation")}</span></div></aside>
+      <aside className="dl-companion-panel"><h2>{t("其他设备","Another device")}</h2><div className="dl-qr"><img src={`${import.meta.env.BASE_URL}download-qr.svg`} width="200" height="200" alt={t("扫码打开 Tuda 官方下载页面","QR code for the Tuda official download page")} /></div><p className="dl-scan-label">{t("扫码打开官方下载页","Scan to open the official download page")}</p><div className="dl-device-note"><Monitor size={31} strokeWidth={1.5} /><h3>{t("创作，在电脑上继续","Continue creating on your computer")}</h3><p>{t("Tuda 为桌面创作而设计。","Tuda is designed for desktop work.")}<br />{t("在 Mac 或 Windows 上下载安装，","Install it on a Mac or Windows device")}<br />{t("连接你自己的 AI 服务商。","and connect your own AI provider.")}</p><span><Check size={13} />{t("免费开源，无需激活","Free and open source; no activation")}</span></div></aside>
     </section>
     <p className="dl-install-note">{t("AI 功能需要自行配置服务商 API Key。安装包由 GitHub Releases 提供。","AI features require your own provider configuration. Installers come from GitHub Releases.")}<a href={releasesUrl}>{t("所有发布版本","All releases")}<ArrowUpRight size={12} /></a></p>
     <p className="dl-install-note"><Link to={sitePath('/help', language)}>{t('配置、保存与安装排障','Setup, saving and installation help')}</Link></p>

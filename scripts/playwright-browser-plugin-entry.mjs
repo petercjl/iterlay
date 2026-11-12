@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { URL } from "node:url";
 import { chromium } from "playwright";
 
-const origin = process.env.ITERLAY_BROWSER_SMOKE_URL || "http://127.0.0.1:5180";
+const origin = process.env.TUDA_BROWSER_SMOKE_URL || "http://127.0.0.1:5180";
 if (!["127.0.0.1", "localhost"].includes(new URL(origin).hostname)) throw new Error("Local development URL required");
 const browser = await chromium.launch({ headless: true, channel: "chrome" });
 const page = await browser.newPage({ locale: "zh-CN" });
-const id = "dev.iterlay.short-drama";
+const id = "dev.tuda.short-drama";
 let boardId;
 let originalPlugin;
 const ready = async () => {
@@ -45,7 +45,7 @@ try {
     const originalPlugin = (await api.listPlugins()).find(p => p.manifest.id === id);
     const board = await api.createBoard("插件入口状态回归验证");
     await api.setLastOpenedBoard(board.id);
-    localStorage.setItem("iterlay.libraryOpen", "0");
+    localStorage.setItem("tuda.libraryOpen", "0");
     await api.uninstallPlugin(id);
     return { boardId: board.id, originalPlugin };
   }, id));
@@ -88,8 +88,8 @@ try {
       await api.setPluginEnabled(id, originalPlugin.enabled);
     } else if (boardId) await api.uninstallPlugin(id);
     if (boardId) await api.deleteBoard(boardId);
-    const sessionId = window.sessionStorage.getItem("iterlay:browser-debug-session");
-    if (sessionId) await fetch("/__iterlay_dev/disconnect", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId }) });
+    const sessionId = window.sessionStorage.getItem("tuda:browser-debug-session");
+    if (sessionId) await fetch("/__tuda_dev/disconnect", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId }) });
   }, { id, boardId, originalPlugin }).catch(error => console.error("Cleanup:", error));
   await browser.close();
 }

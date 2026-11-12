@@ -14,7 +14,7 @@ afterEach(() => localStorage.clear());
 
 describe("generation action localization", () => {
   it("loads English on a cold start and switches live without changing the supplied action", async () => {
-    localStorage.setItem("iterlay:language", "en-US");
+    localStorage.setItem("tuda:language", "en-US");
     let setLanguage: ReturnType<typeof useI18n>["setLanguage"];
     function Harness() {
       setLanguage = useI18n().setLanguage;
@@ -36,7 +36,7 @@ describe("generation action localization", () => {
   });
 
   it.each([["去配置", "Opened"], ["Configure", "Opened"], ["Apply edit", "Applied"], ["生成", "Submitted"]])("supports source and already translated labels: %s", async (label, acknowledgement) => {
-    localStorage.setItem("iterlay:language", "en-US");
+    localStorage.setItem("tuda:language", "en-US");
     const container = document.createElement("div");
     const root = createRoot(container);
     try {

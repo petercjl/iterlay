@@ -4,7 +4,7 @@ import { buildGithubTemplateIssue } from "../src/lib/github-template";
 describe("GitHub template contributions", () => {
   it("prepares a public issue draft with attachment instructions, without submitting anything", () => {
     const url = new URL(buildGithubTemplateIssue("海报 & 产品 / 模板"));
-    expect(url.origin + url.pathname).toBe("https://github.com/Davied-H/iterlay/issues/new");
+    expect(url.origin + url.pathname).toBe("https://github.com/petercjl/iterlay/issues/new");
     expect(url.searchParams.get("title")).toBe("[模板投稿] 海报 & 产品 / 模板");
     expect(url.searchParams.get("body")).toContain("压缩为 ZIP");
     expect(url.searchParams.get("body")).toContain("公开分享");

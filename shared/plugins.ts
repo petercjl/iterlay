@@ -1,5 +1,5 @@
 export const PLUGIN_API_VERSION = 1;
-export const SHORT_DRAMA_PLUGIN_ID = "dev.iterlay.short-drama";
+export const SHORT_DRAMA_PLUGIN_ID = "dev.tuda.short-drama";
 export const PLUGIN_PERMISSIONS = ["board:read", "board:write", "storage", "assistant:comic-drama", "creation:present"] as const;
 export type PluginPermission = typeof PLUGIN_PERMISSIONS[number];
 export interface PluginManifest {
@@ -36,7 +36,7 @@ export function validatePluginManifest(input: unknown): PluginManifest {
     if (typeof m[key] !== "string" || !m[key].trim() || m[key].length > 1000) throw new Error(`插件 ${key} 无效。`);
   }
   if (!/^\d+\.\d+\.\d+$/.test(m.version as string)) throw new Error("插件版本必须使用 x.y.z 格式。");
-  if (m.apiVersion !== PLUGIN_API_VERSION) throw new Error("插件 API 版本不兼容，请更新插件或 Iterlay。");
+  if (m.apiVersion !== PLUGIN_API_VERSION) throw new Error("插件 API 版本不兼容，请更新插件或 Tuda。");
   if (m.type !== "tool" || m.entry !== "index.html") throw new Error("当前支持入口为 index.html 的工具插件。");
   if (!Array.isArray(m.permissions) || m.permissions.some(p => !PLUGIN_PERMISSIONS.includes(p))) throw new Error("插件请求了未知权限。");
   if (m.surface !== undefined && !["panel", "workspace"].includes(String(m.surface))) throw new Error("插件界面类型无效。");

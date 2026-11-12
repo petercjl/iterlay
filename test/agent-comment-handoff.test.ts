@@ -14,7 +14,7 @@ const board: BoardData = {
 const comment: AssetComment = { id: "comment", imagePath: "/assets/orange.png", text: "改成鼠尾草绿，保留背景", createdAt: "2026-10-19", position: { x: .25, y: .75 } };
 const directories: string[] = [];
 afterEach(async () => { await Promise.all(directories.splice(0).map((directory) => rm(directory, { recursive: true, force: true }))); });
-async function directory() { const value = await mkdtemp(path.join(os.tmpdir(), "iterlay-agent-handoff-")); directories.push(value); return value; }
+async function directory() { const value = await mkdtemp(path.join(os.tmpdir(), "tuda-agent-handoff-")); directories.push(value); return value; }
 
 describe("comment Agent handoff", () => {
   it("keeps the commented source version and annotation instead of silently switching to the active version", () => {
@@ -36,7 +36,7 @@ describe("comment Agent handoff", () => {
     const openExternal = vi.fn<(url: string) => Promise<void>>(async () => {});
     const openPath = vi.fn(async () => "");
     const result = await handoffBoardComments({ agent: "codex", board, comments: [comment], commentIds: [comment.id],
-      userDataPath, cliExecutable: "/Applications/Iterlay.app/Electron", cliScriptPath: "/app/cli/main.js", openExternal, openPath });
+      userDataPath, cliExecutable: "/Applications/Tuda.app/Electron", cliScriptPath: "/app/cli/main.js", openExternal, openPath });
     const url = new URL(openExternal.mock.calls[0][0]);
     expect(url.protocol).toBe("codex:");
     expect(url.hostname).toBe("new");

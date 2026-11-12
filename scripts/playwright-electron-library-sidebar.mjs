@@ -9,13 +9,13 @@ import { _electron as electron } from "playwright";
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outputDirectory = path.join(projectRoot, "output", "playwright");
 await mkdir(outputDirectory, { recursive: true });
-const qaUserDataDirectory = await mkdtemp(path.join(tmpdir(), "iterlay-sidebar-qa-"));
+const qaUserDataDirectory = await mkdtemp(path.join(tmpdir(), "tuda-sidebar-qa-"));
 const qaWorkspaceDirectory = path.join(qaUserDataDirectory, "workspace");
 const sourceWorkspaceDirectory = path.join(
   process.env.HOME,
   "Library",
   "Application Support",
-  "Iterlay",
+  "Tuda",
   "workspace"
 );
 await mkdir(qaWorkspaceDirectory, { recursive: true });
@@ -29,12 +29,12 @@ await Promise.all([
 const electronApp = await electron.launch({
   args: [`--user-data-dir=${qaUserDataDirectory}`, "."],
   cwd: projectRoot,
-  ...(process.env.ITERLAY_E2E_ELECTRON
-    ? { executablePath: process.env.ITERLAY_E2E_ELECTRON }
+  ...(process.env.TUDA_E2E_ELECTRON
+    ? { executablePath: process.env.TUDA_E2E_ELECTRON }
     : {}),
   env: {
     ...process.env,
-    ITERLAY_PLAYWRIGHT: "1",
+    TUDA_PLAYWRIGHT: "1",
     VITE_DEV_SERVER_URL: process.env.VITE_DEV_SERVER_URL ?? "http://127.0.0.1:5180"
   },
   timeout: 30_000
@@ -105,7 +105,7 @@ try {
   const page = electronApp.windows().find((window) => window.url().includes("127.0.0.1:5180"))
     ?? firstWindow;
   await page.waitForURL(/127\.0\.0\.1:5180/u, { timeout: 30_000 });
-  await page.evaluate(() => localStorage.removeItem("iterlay.librarySidebarSize"));
+  await page.evaluate(() => localStorage.removeItem("tuda.librarySidebarSize"));
   await page.reload();
 
   let separator = await openLibrary(page);
@@ -264,7 +264,7 @@ try {
   const layout = await page.evaluate(() => {
     const sidebar = document.querySelector("#library-sidebar")?.getBoundingClientRect();
     const main = document.querySelector("#library-sidebar")?.nextElementSibling?.nextElementSibling?.getBoundingClientRect();
-    const stored = localStorage.getItem("iterlay.librarySidebarSize");
+    const stored = localStorage.getItem("tuda.librarySidebarSize");
     return {
       viewport: { width: window.innerWidth, height: window.innerHeight },
       sidebar: sidebar ? { left: sidebar.left, right: sidebar.right, width: sidebar.width } : null,

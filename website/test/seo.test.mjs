@@ -34,7 +34,7 @@ test('all public routes render body, local deployment links and consistent langu
     const body = server.render(path)
     assert.match(body, /<h1[\s>]/, path)
     assert.ok(body.length > 1500, path)
-    if (path.includes('/guides/model-setup/')) assert.ok(body.includes(lang === 'en' ? 'How to configure an image model' : '如何配置 Iterlay 图片模型'), path)
+    if (path.includes('/guides/model-setup/')) assert.ok(body.includes(lang === 'en' ? 'How to configure an image model' : '如何配置 Tuda 图片模型'), path)
     assert.ok(!body.includes('href="/zh/') && !body.includes('href="/en/'), `SSR lost deployment base on ${path}`)
     const meta = server.pageMeta(path)
     assert.equal(meta.language, lang)
@@ -53,7 +53,7 @@ test('unknown guides do not redirect or masquerade as indexed content', () => {
 test('structured data describes actual software and article evidence', () => {
   const home = server.pageMeta('/en/')
   const app = home.structured['@graph'].find(n => n['@type'] === 'SoftwareApplication')
-  assert.equal(app.operatingSystem, 'macOS, Windows')
+  assert.equal(app.operatingSystem, 'Windows')
   assert.ok(!app.aggregateRating && !app.review, 'Do not invent ratings')
   const article = server.pageMeta('/zh/guides/field-case/').structured['@graph'].find(n => n['@type'] === 'TechArticle')
   assert.match(article.citation, /README.zh-CN.md$/)
@@ -90,7 +90,7 @@ test('every public page has matching language coverage and translated English bo
     const body = html.replace(/<nav class="site-language"[\s\S]*?<\/nav>/g, '').replace(/<[^>]+>/g, '')
     assert.doesNotMatch(body, /\p{Script=Han}/u, `Untranslated English-page copy: ${path}`)
     const withoutSwitcher = html.replace(/<nav class="site-language"[\s\S]*?<\/nav>/g, '')
-    assert.doesNotMatch(withoutSwitcher, /href="\/iterlay\/zh\//, `Unexpected Chinese navigation: ${path}`)
+    assert.doesNotMatch(withoutSwitcher, /href="\/tuda\/zh\//, `Unexpected Chinese navigation: ${path}`)
   }
   for (const lang of ['zh', 'en']) {
     const home = server.render(`/${lang}/`)

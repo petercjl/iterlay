@@ -8,7 +8,7 @@ interface StartupLoadingProps {
 }
 
 export function StartupLoading({
-  label = "正在打开 Iterlay",
+  label = "正在打开 Tuda",
   error,
   onRetry
 }: StartupLoadingProps): React.ReactElement {
@@ -18,7 +18,7 @@ export function StartupLoading({
     <div className={`license-loading${error ? " license-loading--error" : ""}`} role="status" aria-live="polite">
       <StartupMark />
       <div className="license-loading__copy">
-        <strong>Iterlay</strong>
+        <strong>Tuda</strong>
         {error ? <span className="license-loading__error">{error}</span> : <span className="sr-only">{label}</span>}
       </div>
       {error && onRetry ? (
@@ -30,7 +30,7 @@ export function StartupLoading({
 
 function StartupMark(): React.ReactElement {
   return (
-    <div className="license-loading__mark" role="img" aria-label="Iterlay">
+    <div className="license-loading__mark" role="img" aria-label="Tuda">
       <svg className="license-loading__shadow" viewBox="0 0 120 108" aria-hidden>
         <ellipse cx="56" cy="101" rx="30" ry="3.5" />
       </svg>

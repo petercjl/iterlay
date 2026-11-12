@@ -80,18 +80,18 @@ describe("public FIELD starter", () => {
         expect(deliver).toContain(language === "zh" ? "即使未配置 Provider，也继续导出" : "continue even if no provider is configured");
         expect(deliver).not.toContain(language === "zh" ? "没有可用图片服务时，引导我去模型设置" : "If no image provider is configured, guide me to model settings");
         for (const prompt of [check, create, deliver]) {
-          expect(prompt.split("\n")[0]).toBe(agent === "codex" ? "$using-iterlay" : "/using-iterlay");
-          expect(prompt).toContain("iterlay status --json");
+          expect(prompt.split("\n")[0]).toBe(agent === "codex" ? "$using-tuda" : "/using-tuda");
+          expect(prompt).toContain("tuda status --json");
           expect(prompt).toContain("--overwrite");
         }
-        expect(check).not.toContain("iterlay image generate");
+        expect(check).not.toContain("tuda image generate");
         expect(create).toContain("--n 1");
         expect(create).toContain("--request-id");
-        expect(create).toContain("./public/iterlay-starter/hero.png");
+        expect(create).toContain("./public/tuda-starter/hero.png");
         expect(create).toMatch(language === "zh" ? /确认之前不要提交生成/ : /Wait for my confirmation/);
-        expect(deliver).toContain("iterlay assets export");
-        expect(deliver).not.toContain("iterlay image generate");
-        expect(deliver).not.toContain("iterlay boards import");
+        expect(deliver).toContain("tuda assets export");
+        expect(deliver).not.toContain("tuda image generate");
+        expect(deliver).not.toContain("tuda boards import");
         for (const file of ["hero.png", "scene.png", "campaign.png"]) expect(deliver).toContain(file);
       }
     }

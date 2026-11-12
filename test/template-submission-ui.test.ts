@@ -13,7 +13,7 @@ let props: ComponentProps<typeof SceneDetail>;
 const fetchMock = vi.fn();
 
 beforeEach(() => {
-  window.localStorage.setItem("iterlay:language", "zh-CN");
+  window.localStorage.setItem("tuda:language", "zh-CN");
   vi.stubGlobal("matchMedia", vi.fn(() => ({
     matches: false,
     addListener: vi.fn(), removeListener: vi.fn(),
@@ -43,7 +43,7 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
-  window.localStorage.removeItem("iterlay:language");
+  window.localStorage.removeItem("tuda:language");
   vi.unstubAllGlobals();
 });
 
@@ -64,7 +64,7 @@ describe("template contribution UI", () => {
     expect(dialog.textContent).toContain("投稿内容会公开");
     const link = dialog.querySelector<HTMLAnchorElement>('a[target="_blank"]')!;
     const url = new URL(link.href);
-    expect(url.origin + url.pathname).toBe("https://github.com/Davied-H/iterlay/issues/new");
+    expect(url.origin + url.pathname).toBe("https://github.com/petercjl/iterlay/issues/new");
     expect(url.searchParams.get("title")).toBe("[模板投稿] 海报 & 产品");
     expect(decodeURIComponent(url.href)).not.toContain(props.scene.prompt);
     expect(link.rel).toBe("noopener noreferrer");

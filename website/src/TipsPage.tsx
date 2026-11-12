@@ -15,7 +15,7 @@ export default function TipsPage() {
   return <div className="tips-page">
     <section className="tips-hero" aria-labelledby="tips-title">
       <div className="tips-hero-copy">
-        <p className="tips-meta">ITERLAY / {english ? 'PRACTICAL TIPS' : '使用技巧'}</p>
+        <p className="tips-meta">TUDA / {english ? 'PRACTICAL TIPS' : '使用技巧'}</p>
         <h1 id="tips-title">{english ? 'Small workflows that make the next step clearer.' : '把每天会用到的小技巧，整理在这里。'}</h1>
         <p className="tips-hero-intro">{english ? 'Real situations, plain-language prompts and a finished share image. New tips are reviewed before they become part of the public collection.' : '从真实场景出发，把操作过程写得像一次经验分享。每天生成的新内容，会先交给你确认，再进入公开的技巧集合。'}</p>
       </div>
@@ -35,11 +35,11 @@ export default function TipsPage() {
     <section className="tips-process" aria-labelledby="tips-process-title">
       <div className="tips-section-heading"><div><p className="tips-meta">{english ? 'HOW IT WORKS' : '更新方式'}</p><h2 id="tips-process-title">{english ? 'A small editorial loop.' : '一套简单的内容更新流程。'}</h2></div><p>{english ? 'The page stays useful because every new tip has a clear review point before it is published.' : '每天新增一条，但每条都先经过确认，再进入官网。'}</p></div>
       <ol className="tips-process-list">
-        <li><span>01</span><div><strong>{english ? 'Generate' : '生成'}</strong><p>{english ? 'Choose a real Iterlay use case and make the image plus a natural sharing caption.' : '选一个真实的 Iterlay 使用场景，生成分享图和自然的推广文案。'}</p></div></li>
+        <li><span>01</span><div><strong>{english ? 'Generate' : '生成'}</strong><p>{english ? 'Choose a real Tuda use case and make the image plus a natural sharing caption.' : '选一个真实的 Tuda 使用场景，生成分享图和自然的推广文案。'}</p></div></li>
         <li><span>02</span><div><strong>{english ? 'Review' : '确认'}</strong><p>{english ? 'Check the wording, image, privacy notes and whether the tip feels useful.' : '你检查文案、图片、隐私提示和实际可用性。'}</p></div></li>
         <li><span>03</span><div><strong>{english ? 'Publish' : '部署'}</strong><p>{english ? 'After approval, the entry becomes public and the website is deployed with its permanent URL.' : '确认后，把条目标记为已发布，再上传部署官网并保留固定链接。'}</p></div></li>
       </ol>
-      <Link className="tips-download-link" to={sitePath('/download', language)}><Download size={15} />{english ? 'Get Iterlay and try a tip' : '下载 Iterlay，开始试一个技巧'}<ArrowRight size={15} /></Link>
+      <Link className="tips-download-link" to={sitePath('/download', language)}><Download size={15} />{english ? 'Get Tuda and try a tip' : '下载 Tuda，开始试一个技巧'}<ArrowRight size={15} /></Link>
     </section>
   </div>
 }

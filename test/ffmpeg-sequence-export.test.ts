@@ -10,7 +10,7 @@ const hasFfmpeg = await commandWorks("ffmpeg");
 
 describe.skipIf(!hasFfmpeg)("FfmpegService sequence export", () => {
   let dir: string;
-  beforeEach(async () => { dir = await mkdtemp(path.join(os.tmpdir(), "iterlay-ffmpeg-")); });
+  beforeEach(async () => { dir = await mkdtemp(path.join(os.tmpdir(), "tuda-ffmpeg-")); });
   afterEach(async () => { await rm(dir, { recursive: true, force: true }); });
 
 

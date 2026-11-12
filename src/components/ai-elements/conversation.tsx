@@ -5,7 +5,7 @@ import { ArrowDown } from "lucide-react";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 import { cn } from "@/lib/utils";
 
-/** AI Elements conversation primitive, kept local so Iterlay owns its product styling. */
+/** AI Elements conversation primitive, kept local so Tuda owns its product styling. */
 export function Conversation({ className, ...props }: ComponentProps<typeof StickToBottom>): React.ReactElement {
   return <StickToBottom className={cn("relative overflow-y-hidden", className)} initial="smooth" resize="smooth" role="log" {...props} />;
 }

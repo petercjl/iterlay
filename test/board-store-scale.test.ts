@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { BoardStore } from "../electron/storage/board-store";
 describe("board storage scale and concurrent reads", () => {
   it("keeps every board addressable after detail cache eviction", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-board-scale-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-board-scale-"));
     try {
       const store = new BoardStore(directory);
       const ids: string[] = [];
@@ -17,7 +17,7 @@ describe("board storage scale and concurrent reads", () => {
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
   it("does not hold the write queue while image metadata is loading", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-board-scale-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-board-scale-"));
     try {
       const seed = new BoardStore(directory);
       const a = await seed.createBoard("A"), b = await seed.createBoard("B");
@@ -36,7 +36,7 @@ describe("board storage scale and concurrent reads", () => {
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
   it("rejects invalid IDs rather than aliasing another board during deletion", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-board-scale-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-board-scale-"));
     try {
       const store = new BoardStore(directory), board = await store.createBoard("Keep");
       await expect(store.deleteBoard(board.id + "/")).rejects.toThrow("ID 无效");

@@ -315,13 +315,13 @@ export function WelcomeTourStep({
             </span>
             <ArrowRight aria-hidden className="welcome-tour__service-arrow" />
           </button>
-          <p className="welcome-tour__setup-note">{uiText("Iterlay 永久免费，连接自己的模型服务即可生成。")}</p>
+          <p className="welcome-tour__setup-note">{uiText("Tuda 永久免费，连接自己的模型服务即可生成。")}</p>
         </motion.div>
       ) : null}
 
       <div className="welcome-tour__brand">
         <img src={appIconUrl} alt="" className="welcome-tour__icon" />
-        <span>Iterlay</span>
+        <span>Tuda</span>
       </div>
 
       <header className="welcome-tour__header">

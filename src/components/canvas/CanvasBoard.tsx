@@ -41,7 +41,7 @@ import { centerNodeAtDrop, type CanvasDropPoint } from "./canvas-drop";
 import type { CanvasClipboardItem } from "./canvas-clipboard";
 import type { EmptyCanvasMode } from "./EmptyCanvasStart";
 import { copyImageDataUrlToClipboard } from "@/lib/clipboard-images";
-import { iterlayToast } from "@/components/ui/iterlay-toast";
+import { tudaToast } from "@/components/ui/tuda-toast";
 import { CANVAS_FIT_VIEW_OPTIONS, resolveCanvasWheelInteraction } from "./canvas-viewport";
 import { type CanvasNodeLayout, type CanvasRestoreSnapshot, type CanvasSelectionSnapshot } from "./canvas-history";
 import { useCanvasController } from "./CanvasController";
@@ -1367,7 +1367,7 @@ export function CanvasBoard({
     onCreateWorkflowNode?.("text", position, { text });
   }, [onCreateWorkflowNode]);
   const handleClipboardCopied = useCallback((count: number, shortcut: string): void => {
-    iterlayToast.copied({ count, shortcut });
+    tudaToast.copied({ count, shortcut });
   }, []);
   const handleClipboardNotice = useCallback((message: string): void => {
     toast.info(message);
@@ -1459,7 +1459,7 @@ export function CanvasBoard({
   ]);
 
   const notifyShortcutImageCopied = useCallback((): void => {
-    iterlayToast.copied({ title: translateSourceText("已复制图片"), detail: translateSourceText("可粘贴到其他应用") });
+    tudaToast.copied({ title: translateSourceText("已复制图片"), detail: translateSourceText("可粘贴到其他应用") });
   }, []);
   const notifyShortcutImageCopyFailed = useCallback((): void => {
     toast.error(translateSourceText("无法复制图片到剪贴板"));

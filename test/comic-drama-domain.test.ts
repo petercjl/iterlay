@@ -45,7 +45,7 @@ const reference = (id: string, source: string, versionBinding: BoardConnection["
 describe("comic drama domain contract", () => {
   let dir: string;
   beforeEach(async () => {
-    dir = await mkdtemp(path.join(os.tmpdir(), "iterlay-comic-drama-"));
+    dir = await mkdtemp(path.join(os.tmpdir(), "tuda-comic-drama-"));
     electronMocks.handlers.clear();
   });
   afterEach(async () => { await rm(dir, { recursive: true, force: true }); });

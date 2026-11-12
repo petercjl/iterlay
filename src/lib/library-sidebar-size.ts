@@ -1,4 +1,4 @@
-export const LIBRARY_SIDEBAR_SIZE_STORAGE_KEY = "iterlay.librarySidebarSize";
+export const LIBRARY_SIDEBAR_SIZE_STORAGE_KEY = "tuda.librarySidebarSize";
 
 export const LIBRARY_SIDEBAR_PRESETS = {
   small: 56,

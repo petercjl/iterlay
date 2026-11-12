@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdir } from "node:fs/promises";
 import { chromium } from "playwright";
 
-const origin = process.env.ITERLAY_BROWSER_SMOKE_URL ?? "http://127.0.0.1:5299";
+const origin = process.env.TUDA_BROWSER_SMOKE_URL ?? "http://127.0.0.1:5299";
 const browser = await chromium.launch({ headless: true, channel: "chrome" });
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, locale: "zh-CN" });
 const errors = [];

@@ -19,7 +19,7 @@
             "generationId": "c7e2171e-d648-46de-8a87-454d5fbdebde",
             "status": "running",
             "boardId": "9bef97de-4bf0-4261-a855-8569118a3262",
-            "prompt": "Use case: product-mockup. Asset: original product photograph for a paired before/after interactive image-editing demo on the Iterlay website. Generate one new fictional handheld gaming device, not a known brand. Wide rounded rectangular body in smoky transparent charcoal polycarbonate, visible precise inner circuit traces, a completely black landscape screen, two small black analog sticks, four tiny pale celadon action buttons, directional control on the left, tasteful brushed aluminum edge screws. Photorealistic contemporary industrial-design photography, exact tactile materials, no plastic toy appearance. Three-quarter front view, complete product visible, centered with generous breathing room, on a flat light cool-gray seamless studio surface. Subtle soft daylight shadows, commercially sharp and believable. Square 1024x1024 image. No brand, no text, no logos, no caption, no UI, no frames, no watermark. Do not use any existing project image as a reference.",
+            "prompt": "Use case: product-mockup. Asset: original product photograph for a paired before/after interactive image-editing demo on the Tuda website. Generate one new fictional handheld gaming device, not a known brand. Wide rounded rectangular body in smoky transparent charcoal polycarbonate, visible precise inner circuit traces, a completely black landscape screen, two small black analog sticks, four tiny pale celadon action buttons, directional control on the left, tasteful brushed aluminum edge screws. Photorealistic contemporary industrial-design photography, exact tactile materials, no plastic toy appearance. Three-quarter front view, complete product visible, centered with generous breathing room, on a flat light cool-gray seamless studio surface. Subtle soft daylight shadows, commercially sharp and believable. Square 1024x1024 image. No brand, no text, no logos, no caption, no UI, no frames, no watermark. Do not use any existing project image as a reference.",
             "createdAt": "2026-10-16T16:18:45.076Z"
           }
         },
@@ -31,23 +31,23 @@
             "generationId": "c7e2171e-d648-46de-8a87-454d5fbdebde",
             "status": "succeeded",
             "boardId": "9bef97de-4bf0-4261-a855-8569118a3262",
-            "prompt": "Use case: product-mockup. Asset: original product photograph for a paired before/after interactive image-editing demo on the Iterlay website. Generate one new fictional handheld gaming device, not a known brand. Wide rounded rectangular body in smoky transparent charcoal polycarbonate, visible precise inner circuit traces, a completely black landscape screen, two small black analog sticks, four tiny pale celadon action buttons, directional control on the left, tasteful brushed aluminum edge screws. Photorealistic contemporary industrial-design photography, exact tactile materials, no plastic toy appearance. Three-quarter front view, complete product visible, centered with generous breathing room, on a flat light cool-gray seamless studio surface. Subtle soft daylight shadows, commercially sharp and believable. Square 1024x1024 image. No brand, no text, no logos, no caption, no UI, no frames, no watermark. Do not use any existing project image as a reference.",
+            "prompt": "Use case: product-mockup. Asset: original product photograph for a paired before/after interactive image-editing demo on the Tuda website. Generate one new fictional handheld gaming device, not a known brand. Wide rounded rectangular body in smoky transparent charcoal polycarbonate, visible precise inner circuit traces, a completely black landscape screen, two small black analog sticks, four tiny pale celadon action buttons, directional control on the left, tasteful brushed aluminum edge screws. Photorealistic contemporary industrial-design photography, exact tactile materials, no plastic toy appearance. Three-quarter front view, complete product visible, centered with generous breathing room, on a flat light cool-gray seamless studio surface. Subtle soft daylight shadows, commercially sharp and believable. Square 1024x1024 image. No brand, no text, no logos, no caption, no UI, no frames, no watermark. Do not use any existing project image as a reference.",
             "createdAt": "2026-10-16T16:18:45.076Z",
             "completedAt": "2026-10-16T16:19:13.498Z",
             "job": {
               "id": "fabf3f81-196a-4d4f-8bde-7413b6c6e9d3",
               "status": "succeeded",
               "createdAt": "2026-10-16T16:18:45.084Z",
-              "prompt": "Use case: product-mockup. Asset: original product photograph for a paired before/after interactive image-editing demo on the Iterlay website. Generate one new fictional handheld gaming device, not a known brand. Wide rounded rectangular body in smoky transparent charcoal polycarbonate, visible precise inner circuit traces, a completely black landscape screen, two small black analog sticks, four tiny pale celadon action buttons, directional control on the left, tasteful brushed aluminum edge screws. Photorealistic contemporary industrial-design photography, exact tactile materials, no plastic toy appearance. Three-quarter front view, complete product visible, centered with generous breathing room, on a flat light cool-gray seamless studio surface. Subtle soft daylight shadows, commercially sharp and believable. Square 1024x1024 image. No brand, no text, no logos, no caption, no UI, no frames, no watermark. Do not use any existing project image as a reference.",
+              "prompt": "Use case: product-mockup. Asset: original product photograph for a paired before/after interactive image-editing demo on the Tuda website. Generate one new fictional handheld gaming device, not a known brand. Wide rounded rectangular body in smoky transparent charcoal polycarbonate, visible precise inner circuit traces, a completely black landscape screen, two small black analog sticks, four tiny pale celadon action buttons, directional control on the left, tasteful brushed aluminum edge screws. Photorealistic contemporary industrial-design photography, exact tactile materials, no plastic toy appearance. Three-quarter front view, complete product visible, centered with generous breathing room, on a flat light cool-gray seamless studio surface. Subtle soft daylight shadows, commercially sharp and believable. Square 1024x1024 image. No brand, no text, no logos, no caption, no UI, no frames, no watermark. Do not use any existing project image as a reference.",
               "providerId": "openai-compatible",
               "providerName": "GPT Relay",
               "model": "gpt-image-2.5-flare",
               "input": {
                 "workflowMode": "generate",
                 "promptSpec": {
-                  "primaryRequest": "Use case: product-mockup. Asset: original product photograph for a paired before/after interactive image-editing demo on the Iterlay website. Generate one new fictional handheld gaming device, not a known brand. Wide rounded rectangular body in smoky transparent charcoal polycarbonate, visible precise inner circuit traces, a completely black landscape screen, two small black analog sticks, four tiny pale celadon action buttons, directional control on the left, tasteful brushed aluminum edge screws. Photorealistic contemporary industrial-design photography, exact tactile materials, no plastic toy appearance. Three-quarter front view, complete product visible, centered with generous breathing room, on a flat light cool-gray seamless studio surface. Subtle soft daylight shadows, commercially sharp and believable. Square 1024x1024 image. No brand, no text, no logos, no caption, no UI, no frames, no watermark. Do not use any existing project image as a reference."
+                  "primaryRequest": "Use case: product-mockup. Asset: original product photograph for a paired before/after interactive image-editing demo on the Tuda website. Generate one new fictional handheld gaming device, not a known brand. Wide rounded rectangular body in smoky transparent charcoal polycarbonate, visible precise inner circuit traces, a completely black landscape screen, two small black analog sticks, four tiny pale celadon action buttons, directional control on the left, tasteful brushed aluminum edge screws. Photorealistic contemporary industrial-design photography, exact tactile materials, no plastic toy appearance. Three-quarter front view, complete product visible, centered with generous breathing room, on a flat light cool-gray seamless studio surface. Subtle soft daylight shadows, commercially sharp and believable. Square 1024x1024 image. No brand, no text, no logos, no caption, no UI, no frames, no watermark. Do not use any existing project image as a reference."
                 },
-                "prompt": "Use case: product-mockup. Asset: original product photograph for a paired before/after interactive image-editing demo on the Iterlay website. Generate one new fictional handheld gaming device, not a known brand. Wide rounded rectangular body in smoky transparent charcoal polycarbonate, visible precise inner circuit traces, a completely black landscape screen, two small black analog sticks, four tiny pale celadon action buttons, directional control on the left, tasteful brushed aluminum edge screws. Photorealistic contemporary industrial-design photography, exact tactile materials, no plastic toy appearance. Three-quarter front view, complete product visible, centered with generous breathing room, on a flat light cool-gray seamless studio surface. Subtle soft daylight shadows, commercially sharp and believable. Square 1024x1024 image. No brand, no text, no logos, no caption, no UI, no frames, no watermark. Do not use any existing project image as a reference.",
+                "prompt": "Use case: product-mockup. Asset: original product photograph for a paired before/after interactive image-editing demo on the Tuda website. Generate one new fictional handheld gaming device, not a known brand. Wide rounded rectangular body in smoky transparent charcoal polycarbonate, visible precise inner circuit traces, a completely black landscape screen, two small black analog sticks, four tiny pale celadon action buttons, directional control on the left, tasteful brushed aluminum edge screws. Photorealistic contemporary industrial-design photography, exact tactile materials, no plastic toy appearance. Three-quarter front view, complete product visible, centered with generous breathing room, on a flat light cool-gray seamless studio surface. Subtle soft daylight shadows, commercially sharp and believable. Square 1024x1024 image. No brand, no text, no logos, no caption, no UI, no frames, no watermark. Do not use any existing project image as a reference.",
                 "model": "gpt-image-2.5-flare",
                 "size": "1024x1024",
                 "n": 1,
@@ -58,23 +58,23 @@
               },
               "referenceImagePaths": [],
               "outputImagePaths": [
-                "/Users/dong/Library/Application Support/Iterlay/workspace/outputs/fabf3f81-196a-4d4f-8bde-7413b6c6e9d3-1.png"
+                "/Users/dong/Library/Application Support/Tuda/workspace/outputs/fabf3f81-196a-4d4f-8bde-7413b6c6e9d3-1.png"
               ],
               "boardId": "9bef97de-4bf0-4261-a855-8569118a3262",
               "completedAt": "2026-10-16T16:19:13.440Z"
             },
             "images": [
               {
-                "path": "/Users/dong/Library/Application Support/Iterlay/workspace/outputs/fabf3f81-196a-4d4f-8bde-7413b6c6e9d3-1.png",
+                "path": "/Users/dong/Library/Application Support/Tuda/workspace/outputs/fabf3f81-196a-4d4f-8bde-7413b6c6e9d3-1.png",
                 "dataUrl": ""
               }
             ],
             "exportedPaths": [
-              "/Users/dong/Develop/Code/other/iterlay/iterlay-app/website/public/gallery/v2/console-source.png"
+              "/Users/dong/Develop/Code/other/tuda/tuda-app/website/public/gallery/v2/console-source.png"
             ]
           }
         },
-        "rawOutput": "output/imagegen/iterlay-website-v2/console-source.png",
+        "rawOutput": "output/imagegen/tuda-website-v2/console-source.png",
         "webOutput": "website/public/gallery/v2/console-source.webp",
         "rawSize": [
           1254,
@@ -134,22 +134,22 @@
                 "outputFormat": "png"
               },
               "referenceImagePaths": [
-                "/Users/dong/Library/Application Support/Iterlay/workspace/references/1792167718379-b34933fd-14bd-449f-ae13-e24d4e5482ee.png"
+                "/Users/dong/Library/Application Support/Tuda/workspace/references/1792167718379-b34933fd-14bd-449f-ae13-e24d4e5482ee.png"
               ],
               "outputImagePaths": [
-                "/Users/dong/Library/Application Support/Iterlay/workspace/outputs/a91ac3f3-ecb4-4ddd-90ae-517b41d72635-1.png"
+                "/Users/dong/Library/Application Support/Tuda/workspace/outputs/a91ac3f3-ecb4-4ddd-90ae-517b41d72635-1.png"
               ],
               "boardId": "9bef97de-4bf0-4261-a855-8569118a3262",
               "completedAt": "2026-10-16T16:22:44.299Z"
             },
             "images": [
               {
-                "path": "/Users/dong/Library/Application Support/Iterlay/workspace/outputs/a91ac3f3-ecb4-4ddd-90ae-517b41d72635-1.png",
+                "path": "/Users/dong/Library/Application Support/Tuda/workspace/outputs/a91ac3f3-ecb4-4ddd-90ae-517b41d72635-1.png",
                 "dataUrl": ""
               }
             ],
             "exportedPaths": [
-              "/Users/dong/Develop/Code/other/iterlay/iterlay-app/website/public/gallery/v2/console-campaign.png"
+              "/Users/dong/Develop/Code/other/tuda/tuda-app/website/public/gallery/v2/console-campaign.png"
             ]
           }
         }
@@ -207,23 +207,23 @@
               },
               "referenceImagePaths": [],
               "outputImagePaths": [
-                "/Users/dong/Library/Application Support/Iterlay/workspace/outputs/a3b9037d-a9c7-4d07-ad05-15977ad66a83-1.png"
+                "/Users/dong/Library/Application Support/Tuda/workspace/outputs/a3b9037d-a9c7-4d07-ad05-15977ad66a83-1.png"
               ],
               "boardId": "9bef97de-4bf0-4261-a855-8569118a3262",
               "completedAt": "2026-10-16T16:19:11.734Z"
             },
             "images": [
               {
-                "path": "/Users/dong/Library/Application Support/Iterlay/workspace/outputs/a3b9037d-a9c7-4d07-ad05-15977ad66a83-1.png",
+                "path": "/Users/dong/Library/Application Support/Tuda/workspace/outputs/a3b9037d-a9c7-4d07-ad05-15977ad66a83-1.png",
                 "dataUrl": ""
               }
             ],
             "exportedPaths": [
-              "/Users/dong/Develop/Code/other/iterlay/iterlay-app/website/public/gallery/v2/runner-source.png"
+              "/Users/dong/Develop/Code/other/tuda/tuda-app/website/public/gallery/v2/runner-source.png"
             ]
           }
         },
-        "rawOutput": "output/imagegen/iterlay-website-v2/runner-source.png",
+        "rawOutput": "output/imagegen/tuda-website-v2/runner-source.png",
         "webOutput": "website/public/gallery/v2/runner-source.webp",
         "rawSize": [
           1254,
@@ -283,26 +283,26 @@
                 "outputFormat": "png"
               },
               "referenceImagePaths": [
-                "/Users/dong/Library/Application Support/Iterlay/workspace/references/1792167718523-cd6fb237-a4c3-4e63-b523-21d1f1947413.png"
+                "/Users/dong/Library/Application Support/Tuda/workspace/references/1792167718523-cd6fb237-a4c3-4e63-b523-21d1f1947413.png"
               ],
               "outputImagePaths": [
-                "/Users/dong/Library/Application Support/Iterlay/workspace/outputs/a070a917-71d9-4009-9c54-4c354e4f746c-1.png"
+                "/Users/dong/Library/Application Support/Tuda/workspace/outputs/a070a917-71d9-4009-9c54-4c354e4f746c-1.png"
               ],
               "boardId": "9bef97de-4bf0-4261-a855-8569118a3262",
               "completedAt": "2026-10-16T16:22:32.639Z"
             },
             "images": [
               {
-                "path": "/Users/dong/Library/Application Support/Iterlay/workspace/outputs/a070a917-71d9-4009-9c54-4c354e4f746c-1.png",
+                "path": "/Users/dong/Library/Application Support/Tuda/workspace/outputs/a070a917-71d9-4009-9c54-4c354e4f746c-1.png",
                 "dataUrl": ""
               }
             ],
             "exportedPaths": [
-              "/Users/dong/Develop/Code/other/iterlay/iterlay-app/website/public/gallery/v2/runner-campaign.png"
+              "/Users/dong/Develop/Code/other/tuda/tuda-app/website/public/gallery/v2/runner-campaign.png"
             ]
           }
         },
-        "rawOutput": "output/imagegen/iterlay-website-v2/runner-campaign.png",
+        "rawOutput": "output/imagegen/tuda-website-v2/runner-campaign.png",
         "webOutput": "website/public/gallery/v2/runner-campaign.webp",
         "rawSize": [
           1254,
@@ -366,23 +366,23 @@
               },
               "referenceImagePaths": [],
               "outputImagePaths": [
-                "/Users/dong/Library/Application Support/Iterlay/workspace/outputs/a14bc53c-747f-4e4d-a928-ef1517959490-1.png"
+                "/Users/dong/Library/Application Support/Tuda/workspace/outputs/a14bc53c-747f-4e4d-a928-ef1517959490-1.png"
               ],
               "boardId": "9bef97de-4bf0-4261-a855-8569118a3262",
               "completedAt": "2026-10-16T16:19:12.543Z"
             },
             "images": [
               {
-                "path": "/Users/dong/Library/Application Support/Iterlay/workspace/outputs/a14bc53c-747f-4e4d-a928-ef1517959490-1.png",
+                "path": "/Users/dong/Library/Application Support/Tuda/workspace/outputs/a14bc53c-747f-4e4d-a928-ef1517959490-1.png",
                 "dataUrl": ""
               }
             ],
             "exportedPaths": [
-              "/Users/dong/Develop/Code/other/iterlay/iterlay-app/website/public/gallery/v2/yuzu-source.png"
+              "/Users/dong/Develop/Code/other/tuda/tuda-app/website/public/gallery/v2/yuzu-source.png"
             ]
           }
         },
-        "rawOutput": "output/imagegen/iterlay-website-v2/yuzu-source.png",
+        "rawOutput": "output/imagegen/tuda-website-v2/yuzu-source.png",
         "webOutput": "website/public/gallery/v2/yuzu-source.webp",
         "rawSize": [
           1254,
@@ -442,26 +442,26 @@
                 "outputFormat": "png"
               },
               "referenceImagePaths": [
-                "/Users/dong/Library/Application Support/Iterlay/workspace/references/1792167718660-99db07f1-cced-4827-aefd-ac0252c99bae.png"
+                "/Users/dong/Library/Application Support/Tuda/workspace/references/1792167718660-99db07f1-cced-4827-aefd-ac0252c99bae.png"
               ],
               "outputImagePaths": [
-                "/Users/dong/Library/Application Support/Iterlay/workspace/outputs/3038ab7a-52b1-454b-b452-ef606a524768-1.png"
+                "/Users/dong/Library/Application Support/Tuda/workspace/outputs/3038ab7a-52b1-454b-b452-ef606a524768-1.png"
               ],
               "boardId": "9bef97de-4bf0-4261-a855-8569118a3262",
               "completedAt": "2026-10-16T16:22:29.642Z"
             },
             "images": [
               {
-                "path": "/Users/dong/Library/Application Support/Iterlay/workspace/outputs/3038ab7a-52b1-454b-b452-ef606a524768-1.png",
+                "path": "/Users/dong/Library/Application Support/Tuda/workspace/outputs/3038ab7a-52b1-454b-b452-ef606a524768-1.png",
                 "dataUrl": ""
               }
             ],
             "exportedPaths": [
-              "/Users/dong/Develop/Code/other/iterlay/iterlay-app/website/public/gallery/v2/yuzu-poster.png"
+              "/Users/dong/Develop/Code/other/tuda/tuda-app/website/public/gallery/v2/yuzu-poster.png"
             ]
           }
         },
-        "rawOutput": "output/imagegen/iterlay-website-v2/yuzu-poster.png",
+        "rawOutput": "output/imagegen/tuda-website-v2/yuzu-poster.png",
         "webOutput": "website/public/gallery/v2/yuzu-poster.webp",
         "rawSize": [
           1254,

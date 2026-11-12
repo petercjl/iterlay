@@ -7,7 +7,7 @@ import "streamdown/styles.css";
 import type { InstalledUpdateRelease, UpdateChannel, UpdateProgress, UpdateStateSnapshot } from "@shared/app-update";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { iterlayToast } from "@/components/ui/iterlay-toast";
+import { tudaToast } from "@/components/ui/tuda-toast";
 import { useLicense } from "@/components/licensing/license-context";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import { UpdateContext, type UpdateContextValue } from "./update-context";
 
 const activePhases = new Set<UpdateStateSnapshot["phase"]>(["available", "downloading", "ready", "installing"]);
-const githubReleasesUrl = "https://github.com/Davied-H/iterlay/releases";
+const githubReleasesUrl = "https://github.com/petercjl/iterlay/releases";
 const ReleaseNotesMarkdown = lazy(async () => {
   const { Streamdown } = await import("streamdown");
   return { default: Streamdown };
@@ -42,7 +42,7 @@ export function UpdateManager({ children }: UpdateManagerProps): React.ReactElem
   const [checking, setChecking] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [notificationSurfaceReady, setNotificationSurfaceReady] = useState(
-    () => typeof document !== "undefined" && Boolean(document.querySelector(".iterlay-toaster"))
+    () => typeof document !== "undefined" && Boolean(document.querySelector(".tuda-toaster"))
   );
   const notifiedVersionRef = useRef<string | null>(null);
   const manualFlowRef = useRef(false);
@@ -76,7 +76,7 @@ export function UpdateManager({ children }: UpdateManagerProps): React.ReactElem
   useEffect(() => {
     if (notificationSurfaceReady || typeof document === "undefined") return;
     const markReady = (): void => {
-      if (document.querySelector(".iterlay-toaster")) setNotificationSurfaceReady(true);
+      if (document.querySelector(".tuda-toaster")) setNotificationSurfaceReady(true);
     };
     markReady();
     const observer = new MutationObserver(markReady);
@@ -94,7 +94,7 @@ export function UpdateManager({ children }: UpdateManagerProps): React.ReactElem
     const version = state.manifest.version;
     if (!notificationSurfaceReady || manualFlowRef.current || open || notifiedVersionRef.current === version) return;
     notifiedVersionRef.current = version;
-    iterlayToast.update({
+    tudaToast.update({
       version,
       onOpen: () => setOpen(true)
     });
@@ -253,7 +253,7 @@ export function UpdateManager({ children }: UpdateManagerProps): React.ReactElem
                   {phase === "error"
                     ? uiText("你可以重试，或前往 GitHub Releases 页面，下载适合你设备的安装包并手动安装。")
                     : forced
-                    ? uiText("此版本已停止支持。必须完成更新，才能继续使用 Iterlay。")
+                    ? uiText("此版本已停止支持。必须完成更新，才能继续使用 Tuda。")
                     : uiText("建议尽快更新，以获得最新功能与问题修复。")}
                 </DialogDescription>
               </div>
@@ -308,7 +308,7 @@ export function UpdateManager({ children }: UpdateManagerProps): React.ReactElem
           {phase === "installing" ? (
             <p className="m-0 flex items-center gap-2 text-sm text-muted-foreground" role="status" aria-live="assertive">
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              {uiText("安装即将开始。Iterlay 会暂时关闭，并在几秒后自动重新打开。")}</p>
+              {uiText("安装即将开始。Tuda 会暂时关闭，并在几秒后自动重新打开。")}</p>
           ) : null}
 
           {phase === "error" && updateError ? (
@@ -427,7 +427,7 @@ function InstalledReleaseDialog({
               <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
             </span>
             <div className="min-w-0">
-              <DialogTitle>{uiText("Iterlay 已更新")}</DialogTitle>
+              <DialogTitle>{uiText("Tuda 已更新")}</DialogTitle>
               <DialogDescription className="mt-1">
                 {uiText("已从 v")}{release?.previousVersion} {uiText("更新到 v")}{release?.version}
               </DialogDescription>

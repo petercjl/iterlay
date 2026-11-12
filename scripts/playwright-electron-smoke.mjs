@@ -7,8 +7,10 @@ import { fileURLToPath } from "node:url";
 import { _electron as electron } from "playwright";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const output = path.join(projectRoot, "output", "playwright");
-const userData = await mkdtemp(path.join(os.tmpdir(), "iterlay-smoke-"));
+const outputRoot = path.join(projectRoot, "output", "playwright");
+await mkdir(outputRoot, { recursive: true });
+const output = await mkdtemp(path.join(outputRoot, "tuda-smoke-"));
+const userData = await mkdtemp(path.join(os.tmpdir(), "tuda-smoke-"));
 await mkdir(output, { recursive: true });
 await mkdir(path.join(userData, "workspace"), { recursive: true });
 const fixture = await readFile(path.join(projectRoot, "demo-assets", "lamp-studio.jpg"));
@@ -30,7 +32,7 @@ await writeFile(path.join(userData, "workspace", "settings.json"), JSON.stringif
   boardAssistantEnabled: false, boardAssistantAwarenessEnabled: false, editSmartSuggestionsEnabled: false
 }));
 await writeFile(path.join(userData, "workspace", "onboarding.json"), JSON.stringify(Object.fromEntries(
-  ["board", "library", "gallery", "edit", "demo-start"].map((id) => [`iterlay.onboarding.${id}.v1`, { status: "completed", at: new Date().toISOString() }])
+  ["board", "library", "gallery", "edit", "demo-start"].map((id) => [`tuda.onboarding.${id}.v1`, { status: "completed", at: new Date().toISOString() }])
 )));
 let electronApp;
 async function bridge(method, args = {}) {
@@ -50,10 +52,10 @@ async function pageReady(page) {
   await page.waitForFunction(() => window.imageWorkbench && document.documentElement.dataset.boardSaveState, { timeout: 60_000 });
 }
 try {
-  const env = { ...process.env, ITERLAY_PLAYWRIGHT: "1", ITERLAY_E2E_USER_DATA: userData };
+  const env = { ...process.env, TUDA_PLAYWRIGHT: "1", TUDA_E2E_USER_DATA: userData };
   delete env.VITE_DEV_SERVER_URL;
   electronApp = await electron.launch({ args: ["."], cwd: projectRoot, env,
-    ...(process.env.ITERLAY_E2E_ELECTRON ? { executablePath: process.env.ITERLAY_E2E_ELECTRON } : {}), timeout: 60_000 });
+    ...(process.env.TUDA_E2E_ELECTRON ? { executablePath: process.env.TUDA_E2E_ELECTRON } : {}), timeout: 60_000 });
   let page = await electronApp.firstWindow();
   await pageReady(page);
   await page.waitForFunction(async () => (await window.imageWorkbench.getSettings()).setupComplete);
@@ -66,6 +68,21 @@ try {
   await bridge("open_board", { boardId: board.id });
   const node = page.locator(`[data-id="${nodeId}"]`);
   await node.waitFor({ state: "visible", timeout: 30_000 });
+  await bridge("duplicate_images", { boardId: board.id, nodeIds: [nodeId], offset: 340 });
+  await page.waitForFunction(() => document.querySelectorAll("[data-image-node]").length === 2);
+  await bridge("resize_image", { boardId: board.id, nodeId, displayWidth: 320 });
+  await page.waitForFunction((id) => document.querySelector(`[data-id="${id}"]`)?.style.width === "320px", nodeId);
+  const arrangedNodes = (await bridge("get_board", { boardId: board.id })).nodes;
+  const arranged = await bridge("arrange_images", { boardId: board.id, nodeIds: arrangedNodes.map(n => n.id), mode: "vertical", gap: 48 });
+  await page.waitForFunction((positions) => positions.every(p => document.querySelector(`[data-id="${p.nodeId}"]`)?.style.transform === `translate(${p.x}px, ${p.y}px)`), arranged.positions);
+  await page.waitForTimeout(350);
+  const afterExternal = await bridge("get_board", { boardId: board.id });
+  for (const expected of arranged.positions) {
+    const saved = afterExternal.nodes.find(n => n.id === expected.nodeId);
+    assert.equal(saved.x, expected.x); assert.equal(saved.y, expected.y);
+  }
+  await page.getByRole("button", { name: "适配全部", exact: true }).click();
+  await page.waitForTimeout(350);
   const before = await bridge("get_board", { boardId: board.id });
   const original = before.nodes.find((item) => item.id === nodeId);
   const bounds = await node.boundingBox();
@@ -74,6 +91,7 @@ try {
   await page.mouse.down();
   await page.mouse.move(bounds.x + bounds.width / 2 + 90, bounds.y + bounds.height / 2 + 60, { steps: 6 });
   await page.mouse.up();
+  await page.waitForFunction(({ id, transform }) => document.querySelector(`[data-id="${id}"]`)?.style.transform !== transform, { id: nodeId, transform: `translate(${original.x}px, ${original.y}px)` });
   const closed = page.waitForEvent("close");
   await electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].close());
   await closed;
@@ -105,14 +123,14 @@ try {
   page = await finalWindow;
   await pageReady(page);
   await bridge("open_board", { boardId: board.id });
-  await page.waitForFunction(() => document.querySelectorAll("[data-image-node]").length >= 2);
+  await page.waitForFunction(() => document.querySelectorAll("[data-image-node]").length >= 3);
   await page.screenshot({ path: path.join(output, "electron-smoke.png") });
   const windowOptions = await electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences());
   assert.equal(windowOptions.sandbox, true);
   assert.equal(windowOptions.contextIsolation, true);
   assert.equal(windowOptions.nodeIntegration, false);
   assert.equal(errors.filter((message) => /Content Security Policy|preload|uncaught|not defined/i.test(message)).length, 0, errors.join("\n"));
-  console.log(JSON.stringify({ ok: true, isolatedWorkspace: true, immediateCloseSaved: true, mcpReopen: true, rendererIndependentGeneration: true, sandbox: true, boardNodes: 2, screenshot: path.join(output, "electron-smoke.png") }, null, 2));
+  console.log(JSON.stringify({ ok: true, isolatedWorkspace: true, immediateCloseSaved: true, mcpReopen: true, rendererIndependentGeneration: true, sandbox: true, boardNodes: 3, cliLayoutSynchronized: true, screenshot: path.join(output, "electron-smoke.png") }, null, 2));
 } catch (error) {
   await writeFile(path.join(output, "electron-smoke-errors.json"), JSON.stringify({ error: String(error), rendererErrors: errors }, null, 2));
   if (electronApp) for (const page of electronApp.windows()) await page.screenshot({ path: path.join(output, "electron-smoke-failure.png") }).catch(() => undefined);

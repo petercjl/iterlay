@@ -1,9 +1,9 @@
 import type { ComicGenerationCostItem } from "../comic-drama.js";
 import type { ProviderConfig, VideoProviderConfig, TextProviderConfig } from "./providers.js";
 
-export const OFFICIAL_PROVIDER_ID = "iterlay-official";
+export const OFFICIAL_PROVIDER_ID = "tuda-official";
 
-export const OFFICIAL_PROVIDER_NAME = "Iterlay 官方";
+export const OFFICIAL_PROVIDER_NAME = "Tuda 官方";
 
 export const OFFICIAL_MAX_IMAGE_COUNT = 4;
 
@@ -23,7 +23,7 @@ export const OFFICIAL_PROVIDER_CONFIG: ProviderConfig = {
   supportsReferenceImages: true
 };
 
-export const OFFICIAL_VIDEO_PROVIDER_ID = "iterlay-official-video";
+export const OFFICIAL_VIDEO_PROVIDER_ID = "tuda-official-video";
 
 export const OFFICIAL_VIDEO_PROVIDER_CONFIG: VideoProviderConfig = {
   id: OFFICIAL_VIDEO_PROVIDER_ID,
@@ -33,7 +33,7 @@ export const OFFICIAL_VIDEO_PROVIDER_CONFIG: VideoProviderConfig = {
   model: "官方视频模型"
 };
 
-export const OFFICIAL_TEXT_PROVIDER_ID = "iterlay-official-text";
+export const OFFICIAL_TEXT_PROVIDER_ID = "tuda-official-text";
 
 export const OFFICIAL_TEXT_PROVIDER_CONFIG: TextProviderConfig = {
   id: OFFICIAL_TEXT_PROVIDER_ID,

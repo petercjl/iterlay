@@ -12,7 +12,7 @@ afterEach(async () => {
 
 describe("AssistantConversationStore", () => {
   it("persists assistant exchanges as rebuildable memory sources", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-assistant-conversation-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-assistant-conversation-"));
     directories.push(directory);
     const store = new AssistantConversationStore(directory);
 
@@ -39,7 +39,7 @@ describe("AssistantConversationStore", () => {
   });
 
   it("persists video metadata across a store reload", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-video-conversation-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-video-conversation-"));
     directories.push(directory);
     await new AssistantConversationStore(directory).add({
       surface: "canvas-prompt", instruction: "基于参考图生成视频", response: "视频方案已准备",
@@ -52,7 +52,7 @@ describe("AssistantConversationStore", () => {
   });
 
   it("keeps multiple exchanges in the same conversation", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-assistant-conversation-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-assistant-conversation-"));
     directories.push(directory);
     const store = new AssistantConversationStore(directory);
     vi.useFakeTimers();

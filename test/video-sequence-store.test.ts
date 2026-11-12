@@ -7,7 +7,7 @@ import type { VideoSequenceTask } from "../electron/video-sequence-types.js";
 
 describe("VideoSequenceStore", () => {
   let dir: string;
-  beforeEach(async () => { dir = await mkdtemp(path.join(os.tmpdir(), "iterlay-sequence-")); });
+  beforeEach(async () => { dir = await mkdtemp(path.join(os.tmpdir(), "tuda-sequence-")); });
   afterEach(async () => { await rm(dir, { recursive: true, force: true }); });
 
   it("creates N-1 segments and preserves frozen hashes", async () => {

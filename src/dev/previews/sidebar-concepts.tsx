@@ -85,7 +85,7 @@ function Brand({ wordmark = true }: { wordmark?: boolean }): React.ReactElement 
   return (
     <div className="sidebar-brand">
       <img src={appIconDefault} alt="" />
-      {wordmark ? <strong>Iterlay</strong> : null}
+      {wordmark ? <strong>Tuda</strong> : null}
     </div>
   );
 }

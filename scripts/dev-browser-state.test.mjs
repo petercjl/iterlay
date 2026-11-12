@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { assertBrowserBackendStopped } from "./dev-browser-state.mjs";
 
 async function workspace(t) {
-  const directory = await mkdtemp(path.join(tmpdir(), "iterlay-backend-state-"));
+  const directory = await mkdtemp(path.join(tmpdir(), "tuda-backend-state-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   return directory;
 }

@@ -43,7 +43,7 @@ export class ManagerTemplateClient {
       const apiError = await templateSubmissionError(response);
       if (apiError.code === "invalid_credential") this.license.markCredentialRejected(apiError.message);
       if (response.status === 409) {
-        throw new Error("模板发布目前仅对已激活用户开放，请先激活 Iterlay。");
+        throw new Error("模板发布目前仅对已激活用户开放，请先激活 Tuda。");
       }
       throw apiError;
     }

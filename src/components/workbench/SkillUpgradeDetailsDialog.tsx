@@ -37,7 +37,7 @@ export function SkillUpgradeDetailsDialog({
               <RefreshCw className="h-4 w-4" aria-hidden="true" />
             </span>
             <div className="min-w-0">
-              <DialogTitle>{uiText("Iterlay Skill 已升级")}</DialogTitle>
+              <DialogTitle>{uiText("Tuda Skill 已升级")}</DialogTitle>
               <DialogDescription className="mt-1 text-xs leading-5">
                 {uiText("已同步 ")}{details.length} {uiText("个 Coding Agent，共变更 ")}{changedFileCount} {uiText("个文件。")}</DialogDescription>
             </div>

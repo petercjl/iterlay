@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import { imageDimensionsFromHeader, readImageDimensions } from "../electron/media/image-metadata";
@@ -7,7 +8,7 @@ describe("bounded image metadata reads", () => {
     const size = imageDimensionsFromHeader(bytes);
     expect(size?.width).toBeGreaterThan(0);
     expect(size?.height).toBeGreaterThan(0);
-    expect(await readImageDimensions(new URL("../demo-assets/lamp-studio.jpg", import.meta.url).pathname, async () => { throw new Error("unnecessary decode"); })).toEqual(size);
+    expect(await readImageDimensions(fileURLToPath(new URL("../demo-assets/lamp-studio.jpg", import.meta.url)), async () => { throw new Error("unnecessary decode"); })).toEqual(size);
   });
   it("handles PNG dimensions and truncated headers", () => {
     const bytes = Buffer.alloc(24);

@@ -35,7 +35,7 @@ const server = createServer(async (request, response) => {
   response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ result }));
 });
 beforeAll(async () => {
-  directory = await mkdtemp(path.join(os.tmpdir(), 'iterlay-cli-runtime-'));
+  directory = await mkdtemp(path.join(os.tmpdir(), 'tuda-cli-runtime-'));
   script = path.join(directory, 'main.mjs');
   await build({ entryPoints: ['cli/src/main.ts'], bundle: true, platform: 'node', format: 'esm', outfile: script });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -59,8 +59,8 @@ describe('CLI subprocess workflow', () => {
     expect(generated).toBe(before);
   });
   it('configures video and TTS via environment or stdin without printing credentials', async () => {
-    const args = [script, 'providers', 'set', '--kind', 'video', '--provider', 'video', '--type', 'openrouter', '--base-url', 'https://openrouter.ai/api', '--model', 'vendor/video', '--saved-model', 'other', '--default', '--api-key-env', 'ITERLAY_TEST_SECRET', '--user-data-path', directory, '--json'];
-    const run = await exec(process.execPath, args, { env: { ...process.env, ITERLAY_TEST_SECRET: 'env-secret-value' } });
+    const args = [script, 'providers', 'set', '--kind', 'video', '--provider', 'video', '--type', 'openrouter', '--base-url', 'https://openrouter.ai/api', '--model', 'vendor/video', '--saved-model', 'other', '--default', '--api-key-env', 'TUDA_TEST_SECRET', '--user-data-path', directory, '--json'];
+    const run = await exec(process.execPath, args, { env: { ...process.env, TUDA_TEST_SECRET: 'env-secret-value' } });
     expect(configurations.at(-1)).toMatchObject({ kind: 'video', model: 'vendor/video', models: ['other'], setDefault: true, apiKey: 'env-secret-value' });
     expect(run.stdout + run.stderr).not.toContain('env-secret-value');
     const pending = exec(process.execPath, [script, 'providers', 'set', '--kind', 'audio', '--provider', 'tts', '--base-url', 'https://api.example.com', '--model', 'tts-1', '--voice', 'nova', '--api-key-stdin', '--user-data-path', directory, '--json']);
@@ -80,7 +80,7 @@ describe('CLI subprocess workflow', () => {
       expect(configurations.at(-1)).toEqual({ kind: 'audio', action, providerId: 'tts' });
     }
     const count = configurations.length;
-    for (const invalid of [['--api-key-env', 'ITERLAY_MISSING_TEST_KEY'], ['--api-key-stdin', '--clear-api-key']]) {
+    for (const invalid of [['--api-key-env', 'TUDA_MISSING_TEST_KEY'], ['--api-key-stdin', '--clear-api-key']]) {
       await expect(exec(process.execPath, [script, 'providers', 'set', '--kind', 'audio', '--provider', 'tts', ...invalid, ...common])).rejects.toMatchObject({ stdout: expect.stringContaining('ok":false') });
     }
     expect(configurations).toHaveLength(count);

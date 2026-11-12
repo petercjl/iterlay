@@ -9,7 +9,7 @@ const workspaceDirectory = path.join(
   process.env.HOME,
   "Library",
   "Application Support",
-  "Iterlay",
+  "Tuda",
   "workspace"
 );
 const boardStatePath = path.join(workspaceDirectory, "boards", "state.json");
@@ -52,12 +52,12 @@ async function latestGeneration(prompt, startedAt) {
 const electronApp = await electron.launch({
   args: ["."],
   cwd: projectRoot,
-  ...(process.env.ITERLAY_E2E_ELECTRON
-    ? { executablePath: process.env.ITERLAY_E2E_ELECTRON }
+  ...(process.env.TUDA_E2E_ELECTRON
+    ? { executablePath: process.env.TUDA_E2E_ELECTRON }
     : {}),
   env: {
     ...process.env,
-    ITERLAY_PLAYWRIGHT: "1",
+    TUDA_PLAYWRIGHT: "1",
     VITE_DEV_SERVER_URL: process.env.VITE_DEV_SERVER_URL ?? "http://127.0.0.1:5180"
   },
   timeout: 30_000

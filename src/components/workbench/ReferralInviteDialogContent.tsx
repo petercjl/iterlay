@@ -206,7 +206,7 @@ function GiftActivationContent({
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border px-6 py-4 text-xs">
         <Badge variant={campaignOpen ? "secondary" : "muted"}>{status}</Badge>
         <span className="font-medium text-foreground">
-          Iterlay {overview.campaign.maxMajorVersion}{uiText(".x 永久授权 · ")}{overview.campaign.maxDevices} {uiText("台设备")}</span>
+          Tuda {overview.campaign.maxMajorVersion}{uiText(".x 永久授权 · ")}{overview.campaign.maxDevices} {uiText("台设备")}</span>
         <span className="text-muted-foreground">
           {uiText("待领取 ")}{overview.availableCount} / {overview.totalQuota}
         </span>
@@ -395,7 +395,7 @@ function ReferralMetric({ label, value, suffix }: { label: string; value: string
 function buildGiftShareText(overview: GiftActivationOverview, code: GiftActivationCode): string {
   const lines = [
     overview.campaign.shareMessage.trim(),
-    "下载 Iterlay：https://iterlay.app/download",
+    "下载 Tuda：https://github.com/petercjl/iterlay/releases",
     `好友激活码：${code.code}`,
     overview.campaign.redemptionEndsAt ? `兑换截止：${formatDate(overview.campaign.redemptionEndsAt)}` : ""
   ];

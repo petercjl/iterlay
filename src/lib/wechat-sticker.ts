@@ -66,7 +66,7 @@ export interface WechatPackageBuildResult {
 
 export function buildWechatPersonalPackage(stickers: WechatStickerOutput[]): WechatPackageBuildResult {
   const manifest = {
-    format: "iterlay-wechat-personal-stickers",
+    format: "tuda-wechat-personal-stickers",
     formatVersion: 1,
     generatedAt: new Date().toISOString(),
     count: stickers.length,
@@ -85,7 +85,7 @@ export function buildWechatPersonalPackage(stickers: WechatStickerOutput[]): Wec
   files.push({
     relativePath: "README.txt",
     bytes: encodeUtf8([
-      "Iterlay 微信个人表情素材",
+      "Tuda 微信个人表情素材",
       "",
       "1. 打开 stickers 目录，把 GIF 作为图片保存到手机系统相册；不要把 ZIP 或图片当作文件直接发送。",
       "2. 打开微信：我 → 表情 → 右上角设置 → 添加的单个表情 → +。",
@@ -246,7 +246,7 @@ export async function buildWechatStickerPackage(
   files.push({ relativePath: "banner.jpg", bytes: banner });
 
   const manifest = {
-    format: "iterlay-wechat-sticker-package",
+    format: "tuda-wechat-sticker-package",
     formatVersion: 1,
     generatedAt: new Date().toISOString(),
     album: {
@@ -557,9 +557,9 @@ async function createWechatBanner(sourceBytes: Uint8Array, metadata: WechatAlbum
     context.fillText(metadata.name || "微信表情", 380, 170, 310);
     context.fillStyle = "rgba(15, 23, 20, 0.62)";
     context.font = '400 22px -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif';
-    drawWrappedText(context, metadata.description || "由 Iterlay 创作", 380, 212, 300, 32, 2);
+    drawWrappedText(context, metadata.description || "由 Tuda 创作", 380, 212, 300, 32, 2);
     context.font = '500 16px -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif';
-    context.fillText(metadata.copyright ? `© ${metadata.copyright}` : "Created with Iterlay", 380, 322, 300);
+    context.fillText(metadata.copyright ? `© ${metadata.copyright}` : "Created with Tuda", 380, 322, 300);
     for (const quality of [0.9, 0.82, 0.72, 0.62]) {
       const bytes = new Uint8Array(await (await canvasToBlob(canvas, "image/jpeg", quality)).arrayBuffer());
       if (bytes.byteLength <= WECHAT_STICKER_MAX_BYTES) return bytes;
@@ -693,7 +693,7 @@ function drawWrappedText(
 function createWechatReadme(stickers: WechatStickerOutput[], metadata: WechatAlbumMetadata): string {
   const type = stickers.some((sticker) => sticker.animated) ? "动态" : "静态";
   return [
-    `${metadata.name || "微信表情"} · Iterlay 微信表情投稿素材包`,
+    `${metadata.name || "微信表情"} · Tuda 微信表情投稿素材包`,
     "",
     `表情类型：${type}`,
     `表情数量：${stickers.length}`,

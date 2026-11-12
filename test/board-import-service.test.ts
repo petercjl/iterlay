@@ -17,7 +17,7 @@ const directories: string[] = [];
 afterEach(async () => { await Promise.all(directories.splice(0).map((dir) => rm(dir, { recursive: true, force: true }))); });
 
 async function fixture() {
-  const dir = await mkdtemp(path.join(os.tmpdir(), "iterlay-import-service-"));
+  const dir = await mkdtemp(path.join(os.tmpdir(), "tuda-import-service-"));
   directories.push(dir);
   const imagePath = path.join(dir, "original.png");
   await writeFile(imagePath, Buffer.from("image payload"));

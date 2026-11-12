@@ -1,5 +1,5 @@
 /** JSON transport for the structured values used by the development browser bridge. */
-const WIRE_TAG = "__iterlayDevWire";
+const WIRE_TAG = "__tudaDevWire";
 export const DEV_BROWSER_ATTACHMENT_THRESHOLD = 1024 * 1024;
 export type DevBrowserAttachmentWriter = (bytes: Uint8Array<ArrayBuffer>) => number;
 export type DevBrowserAttachmentReader = (index: number) => ArrayBuffer | undefined;

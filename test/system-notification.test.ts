@@ -71,7 +71,7 @@ describe("generation system notification", () => {
 
     expect(electronMocks.options[0]).toMatchObject({
       title: "图片生成完成",
-      body: "2 张图片已准备好，点击返回 Iterlay 查看。"
+      body: "2 张图片已准备好，点击返回 Tuda 查看。"
     });
     expect(electronMocks.show).toHaveBeenCalledOnce();
 
@@ -95,7 +95,7 @@ describe("generation system notification", () => {
     showVideoGenerationNotification({ succeeded: true });
     expect(electronMocks.options.at(-1)).toMatchObject({
       title: "视频生成完成",
-      body: "视频已保存到画板，点击返回 Iterlay 查看。"
+      body: "视频已保存到画板，点击返回 Tuda 查看。"
     });
 
     showVideoGenerationNotification({ succeeded: false, error: "上游服务超时" });

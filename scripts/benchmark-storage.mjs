@@ -5,8 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 const root = process.cwd();
-const compiled = path.resolve(process.env.ITERLAY_BENCHMARK_BUILD_DIR || "dist-electron");
-const temporary = await mkdtemp(path.join(os.tmpdir(), "iterlay-storage-benchmark-"));
+const compiled = path.resolve(process.env.TUDA_BENCHMARK_BUILD_DIR || "dist-electron");
+const temporary = await mkdtemp(path.join(os.tmpdir(), "tuda-storage-benchmark-"));
 const require = createRequire(path.join(root, "package.json"));
 const samples = 20;
 const { BoardStore } = await import(pathToFileURL(path.join(compiled, "electron/storage/board-store.js")).href);
@@ -32,7 +32,7 @@ async function pool(items, fn) {
   }));
 }
 try {
-  const baseline = process.env.ITERLAY_BENCHMARK_BASE_REF;
+  const baseline = process.env.TUDA_BENCHMARK_BASE_REF;
   if (baseline) {
     const dir = path.join(temporary, "baseline");
     await mkdir(path.join(dir, "electron/storage"), { recursive: true });

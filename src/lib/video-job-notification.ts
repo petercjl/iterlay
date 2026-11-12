@@ -1,6 +1,6 @@
 import { translateSourceText } from "@/i18n/ui-text";
 import type { VideoGenerationJob } from "@shared/types";
-import { iterlayToast } from "@/components/ui/iterlay-toast";
+import { tudaToast } from "@/components/ui/tuda-toast";
 
 interface NotifyVideoJobDependencies {
   notifiedJobIds: Set<string>;
@@ -19,7 +19,7 @@ export function notifyVideoJob(
   const boardId = job.input.boardId;
   const boardName = boardNameForId(boardId);
   const succeeded = job.status === "completed";
-  iterlayToast.videoResult({
+  tudaToast.videoResult({
     succeeded,
     title: succeeded ? translateSourceText("视频生成完成") : translateSourceText("视频生成失败"),
     detail: succeeded

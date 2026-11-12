@@ -94,8 +94,8 @@ export class MediaToolsManager {
   }
 
   private async resolveExisting(): Promise<MediaToolsPaths | undefined> {
-    const explicitFfmpeg = process.env.ITERLAY_FFMPEG_PATH?.trim() || undefined;
-    const explicitFfprobe = process.env.ITERLAY_FFPROBE_PATH?.trim() || undefined;
+    const explicitFfmpeg = process.env.TUDA_FFMPEG_PATH?.trim() || undefined;
+    const explicitFfprobe = process.env.TUDA_FFPROBE_PATH?.trim() || undefined;
     if (explicitFfmpeg || explicitFfprobe) {
       const ffmpeg = explicitFfmpeg ?? siblingTool(explicitFfprobe!, "ffmpeg", this.platform);
       const ffprobe = explicitFfprobe ?? siblingTool(explicitFfmpeg!, "ffprobe", this.platform);

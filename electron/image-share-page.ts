@@ -11,8 +11,8 @@ export interface OnlineImageDetailSharePageInput {
   referenceCount: number;
 }
 
-export const ITERLAY_OFFICIAL_WEBSITE = "https://iterlay.app";
-export const ITERLAY_SHARE_WEBSITE = "https://iterlay.app/";
+export const TUDA_OFFICIAL_WEBSITE = "https://github.com/petercjl/iterlay";
+export const TUDA_SHARE_WEBSITE = "https://github.com/petercjl/iterlay/";
 
 export function buildOnlineImageSharePage(input: OnlineImageSharePageInput): string {
   const imageCount = Math.max(1, Math.min(24, Math.floor(input.imageCount ?? 1)));
@@ -43,8 +43,8 @@ export function buildOnlineImageSharePage(input: OnlineImageSharePageInput): str
           </section>` : ""}
         </aside>`
     : "";
-  const useInIterlay = showPrompt
-    ? `<a id="use-in-iterlay" class="use-in-iterlay" href="iterlay://import">在 Iterlay 中使用</a>`
+  const useInTuda = showPrompt
+    ? `<a id="use-in-tuda" class="use-in-tuda" href="tuda://import">在 Tuda 中使用</a>`
     : "";
 
   return `<!doctype html>
@@ -54,7 +54,7 @@ export function buildOnlineImageSharePage(input: OnlineImageSharePageInput): str
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="light">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
-  <title>Iterlay 图片分享</title>
+  <title>Tuda 图片分享</title>
   <style>
     :root { color: #181b19; background: #f2f3f1; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     * { box-sizing: border-box; }
@@ -75,8 +75,8 @@ export function buildOnlineImageSharePage(input: OnlineImageSharePageInput): str
     .image-meta span { color: #6a726d; font-size: 13px; line-height: 1.4; }
     .original-link { display: inline-flex; min-height: 36px; align-items: center; color: #176b45; font-size: 13px; font-weight: 680; text-decoration: none; white-space: nowrap; }
     .image-actions { display: inline-flex; align-items: center; gap: 14px; }
-    .use-in-iterlay { display: inline-flex; min-height: 36px; align-items: center; justify-content: center; padding: 0 12px; border: 1px solid #176b45; border-radius: 5px; background: #176b45; color: #fff; font-size: 13px; font-weight: 680; line-height: 1; text-decoration: none; white-space: nowrap; }
-    .use-in-iterlay:hover { background: #105939; border-color: #105939; }
+    .use-in-tuda { display: inline-flex; min-height: 36px; align-items: center; justify-content: center; padding: 0 12px; border: 1px solid #176b45; border-radius: 5px; background: #176b45; color: #fff; font-size: 13px; font-weight: 680; line-height: 1; text-decoration: none; white-space: nowrap; }
+    .use-in-tuda:hover { background: #105939; border-color: #105939; }
     .prompt-panel { min-width: 0; padding: 26px 24px; border-left: 1px solid #e2e5e3; }
     .prompt-panel section + section { margin-top: 30px; padding-top: 24px; border-top: 1px solid #e5e8e6; }
     .section-label { margin: 0 0 11px; color: #717974; font-size: 12px; font-weight: 680; line-height: 1.4; text-transform: uppercase; }
@@ -115,36 +115,36 @@ export function buildOnlineImageSharePage(input: OnlineImageSharePageInput): str
 <body>
   <main>
     <header class="brand-bar">
-      <a class="brand" href="${ITERLAY_OFFICIAL_WEBSITE}">
-        <img src="brand-logo" alt="Iterlay">
-        <span class="brand-name">Iterlay</span>
+      <a class="brand" href="${TUDA_OFFICIAL_WEBSITE}">
+        <img src="brand-logo" alt="Tuda">
+        <span class="brand-name">Tuda</span>
       </a>
-      <a class="website" href="${ITERLAY_OFFICIAL_WEBSITE}">iterlay.app</a>
+      <a class="website" href="${TUDA_OFFICIAL_WEBSITE}">tuda.app</a>
     </header>
     <article class="share-card">
       <div class="image-column">
         <div class="image-stage"><img src="image" alt="分享图片"></div>
         <div class="image-meta">
-          <span>由 Iterlay 创作</span>
+          <span>由 Tuda 创作</span>
           <div class="image-actions">
-            ${useInIterlay}
-            <a class="original-link" href="${ITERLAY_SHARE_WEBSITE}" target="_blank" rel="noopener">iterlay.app</a>
+            ${useInTuda}
+            <a class="original-link" href="${TUDA_SHARE_WEBSITE}" target="_blank" rel="noopener">tuda.app</a>
           </div>
         </div>
       </div>${promptPanel}
     </article>
     <footer>
-      <span>Iterlay · AI 图像创作工作台</span>
-      <span>${ITERLAY_OFFICIAL_WEBSITE}</span>
+      <span>Tuda · AI 图像创作工作台</span>
+      <span>${TUDA_OFFICIAL_WEBSITE}</span>
     </footer>
   </main>
   <script>
-    const useInIterlay = document.getElementById("use-in-iterlay");
-    useInIterlay?.addEventListener("click", (event) => {
+    const useInTuda = document.getElementById("use-in-tuda");
+    useInTuda?.addEventListener("click", (event) => {
       event.preventDefault();
       const source = new URL(window.location.href);
       source.hash = "";
-      window.location.href = "iterlay://import?source=" + encodeURIComponent(source.href);
+      window.location.href = "tuda://import?source=" + encodeURIComponent(source.href);
     });
   </script>
 </body>
@@ -164,7 +164,7 @@ function buildOnlineImageCollectionSharePage(imageCount: number): string {
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="light">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
-  <title>Iterlay 图片分享</title>
+  <title>Tuda 图片分享</title>
   <style>
     :root { color: #181b19; background: #f2f3f1; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     * { box-sizing: border-box; } body { min-height: 100vh; margin: 0; padding: max(20px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom)); }
@@ -176,11 +176,11 @@ function buildOnlineImageCollectionSharePage(imageCount: number): string {
   </style>
 </head>
 <body><main>
-  <header class="brand-bar"><a class="brand" href="${ITERLAY_OFFICIAL_WEBSITE}"><img src="brand-logo" alt="Iterlay"><span class="brand-name">Iterlay</span></a><a class="website" href="${ITERLAY_OFFICIAL_WEBSITE}">iterlay.app</a></header>
+  <header class="brand-bar"><a class="brand" href="${TUDA_OFFICIAL_WEBSITE}"><img src="brand-logo" alt="Tuda"><span class="brand-name">Tuda</span></a><a class="website" href="${TUDA_OFFICIAL_WEBSITE}">tuda.app</a></header>
   <h1>图片分享 <span class="count">共 ${imageCount} 张</span></h1>
   <div class="share-loading" data-share-loading role="status"><span class="share-spinner" aria-hidden="true"></span><span data-share-loading-text>正在加载图片 · 已加载 0 / ${imageCount} 张</span></div>
   <section class="image-grid" data-share-masonry aria-label="分享图片"></section>
-  <footer><span>Iterlay · AI 图像创作工作台</span><span>${ITERLAY_OFFICIAL_WEBSITE}</span></footer>
+  <footer><span>Tuda · AI 图像创作工作台</span><span>${TUDA_OFFICIAL_WEBSITE}</span></footer>
 </main><script>
   const grid = document.querySelector("[data-share-masonry]");
   const loading = document.querySelector("[data-share-loading]");
@@ -272,9 +272,9 @@ export function buildOnlineImageDetailSharePage(input: OnlineImageDetailSharePag
     ? `<section class="generation-details">${prompt ? `<p class="section-label">创作提示词</p><p class="prompt">${escapeHtml(prompt)}</p>` : ""}${referenceCount ? `<div class="reference-block"><p class="section-label">参考图片 <span>${referenceCount}</span></p><div class="references">${references}</div></div>` : ""}</section>`
     : `<p class="no-details">这张图片未附带生成信息。</p>`;
   return `<!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="color-scheme" content="light"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'unsafe-inline';"><title>图片 ${number} · Iterlay</title><style>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="color-scheme" content="light"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'unsafe-inline';"><title>图片 ${number} · Tuda</title><style>
 :root { color:#181b19; background:#f2f3f1; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; } * { box-sizing:border-box; } body { min-height:100vh; margin:0; padding:max(20px,env(safe-area-inset-top)) 20px max(24px,env(safe-area-inset-bottom)); } main { width:min(100%,1180px); margin:0 auto; }.brand-bar { display:flex; align-items:center; justify-content:space-between; gap:16px; min-height:44px; margin-bottom:18px; }.brand { display:inline-flex; align-items:center; gap:10px; color:#181b19; text-decoration:none; }.brand img { width:34px; height:34px; border-radius:8px; }.brand-name { font-size:17px; font-weight:720; }.back { color:#59615c; font-size:13px; text-decoration:none; }.back:hover { color:#181b19; }.detail { display:grid; grid-template-columns:minmax(0,1fr) 360px; overflow:hidden; border:1px solid #d9ddda; border-radius:8px; background:#fff; box-shadow:0 14px 38px rgba(23,31,26,.08); }.image-stage { display:grid; min-height:min(74vh,780px); place-items:center; padding:24px; background:#eef0ee; }.image-stage img { display:block; width:100%; max-height:min(74vh,780px); object-fit:contain; }.detail-panel { min-width:0; padding:26px 24px; border-left:1px solid #e2e5e3; }.eyebrow,.section-label { margin:0; color:#717974; font-size:12px; font-weight:680; line-height:1.4; text-transform:uppercase; }.detail-panel h1 { margin:4px 0 0; font-size:22px; }.generation-details { margin-top:30px; }.prompt { margin:10px 0 0; color:#262b28; font-size:15px; line-height:1.75; white-space:pre-wrap; overflow-wrap:anywhere; }.reference-block { margin-top:26px; padding-top:22px; border-top:1px solid #e2e5e3; }.section-label span { color:#9aa09c; }.references { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:10px; }.reference { aspect-ratio:1; overflow:hidden; border:1px solid #dde1de; border-radius:6px; background:#f4f5f4; }.reference img { display:block; width:100%; height:100%; object-fit:cover; }.no-details { margin:30px 0; color:#6a726d; font-size:14px; line-height:1.6; }.download { display:inline-flex; min-height:38px; align-items:center; justify-content:center; margin-top:30px; padding:0 12px; border:1px solid #176b45; border-radius:5px; background:#176b45; color:#fff; font-size:13px; font-weight:680; text-decoration:none; }.brand:focus-visible,.back:focus-visible,.download:focus-visible { outline:3px solid rgba(25,112,70,.25); outline-offset:3px; border-radius:4px; } @media (max-width:720px) { body { padding-left:12px; padding-right:12px; }.detail { grid-template-columns:minmax(0,1fr); }.image-stage { min-height:0; padding:12px; }.image-stage img { max-height:none; }.detail-panel { padding:22px 18px 26px; border-top:1px solid #e2e5e3; border-left:0; } }
-</style></head><body><main><header class="brand-bar"><a class="brand" href="../../"><img src="../../brand-logo" alt="Iterlay"><span class="brand-name">Iterlay</span></a><a class="back" href="../../">返回全部图片</a></header><article class="detail"><div class="image-stage"><img src="../${number}" alt="分享图片 ${number}"></div><section class="detail-panel"><p class="eyebrow">图片详情</p><h1>图片 ${number}</h1>${details}<a class="download" href="../${number}/download" download>下载原图</a></section></article></main></body></html>`;
+</style></head><body><main><header class="brand-bar"><a class="brand" href="../../"><img src="../../brand-logo" alt="Tuda"><span class="brand-name">Tuda</span></a><a class="back" href="../../">返回全部图片</a></header><article class="detail"><div class="image-stage"><img src="../${number}" alt="分享图片 ${number}"></div><section class="detail-panel"><p class="eyebrow">图片详情</p><h1>图片 ${number}</h1>${details}<a class="download" href="../${number}/download" download>下载原图</a></section></article></main></body></html>`;
 }
 
 function escapeHtml(value: string): string {

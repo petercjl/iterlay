@@ -8,7 +8,7 @@ import type { CodingAgentIntegrationStatus } from "@shared/agent-integration";
 const dismissedThisSession = new Set<string>();
 function isDismissed(reason: string): boolean {
   if (dismissedThisSession.has(reason)) return true;
-  try { return localStorage.getItem(`iterlay:agent-hint:v1:${reason}`) === "dismissed"; } catch { return false; }
+  try { return localStorage.getItem(`tuda:agent-hint:v1:${reason}`) === "dismissed"; } catch { return false; }
 }
 export function CodingAgentHint({ paused, providerReady, onOpen }: { paused: boolean; providerReady: boolean; onOpen: (destination: "provider-setup" | "coding-agent") => void }): React.ReactElement | null {
   const uiText = useUiText();
@@ -23,16 +23,16 @@ export function CodingAgentHint({ paused, providerReady, onOpen }: { paused: boo
     };
     refresh();
     window.addEventListener("focus", refresh);
-    window.addEventListener("iterlay:agent-status-changed", refresh);
-    return () => { disposed = true; window.removeEventListener("focus", refresh); window.removeEventListener("iterlay:agent-status-changed", refresh); };
+    window.addEventListener("tuda:agent-status-changed", refresh);
+    return () => { disposed = true; window.removeEventListener("focus", refresh); window.removeEventListener("tuda:agent-status-changed", refresh); };
   }, []);
   if (!status) return null;
   const pending = status.clients.filter((agent) => agent.detected && (!agent.skillInstalled || agent.legacyConfigured));
   const reason = !status.cli.installed || status.cli.error ? "cli" : !providerReady ? "provider" : pending.length ? `agents:${pending.map((agent) => agent.id).sort().join(",")}` : null;
   if (!reason || paused || reason === dismissed || isDismissed(reason)) return null;
-  const title = reason === "cli" ? "命令行工具还需准备" : reason === "provider" ? "先配置一个图片服务" : "让 Coding Agent 使用 Iterlay";
+  const title = reason === "cli" ? "命令行工具还需准备" : reason === "provider" ? "先配置一个图片服务" : "让 Coding Agent 使用 Tuda";
   const description = reason === "cli" ? "在设置中完成 CLI 安装，即可从终端和 Coding Agent 使用 App 的创作能力。" : reason === "provider" ? "配置一次，App、CLI 和 Coding Agent 都能使用这里的模型和授权。" : "已检测到支持的 Coding Agent，安装 Skill 后就能直接生成图片和管理画板。";
-  const dismiss = () => { dismissedThisSession.add(reason); setDismissed(reason); try { localStorage.setItem(`iterlay:agent-hint:v1:${reason}`, "dismissed"); } catch { /* Session opt-out still works. */ } };
+  const dismiss = () => { dismissedThisSession.add(reason); setDismissed(reason); try { localStorage.setItem(`tuda:agent-hint:v1:${reason}`, "dismissed"); } catch { /* Session opt-out still works. */ } };
   return (
     <Popover open onOpenChange={(open) => { if (!open) dismiss(); }}>
       <PopoverAnchor asChild>

@@ -99,7 +99,7 @@ function App(): React.ReactElement {
       <header className="toast-review-header">
         <div className="toast-review-brand">
           <img src={appIcon} alt="" />
-          <span>Iterlay</span>
+          <span>Tuda</span>
           <i />
           <strong>Toast 体验提案</strong>
         </div>
@@ -353,4 +353,4 @@ function RuleItem({ icon, title, detail }: { icon: React.ReactNode; title: strin
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode><App /></React.StrictMode>
 );
-performance.mark("iterlay:startup-shell-ready");
+performance.mark("tuda:startup-shell-ready");

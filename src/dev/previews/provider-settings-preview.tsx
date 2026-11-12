@@ -117,7 +117,7 @@ let previewOnlineShare: OnlineShareSession | null = {
   id: "preview-share",
   kind: "image",
   title: "summer-campaign-final-product-image-v12.png",
-  url: "https://share.iterlay.example/preview-share",
+  url: "https://share.tuda.example/preview-share",
   startedAt: Date.now() - 4 * 60_000,
   expiresAt: Date.now() + 56 * 60_000,
   origin: {
@@ -129,7 +129,7 @@ let previewOnlineShare: OnlineShareSession | null = {
 const previewLicenseStatus: LicenseStatusSnapshot = {
   state: "LICENSED",
   reason: "license_active",
-  licenseEmail: "preview@iterlay.app",
+  licenseEmail: "preview@tuda.app",
   activatedAt: "2026-07-18T08:30:00.000Z",
   capabilities: {
     mode: "full",
@@ -145,10 +145,10 @@ const previewLicenseStatus: LicenseStatusSnapshot = {
 
 const previewCodingStatus: CodingAgentIntegrationStatus = {
   development: true,
-  cli: { installed: true, pathConfigured: true, path: "/Users/preview/.local/bin/iterlay" },
+  cli: { installed: true, pathConfigured: true, path: "/Users/preview/.local/bin/tuda" },
   clients: [
-    { id: "codex", detected: true, detection: "installed", skillInstalled: false, skillManaged: false, skillPath: "/Users/preview/.codex/skills/using-iterlay", legacyConfigured: false },
-    { id: "claude-code", detected: true, detection: "installed", skillInstalled: true, skillManaged: true, skillPath: "/Users/preview/.claude/skills/using-iterlay", legacyConfigured: false }
+    { id: "codex", detected: true, detection: "installed", skillInstalled: false, skillManaged: false, skillPath: "/Users/preview/.codex/skills/using-tuda", legacyConfigured: false },
+    { id: "claude-code", detected: true, detection: "installed", skillInstalled: true, skillManaged: true, skillPath: "/Users/preview/.claude/skills/using-tuda", legacyConfigured: false }
   ]
 };
 
@@ -170,13 +170,13 @@ const previewApi = {
   testTextProvider: async () => ({ ok: true, message: "示例连接验证成功（预览结果）。" }),
   testVideoProvider: async () => ({ ok: true, message: "示例连接验证成功（预览结果）。" }),
   onPiAgentLog: () => () => undefined,
-  getPiAgentLogs: async () => ({ entries: [], logPath: "/Users/preview/Library/Logs/Iterlay/pi-agent.log" }),
+  getPiAgentLogs: async () => ({ entries: [], logPath: "/Users/preview/Library/Logs/Tuda/pi-agent.log" }),
   getPiAgentResources: async () => ({
     builtinTools: [
       { name: "read", description: "读取工作目录中的文件。", risk: "read" },
       { name: "bash", description: "执行本地 Shell 命令。", risk: "execute" }
     ],
-    iterlayTools: [
+    tudaTools: [
       { name: "get_active_board", description: "读取当前画板。" },
       { name: "generate_image", description: "使用当前 Provider 生成图片。" }
     ],
@@ -218,18 +218,18 @@ const previewApi = {
       : "---\nname: visual-direction\ndescription: 为画板提供视觉方向和提示词结构。\n---\n\n# Visual Direction"
   }),
   listAssistantSkills: async () => [{
-    id: "iterlay-board-image",
-    name: "iterlay-board-image",
+    id: "tuda-board-image",
+    name: "tuda-board-image",
     description: "画板图片创作、提示词与方向建议。",
     hasOverride: false,
-    activePath: "/Applications/Iterlay/resources/skills/iterlay-board-image/SKILL.md"
+    activePath: "/Applications/Tuda/resources/skills/tuda-board-image/SKILL.md"
   }],
   getAssistantSkill: async (id: string) => ({
     id,
     name: id,
     description: "Preview assistant Skill",
     hasOverride: false,
-    activePath: `/Applications/Iterlay/resources/skills/${id}/SKILL.md`,
+    activePath: `/Applications/Tuda/resources/skills/${id}/SKILL.md`,
     content: `---\nname: ${id}\ndescription: Preview assistant Skill\n---\n\n# Instructions\n`,
     builtInContent: `---\nname: ${id}\ndescription: Preview assistant Skill\n---\n\n# Instructions\n`
   }),
@@ -247,7 +247,7 @@ const previewApi = {
     name: id,
     description: "Preview assistant Skill",
     hasOverride: false,
-    activePath: `/Applications/Iterlay/resources/skills/${id}/SKILL.md`,
+    activePath: `/Applications/Tuda/resources/skills/${id}/SKILL.md`,
     content: `---\nname: ${id}\ndescription: Preview assistant Skill\n---\n`,
     builtInContent: `---\nname: ${id}\ndescription: Preview assistant Skill\n---\n`
   }),
@@ -329,7 +329,7 @@ type PreviewPreferences = Pick<ProviderSettingsDialogProps,
   "boardAssistantEnabled" |
   "boardAssistantAgentModeEnabled" |
   "piAgentBuiltinTools" |
-  "piAgentIterlayTools" |
+  "piAgentTudaTools" |
   "piAgentSkillPaths" |
   "piAgentExtensionPaths" |
   "piAgentCustomSkillPaths" |
@@ -371,7 +371,7 @@ function Preview(): React.ReactElement {
     boardAssistantEnabled: true,
     boardAssistantAgentModeEnabled: false,
     piAgentBuiltinTools: ["read", "grep", "find", "ls"],
-    piAgentIterlayTools: [],
+    piAgentTudaTools: [],
     piAgentSkillPaths: [],
     piAgentExtensionPaths: [],
     piAgentCustomSkillPaths: [],
@@ -475,8 +475,8 @@ function Preview(): React.ReactElement {
           onBoardAssistantAgentModeEnabledChange={(value) => setPreference("boardAssistantAgentModeEnabled", value)}
           piAgentBuiltinTools={preferences.piAgentBuiltinTools}
           onPiAgentBuiltinToolsChange={(value) => setPreference("piAgentBuiltinTools", value)}
-          piAgentIterlayTools={preferences.piAgentIterlayTools}
-          onPiAgentIterlayToolsChange={(value) => setPreference("piAgentIterlayTools", value)}
+          piAgentTudaTools={preferences.piAgentTudaTools}
+          onPiAgentTudaToolsChange={(value) => setPreference("piAgentTudaTools", value)}
           piAgentSkillPaths={preferences.piAgentSkillPaths}
           onPiAgentSkillPathsChange={(value) => setPreference("piAgentSkillPaths", value)}
           piAgentExtensionPaths={preferences.piAgentExtensionPaths}

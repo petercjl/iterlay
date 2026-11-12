@@ -9,17 +9,17 @@ import { _electron as electron } from "playwright";
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outputDirectory = path.join(projectRoot, "output", "playwright");
 await mkdir(outputDirectory, { recursive: true });
-const qaUserDataDirectory = await mkdtemp(path.join(tmpdir(), "iterlay-template-assistant-qa-"));
+const qaUserDataDirectory = await mkdtemp(path.join(tmpdir(), "tuda-template-assistant-qa-"));
 
 const electronApp = await electron.launch({
   args: [`--user-data-dir=${qaUserDataDirectory}`, "."],
   cwd: projectRoot,
-  ...(process.env.ITERLAY_E2E_ELECTRON
-    ? { executablePath: process.env.ITERLAY_E2E_ELECTRON }
+  ...(process.env.TUDA_E2E_ELECTRON
+    ? { executablePath: process.env.TUDA_E2E_ELECTRON }
     : {}),
   env: {
     ...process.env,
-    ITERLAY_PLAYWRIGHT: "1",
+    TUDA_PLAYWRIGHT: "1",
     VITE_DEV_SERVER_URL: process.env.VITE_DEV_SERVER_URL
       ?? "http://127.0.0.1:5180/?preview=scene-detail"
   },

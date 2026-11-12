@@ -14,7 +14,7 @@ afterEach(async () => {
 
 describe("PiAgentLogStore", () => {
   it("persists sanitized entries and clears memory and disk together", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-pi-agent-log-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-pi-agent-log-"));
     temporaryDirectories.push(directory);
     const store = new PiAgentLogStore(directory);
     await store.start();

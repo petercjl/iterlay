@@ -11,7 +11,7 @@ function image(id: string, overrides: Partial<GeneratedImage> = {}): GeneratedIm
   return {
     id,
     path: `/assets/${id}.png`,
-    dataUrl: `iterlay-asset://${id}`,
+    dataUrl: `tuda-asset://${id}`,
     jobId: `job-${id}`,
     ...overrides
   };

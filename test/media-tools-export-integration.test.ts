@@ -9,7 +9,7 @@ import type { MediaToolsPaths } from "../shared/media-tools.js";
 
 // CI can opt into real component checks. An explicitly supplied broken component
 // must fail the suite rather than silently falling back to the host FFmpeg.
-const componentDirectory = process.env.ITERLAY_TEST_MEDIA_TOOLS_DIR?.trim();
+const componentDirectory = process.env.TUDA_TEST_MEDIA_TOOLS_DIR?.trim();
 
 describe.skipIf(!componentDirectory)("independent media tools: real sequence exports", () => {
   let directory: string | undefined;
@@ -21,7 +21,7 @@ describe.skipIf(!componentDirectory)("independent media tools: real sequence exp
     const component = path.resolve(componentDirectory!);
     tools = { ffmpeg: path.join(component, "ffmpeg"), ffprobe: path.join(component, "ffprobe") };
     await Promise.all(Object.values(tools).map((binary) => access(binary)));
-    directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-component-export-"));
+    directory = await mkdtemp(path.join(os.tmpdir(), "tuda-component-export-"));
     service = new FfmpegService(directory, path.join(directory, "no-bundled-tools"), async () => tools);
     expect(await service.selfCheck()).toEqual(tools);
 

@@ -291,7 +291,7 @@ describe("FalImageProvider", () => {
     await expect(provider.testConnection(falConfig, "fal-key")).rejects.toMatchObject({ status: 404 });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(String(fetchMock.mock.calls[0][0])).toContain("/requests/iterlay-connection-test/status");
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/requests/tuda-connection-test/status");
     expect(fetchMock.mock.calls[0][1]).toEqual(expect.objectContaining({
       headers: expect.objectContaining({ Authorization: "Key fal-key" })
     }));

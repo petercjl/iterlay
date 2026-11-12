@@ -8,9 +8,9 @@ export function resolveDesktopDevelopmentUserData(options: {
   env: NodeJS.ProcessEnv;
 }): string | undefined {
   if (options.isPackaged || options.isBrowserDev) return undefined;
-  const testPath = options.env.ITERLAY_PLAYWRIGHT === "1"
-    ? options.env.ITERLAY_E2E_USER_DATA?.trim()
+  const testPath = options.env.TUDA_PLAYWRIGHT === "1"
+    ? options.env.TUDA_E2E_USER_DATA?.trim()
     : undefined;
-  return path.resolve(testPath || options.env.ITERLAY_DESKTOP_DEV_USER_DATA?.trim()
+  return path.resolve(testPath || options.env.TUDA_DESKTOP_DEV_USER_DATA?.trim()
     || path.join(options.appPath, "tmp", "desktop-dev", "user-data"));
 }

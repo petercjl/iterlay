@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { chromium } from "playwright";
-const origin = process.env.ITERLAY_BROWSER_SMOKE_URL || "http://127.0.0.1:5180";
+const origin = process.env.TUDA_BROWSER_SMOKE_URL || "http://127.0.0.1:5180";
 if (!["127.0.0.1", "localhost"].includes(new URL(origin).hostname)) throw new Error("Local development URL required");
 const output = path.resolve("output/playwright"); await mkdir(output, { recursive: true });
 const decisions = [];
@@ -34,7 +34,7 @@ const ready = async () => {
     catch (error) { if (attempt === 9) throw error; await page.reload(); }
   }
 };
-const id = "dev.iterlay.short-drama";
+const id = "dev.tuda.short-drama";
 let boardId;
 try {
   await page.goto(origin); await ready(); console.log("[plugins] workspace connected");
@@ -47,7 +47,7 @@ try {
     await api.saveSettings({ ...settings, boardAssistantEnabled: false, memoryEnabled: false, textProviders: [{ id: "plugin-no-model", name: "未配置测试模型", type: "openai-compatible", baseUrl: "http://127.0.0.1:1", model: "unconfigured" }], activeTextProviderId: "plugin-no-model" });
     const board = await api.createBoard("插件验收 · 短剧工作流");
     await api.setLastOpenedBoard(board.id);
-    localStorage.setItem("iterlay.libraryOpen", "0");
+    localStorage.setItem("tuda.libraryOpen", "0");
     await api.uninstallPlugin(id);
   }, id);
   await page.reload(); await ready();
@@ -269,7 +269,7 @@ try {
   await page.getByRole("button", { name: /^启用\s*短剧助手$/ }).click();
   await page.getByRole("button", { name: /^卸载\s*短剧助手$/ }).click();
   // Input upload exercises the actual browser binary transport, not a backend-only install.
-  await page.locator('input[type="file"][accept=".iterlay-plugin"]').setInputFiles({ name: `${id}.iterlay-plugin`, mimeType: "application/zip", buffer: await readFile(`resources/plugins/${id}.iterlay-plugin`) });
+  await page.locator('input[type="file"][accept=".tuda-plugin"]').setInputFiles({ name: `${id}.tuda-plugin`, mimeType: "application/zip", buffer: await readFile(`resources/plugins/${id}.tuda-plugin`) });
   await page.getByRole("button", { name: "确认安装", exact: true }).click();
   await page.getByRole("button", { name: "已安装", exact: true }).waitFor();
   await page.getByRole("button", { name: "关闭插件市场" }).click();
@@ -347,8 +347,8 @@ try {
       const settings = await window.imageWorkbench.getSettings();
       await window.imageWorkbench.saveSettings({ ...settings, textProviders: settings.textProviders.filter(p => !p.id.startsWith("plugin-")), activeTextProviderId: "" });
     }
-    const sessionId = window.sessionStorage.getItem("iterlay:browser-debug-session");
-    if (sessionId) await fetch("/__iterlay_dev/disconnect", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId }) });
+    const sessionId = window.sessionStorage.getItem("tuda:browser-debug-session");
+    if (sessionId) await fetch("/__tuda_dev/disconnect", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId }) });
   }).catch(() => undefined);
   await browser.close();
   provider.closeAllConnections(); provider.close();

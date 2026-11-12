@@ -13,7 +13,7 @@ import type { SceneTemplateData } from "../shared/types.js";
 
 describe("scene archive (.itt)", () => {
   it("round-trips a template with instances, covers and generation metadata", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-template-archive-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-template-archive-"));
     const resultPath = path.join(directory, "result.png");
     const coverPath = path.join(directory, "cover.webp");
     await Promise.all([
@@ -121,7 +121,7 @@ describe("scene archive (.itt)", () => {
   });
 
   it("uses the first example as the cover when no legacy cover is present", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-template-default-cover-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-template-default-cover-"));
     const resultPath = path.join(directory, "first-result.png");
     await writeFile(resultPath, Buffer.from("first-result-image"));
     const scene: SceneTemplateData = {
@@ -162,7 +162,7 @@ describe("scene archive (.itt)", () => {
     const AdmZip = (await import("adm-zip")).default;
     const zip = new AdmZip();
     zip.addFile("manifest.json", Buffer.from(JSON.stringify({ format: "other", formatVersion: 1 })));
-    await expect(parseSceneArchive(zip.toBuffer())).rejects.toThrow(/不是 Iterlay 模板文件/);
+    await expect(parseSceneArchive(zip.toBuffer())).rejects.toThrow(/不是 Tuda 模板文件/);
   });
 
   it("reports invalid zip data as a template package error", async () => {

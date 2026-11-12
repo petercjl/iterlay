@@ -8,7 +8,7 @@ import { chromium } from "playwright";
 
 // Exercise the shipped sandbox under both development HTTP and desktop file URLs.
 // No Electron window or user workspace is opened by this regression check.
-const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-canvas-sandbox-"));
+const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-canvas-sandbox-"));
 let browser;
 let server;
 const scenarios = [
@@ -18,7 +18,7 @@ const scenarios = [
   { framework: "vue", name: "Vue setup", code: '<script setup>import { ref } from "vue"; const clicked = ref(false);</script><template><h1>Vue setup ready</h1><button @click="clicked = true">{{ clicked ? "clicked" : "click" }}</button></template>' }
 ];
 try {
-  await cp(process.env.ITERLAY_SANDBOX_DIR || "public/code-sandbox", path.join(directory, "code-sandbox"), { recursive: true });
+  await cp(process.env.TUDA_SANDBOX_DIR || "public/code-sandbox", path.join(directory, "code-sandbox"), { recursive: true });
   const applicationHtml = await readFile("index.html", "utf8");
   const csp = applicationHtml.match(/<meta http-equiv="Content-Security-Policy"[^>]+>/u)?.[0];
   assert(csp, "Use the application's real parent CSP");
@@ -42,7 +42,7 @@ try {
       try {
         await page.goto(url);
         await page.waitForFunction(() => window.sandboxEvents.some(event => event.type === "ready"), undefined, { timeout: 10_000 });
-        await page.evaluate(({ framework, code }) => document.querySelector("iframe").contentWindow.postMessage({ source: "iterlay-code-host", framework, code }, "*"), scenario);
+        await page.evaluate(({ framework, code }) => document.querySelector("iframe").contentWindow.postMessage({ source: "tuda-code-host", framework, code }, "*"), scenario);
         const frame = page.frameLocator("iframe");
         await frame.getByRole("heading", { name: `${scenario.name} ready`, exact: true }).waitFor();
         await frame.getByRole("button", { name: "click", exact: true }).click();
@@ -50,7 +50,7 @@ try {
         assert.deepEqual(await page.evaluate(() => window.sandboxEvents.filter(event => event.type === "error")), []);
         assert.equal(await page.evaluate(() => window.sandboxEvents.find(event => event.type === "ready").origin), "null", "Sandbox must retain its opaque origin");
         const expression = `(() => { let isolated = false; try { parent.document.body; } catch { isolated = true; } return JSON.stringify({ isolated, node: typeof window.require, api: typeof window.imageWorkbench }); })()`;
-        await page.evaluate(expression => document.querySelector("iframe").contentWindow.postMessage({ source: "iterlay-code-host", type: "evaluate", expression }, "*"), expression);
+        await page.evaluate(expression => document.querySelector("iframe").contentWindow.postMessage({ source: "tuda-code-host", type: "evaluate", expression }, "*"), expression);
         await page.waitForFunction(() => window.sandboxEvents.some(event => event.type === "console" && event.level === "result"));
         const result = await page.evaluate(() => window.sandboxEvents.find(event => event.type === "console" && event.level === "result").message);
         assert.deepEqual(JSON.parse(result), { isolated: true, node: "undefined", api: "undefined" });

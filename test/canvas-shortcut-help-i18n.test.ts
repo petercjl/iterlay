@@ -11,7 +11,7 @@ import { loadUiTextCatalog } from "../src/i18n/ui-text";
 describe("board shortcut help localization", () => {
   it("localizes every group, action, key description and footer, including when switching while open", async () => {
     await loadUiTextCatalog();
-    localStorage.setItem("iterlay:language", "en-US");
+    localStorage.setItem("tuda:language", "en-US");
     const container = document.createElement("div"); document.body.append(container);
     const root = createRoot(container);
     let setLanguage: ReturnType<typeof useI18n>["setLanguage"];

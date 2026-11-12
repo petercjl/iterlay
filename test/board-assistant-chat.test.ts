@@ -12,7 +12,7 @@ async function render(extra: Partial<AiAssistantProps> = {}) {
   const container = document.createElement("div"); document.body.append(container);
   const root = createRoot(container);
   const props: AiAssistantProps = { variant: "floating", hideComposer: true, value: "", messages: [], onValueChange: vi.fn(), onSubmit: vi.fn(), onStop: vi.fn(), ...extra };
-  window.localStorage.setItem("iterlay:language", "zh-CN");
+  window.localStorage.setItem("tuda:language", "zh-CN");
   unmount = async () => { await act(async () => root.unmount()); container.remove(); };
   await act(async () => root.render(createElement(I18nProvider, null, createElement(AiAssistant, props))));
   return { container, props, rerender: (patch: Partial<AiAssistantProps>) => act(async () => root.render(createElement(I18nProvider, null, createElement(AiAssistant, { ...props, ...patch })))) };

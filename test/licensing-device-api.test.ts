@@ -120,7 +120,7 @@ describe("licensing device and API contracts", () => {
 
   it("creates a short-lived portal link from a signed device check", async () => {
     const link = {
-      url: "https://iterlay.example/portal?token=one-time-token",
+      url: "https://tuda.example/portal?token=one-time-token",
       expiresAt: "2026-07-22T08:02:00.000Z"
     };
     const fetcher = vi.fn(async () =>
@@ -149,7 +149,7 @@ describe("licensing device and API contracts", () => {
             targetVersion: "1.2.4",
             minimumVersion: "1.2.4",
             latestVersion: "1.2.4",
-            downloadUrl: "https://iterlay.example/download"
+            downloadUrl: "https://tuda.example/download"
           }
         }),
         { status: 200, headers: { "Content-Type": "application/json" } }

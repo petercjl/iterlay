@@ -1,0 +1,6 @@
+Brand: Tuda · 图塔
+Direction: 青绿画板
+Tool: Codex built-in imagegen
+Transparent background: true
+
+Use case: logo-brand. Create one refined highly distinctive desktop application icon for Tuda 图塔, an infinite-canvas tool for arranging and comparing ecommerce product imagery. Direction D: canvas portal. Two oversized chunky rounded L-shaped geometric brackets interlock diagonally to frame a clean square of negative space, suggesting a flexible canvas and two comparison windows. Minimal architectural balance, just two simple shapes, saturated ocean blue and vivid leaf green. Rich midnight-navy rounded-square app tile occupying 88% of the square image, generous padding. Crisp flat vector-like graphic design, premium creative productivity software, friendly corners, silhouette readable at 24px. Transparent outside tile. No words, no letters, no castle, no mountains, no shopping bag, no micro-detail, no mockup or presentation layout.

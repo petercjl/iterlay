@@ -27,7 +27,7 @@ describe("React-owned UI localization", () => {
   });
   it("updates rendered labels while preserving user text and using no MutationObserver", async () => {
     await loadUiTextCatalog();
-    localStorage.setItem("iterlay:language", "en-US");
+    localStorage.setItem("tuda:language", "en-US");
     const observe = vi.spyOn(globalThis, "MutationObserver");
     const element = document.createElement("div");
     document.body.append(element);

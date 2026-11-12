@@ -326,7 +326,7 @@ export function createComicDramaAgentTools(
       {
         name: "confirm_comic_media",
         label: "确认漫剧媒体费用",
-        description: "使用 Iterlay 宿主确认指定报价。拒绝后不得继续生成。",
+        description: "使用 Tuda 宿主确认指定报价。拒绝后不得继续生成。",
         parameters: Type.Object({
           quoteId: Type.String({ minLength: 1 })
         }),

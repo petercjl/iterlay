@@ -5,8 +5,8 @@ import {
   toDevBrowserAssetUrl
 } from "../shared/dev-asset-url.js";
 
-const assetUrl = "iterlay-asset://local/YXNzZXQ_-123";
-const browserUrl = "/__iterlay_dev/assets/YXNzZXQ_-123";
+const assetUrl = "tuda-asset://local/YXNzZXQ_-123";
+const browserUrl = "/__tuda_dev/assets/YXNzZXQ_-123";
 
 describe("development browser asset URLs", () => {
   it("round-trips signed tokens through a relative same-origin endpoint", () => {
@@ -42,10 +42,10 @@ describe("development browser asset URLs", () => {
   it("leaves unrecognized schemes, origins, paths, and malformed tokens untouched", () => {
     for (const value of [
       "file:///etc/passwd",
-      "iterlay-asset://other/YXNzZXQ_-123",
+      "tuda-asset://other/YXNzZXQ_-123",
       `${assetUrl}/extra`,
       `${assetUrl}?path=/etc/passwd`,
-      "iterlay-asset://local/../etc/passwd",
+      "tuda-asset://local/../etc/passwd",
       `prefix ${assetUrl}`
     ]) {
       expect(toDevBrowserAssetUrl(value)).toBe(value);
@@ -54,7 +54,7 @@ describe("development browser asset URLs", () => {
       `https://example.com${browserUrl}`,
       `//example.com${browserUrl}`,
       `${browserUrl}/extra`,
-      "/__iterlay_dev/assets/%2e%2e%2fetc%2fpasswd",
+      "/__tuda_dev/assets/%2e%2e%2fetc%2fpasswd",
       `http://127.0.0.1:5180${browserUrl}?path=/etc/passwd`
     ]) {
       expect(fromDevBrowserAssetUrl(value, "http://127.0.0.1:5180")).toBe(value);

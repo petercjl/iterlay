@@ -21,7 +21,7 @@ const initialBoards: BoardSummary[] = [
   },
   {
     id: "board-2",
-    name: "Iterlay Logo",
+    name: "Tuda Logo",
     createdAt: "2026-08-02T09:00:00.000Z",
     updatedAt: "2026-08-22T14:59:00.000Z",
     imageCount: 12,

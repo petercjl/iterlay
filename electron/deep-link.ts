@@ -1,8 +1,8 @@
 import { BrowserWindow, ipcMain } from "electron";
 import {
-  ITERLAY_DEEP_LINK_CHANNEL,
-  ITERLAY_DEEP_LINK_READY_CHANNEL,
-  parseIterlayDeepLink
+  TUDA_DEEP_LINK_CHANNEL,
+  TUDA_DEEP_LINK_READY_CHANNEL,
+  parseTudaDeepLink
 } from "../shared/deep-link.js";
 
 const pendingUrls: string[] = [];
@@ -18,7 +18,7 @@ function targetWindow(): BrowserWindow | undefined {
 export function registerDeepLinkIpc(): void {
   if (ipcRegistered) return;
   ipcRegistered = true;
-  ipcMain.handle(ITERLAY_DEEP_LINK_READY_CHANNEL, (event) => {
+  ipcMain.handle(TUDA_DEEP_LINK_READY_CHANNEL, (event) => {
     const sender = event.sender;
     if (!readyWebContents.has(sender.id)) {
       readyWebContents.add(sender.id);
@@ -29,7 +29,7 @@ export function registerDeepLinkIpc(): void {
 }
 
 export function dispatchDeepLink(rawUrl: string): boolean {
-  const parsed = parseIterlayDeepLink(rawUrl);
+  const parsed = parseTudaDeepLink(rawUrl);
   if (!parsed.ok) {
     console.warn(`[deep-link] ignored: ${parsed.reason}`);
     return false;
@@ -40,7 +40,7 @@ export function dispatchDeepLink(rawUrl: string): boolean {
     if (pendingUrls.at(-1) !== parsed.canonicalUrl) pendingUrls.push(parsed.canonicalUrl);
     if (pendingUrls.length > MAX_PENDING_URLS) pendingUrls.splice(0, pendingUrls.length - MAX_PENDING_URLS);
   } else {
-    window.webContents.send(ITERLAY_DEEP_LINK_CHANNEL, parsed.canonicalUrl);
+    window.webContents.send(TUDA_DEEP_LINK_CHANNEL, parsed.canonicalUrl);
   }
 
   if (window) {

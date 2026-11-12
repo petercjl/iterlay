@@ -125,7 +125,7 @@ export function showGenerationCompletedNotification({
   // 通知失败不能反过来把已经完成的生成标记为失败。
   void deliverSystemNotification({
     title,
-    body: `${resultLabel}已准备好，点击返回 Iterlay 查看。`,
+    body: `${resultLabel}已准备好，点击返回 Tuda 查看。`,
     onClick: boardId && imagePaths?.length
       ? () => focusAndOpenGenerationResult({ boardId, imagePaths })
       : focusApplicationWindow
@@ -139,14 +139,14 @@ export function showVideoGenerationNotification({
   void deliverSystemNotification({
     title: succeeded ? "视频生成完成" : "视频生成失败",
     body: succeeded
-      ? "视频已保存到画板，点击返回 Iterlay 查看。"
-      : error || "视频任务未能完成，点击返回 Iterlay 查看详情。"
+      ? "视频已保存到画板，点击返回 Tuda 查看。"
+      : error || "视频任务未能完成，点击返回 Tuda 查看详情。"
   });
 }
 
 export function showTestSystemNotification(): Promise<SystemNotificationDeliveryResult> {
   return deliverSystemNotification({
-    title: "Iterlay 通知测试",
+    title: "Tuda 通知测试",
     body: "系统通知已连接。图片生成或编辑完成后会在这里提醒你。"
   });
 }

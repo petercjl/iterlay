@@ -10,13 +10,13 @@ import {
 const source: GeneratedImage = {
   id: "source-node",
   path: "/images/v2.png",
-  dataUrl: "iterlay-asset://local/v2",
+  dataUrl: "tuda-asset://local/v2",
   jobId: "job-v2",
   source: "upload",
   activeVersion: 1,
   versions: [
-    { path: "/images/v1.png", dataUrl: "iterlay-asset://local/v1", jobId: "job-v1", width: 640, height: 480 },
-    { path: "/images/v2.png", dataUrl: "iterlay-asset://local/v2", jobId: "job-v2", width: 1024, height: 1024 }
+    { path: "/images/v1.png", dataUrl: "tuda-asset://local/v1", jobId: "job-v1", width: 640, height: 480 },
+    { path: "/images/v2.png", dataUrl: "tuda-asset://local/v2", jobId: "job-v2", width: 1024, height: 1024 }
   ]
 };
 
@@ -27,7 +27,7 @@ describe("createDetachedVersionImage", () => {
     expect(detached).toMatchObject({
       id: "detached-node",
       path: "/images/v1.png",
-      dataUrl: "iterlay-asset://local/v1",
+      dataUrl: "tuda-asset://local/v1",
       jobId: "job-v1",
       width: 640,
       height: 480,
@@ -51,8 +51,8 @@ describe("createDetachedVersionImage", () => {
       width: 941,
       height: 1672,
       versions: [
-        { path: "/images/v1.png", dataUrl: "iterlay-asset://local/v1", jobId: "job-v1" },
-        { path: "/images/v2.png", dataUrl: "iterlay-asset://local/v2", jobId: "job-v2" }
+        { path: "/images/v1.png", dataUrl: "tuda-asset://local/v1", jobId: "job-v1" },
+        { path: "/images/v2.png", dataUrl: "tuda-asset://local/v2", jobId: "job-v2" }
       ]
     };
 
@@ -153,11 +153,11 @@ describe("extractImageVersion", () => {
       ...source,
       activeVersion: 2,
       path: "/images/v3.png",
-      dataUrl: "iterlay-asset://local/v3",
+      dataUrl: "tuda-asset://local/v3",
       jobId: "job-v3",
       versions: [
         ...(source.versions ?? []),
-        { path: "/images/v3.png", dataUrl: "iterlay-asset://local/v3", jobId: "job-v3", width: 800, height: 600 }
+        { path: "/images/v3.png", dataUrl: "tuda-asset://local/v3", jobId: "job-v3", width: 800, height: 600 }
       ]
     };
 

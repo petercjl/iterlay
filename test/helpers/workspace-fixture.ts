@@ -9,7 +9,7 @@ export function workspaceFixture() {
   mocks.getBoardsState.mockResolvedValue({ lastOpenedBoardId: "board" });
   mocks.generateImage.mockResolvedValue({
     job: { id: "job", providerId: "custom", status: "succeeded", outputImagePaths: ["/managed/result.png"] },
-    images: [{ path: "/managed/result.png", dataUrl: "iterlay-asset://output" }], warnings: []
+    images: [{ path: "/managed/result.png", dataUrl: "tuda-asset://output" }], warnings: []
   });
   mocks.readAssetDataUrl.mockResolvedValue("data:image/png;base64,AA==");
   mocks.listHistory.mockResolvedValue([]);

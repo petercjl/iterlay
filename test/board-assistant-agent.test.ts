@@ -123,7 +123,7 @@ describe("board assistant Pi Agent", () => {
   });
 
   it("loads an explicitly enabled Pi extension tool into the agent loop", async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "iterlay-agent-extension-"));
+    const root = await mkdtemp(path.join(os.tmpdir(), "tuda-agent-extension-"));
     try {
       const agentDir = path.join(root, "agent");
       const extensionPath = path.join(agentDir, "extensions", "fixture.ts");
@@ -196,7 +196,7 @@ describe("board assistant Pi Agent", () => {
             promptDockAutoCollapse: false,
             canvasThumbnailPreview: true,
             piAgentBuiltinTools: [],
-            piAgentIterlayTools: [],
+            piAgentTudaTools: [],
             piAgentSkillPaths: [],
             piAgentExtensionPaths: [extensionPath]
           }
@@ -284,7 +284,7 @@ describe("board assistant Pi Agent", () => {
           promptDockAutoCollapse: false,
           canvasThumbnailPreview: true,
           piAgentBuiltinTools: [],
-          piAgentIterlayTools: [],
+          piAgentTudaTools: [],
           piAgentSkillPaths: [],
           piAgentExtensionPaths: []
         },
@@ -617,7 +617,7 @@ it("lets the creation agent inspect context with tools and streams its final mes
 });
 
 it("can request an authorized screen snapshot through its host capability", async () => {
-  const root = await mkdtemp(path.join(os.tmpdir(), "iterlay-screen-agent-"));
+  const root = await mkdtemp(path.join(os.tmpdir(), "tuda-screen-agent-"));
   try {
     const captureScreen = vi.fn(async () => ({ mimeType: "image/png" as const, dataBase64: "fixture-screen-pixels", width: 400, height: 300 }));
     let turn = 0;

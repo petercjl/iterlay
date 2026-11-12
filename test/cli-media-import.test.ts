@@ -49,7 +49,7 @@ async function runCli(...args: string[]) {
 }
 
 beforeAll(async () => {
-  directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-cli-media-"));
+  directory = await mkdtemp(path.join(os.tmpdir(), "tuda-cli-media-"));
   script = path.join(directory, "main.mjs");
   await build({ entryPoints: ["cli/src/main.ts"], bundle: true, platform: "node", format: "esm", outfile: script });
 });

@@ -6,40 +6,40 @@ import type {
   CollaborateSceneRequest
 } from "../shared/types.js";
 
-export const ASSISTANT_BASE_SKILL_ID = "iterlay-assistant-base";
+export const ASSISTANT_BASE_SKILL_ID = "tuda-assistant-base";
 export const ASSISTANT_SKILL_IDS = [
   ASSISTANT_BASE_SKILL_ID,
-  "iterlay-template-create",
-  "iterlay-template-collaborate",
-  "iterlay-template-use",
-  "iterlay-board-image",
-  "iterlay-image-edit",
-  "iterlay-ui-design",
-  "iterlay-gallery-review",
-  "iterlay-video",
-  "iterlay-comic-drama"
+  "tuda-template-create",
+  "tuda-template-collaborate",
+  "tuda-template-use",
+  "tuda-board-image",
+  "tuda-image-edit",
+  "tuda-ui-design",
+  "tuda-gallery-review",
+  "tuda-video",
+  "tuda-comic-drama"
 ] as const;
 
 export function resolveAssistantSkillIds(request: CollaborateSceneRequest): string[] {
   const surface = request.assistantSurface;
   if (surface === "scene-template") {
-    if (request.templateWorkflow === "use") return [ASSISTANT_BASE_SKILL_ID, "iterlay-template-use"];
+    if (request.templateWorkflow === "use") return [ASSISTANT_BASE_SKILL_ID, "tuda-template-use"];
     if (request.templateIntent === "build" || request.templateIntent === "extract") {
-      return [ASSISTANT_BASE_SKILL_ID, "iterlay-template-create"];
+      return [ASSISTANT_BASE_SKILL_ID, "tuda-template-create"];
     }
-    return [ASSISTANT_BASE_SKILL_ID, "iterlay-template-collaborate"];
+    return [ASSISTANT_BASE_SKILL_ID, "tuda-template-collaborate"];
   }
-  if (surface === "canvas-edit") return [ASSISTANT_BASE_SKILL_ID, "iterlay-image-edit"];
-  if (surface === "gallery-review") return [ASSISTANT_BASE_SKILL_ID, "iterlay-gallery-review"];
-  if (surface === "comic-drama") return [ASSISTANT_BASE_SKILL_ID, "iterlay-video", "iterlay-comic-drama"];
-  if (surface === "video") return [ASSISTANT_BASE_SKILL_ID, "iterlay-video"];
+  if (surface === "canvas-edit") return [ASSISTANT_BASE_SKILL_ID, "tuda-image-edit"];
+  if (surface === "gallery-review") return [ASSISTANT_BASE_SKILL_ID, "tuda-gallery-review"];
+  if (surface === "comic-drama") return [ASSISTANT_BASE_SKILL_ID, "tuda-video", "tuda-comic-drama"];
+  if (surface === "video") return [ASSISTANT_BASE_SKILL_ID, "tuda-video"];
   if (request.assistantScenario === "ui-design") {
-    return [ASSISTANT_BASE_SKILL_ID, "iterlay-ui-design"];
+    return [ASSISTANT_BASE_SKILL_ID, "tuda-ui-design"];
   }
   if (request.assistantScenario === "video") {
-    return [ASSISTANT_BASE_SKILL_ID, "iterlay-video"];
+    return [ASSISTANT_BASE_SKILL_ID, "tuda-video"];
   }
-  return [ASSISTANT_BASE_SKILL_ID, "iterlay-board-image"];
+  return [ASSISTANT_BASE_SKILL_ID, "tuda-board-image"];
 }
 
 export async function listAssistantSkills(

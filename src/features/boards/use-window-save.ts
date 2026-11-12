@@ -33,12 +33,12 @@ export function useWindowSave(flush: () => Promise<void>): void {
       (event as CustomEvent<{ waitUntil(task: Promise<void>): void }>).detail.waitUntil(latest.current());
     };
     window.addEventListener("beforeunload", onBeforeUnload);
-    window.addEventListener("iterlay:browser-workbench-before-reload", onBeforeBackendReload);
+    window.addEventListener("tuda:browser-workbench-before-reload", onBeforeBackendReload);
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       unsubscribe();
       window.removeEventListener("beforeunload", onBeforeUnload);
-      window.removeEventListener("iterlay:browser-workbench-before-reload", onBeforeBackendReload);
+      window.removeEventListener("tuda:browser-workbench-before-reload", onBeforeBackendReload);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, []);

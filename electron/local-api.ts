@@ -14,7 +14,7 @@ export async function startLocalApi(window: BrowserWindow | (() => BrowserWindow
   const bridgePath = path.join(userDataPath, BRIDGE_FILE);
   const getWindow = typeof window === "function" ? window : () => window;
   const initialWindow = getWindow();
-  if (!initialWindow || initialWindow.isDestroyed()) throw new Error("没有可用的 Iterlay 窗口。");
+  if (!initialWindow || initialWindow.isDestroyed()) throw new Error("没有可用的 Tuda 窗口。");
   const runtime = new WorkspaceCommands({
     api: createMainWorkbenchApi(initialWindow),
     flush: async () => { const active = getWindow(); if (active) await flushWindow(active); },
@@ -64,7 +64,7 @@ async function handleRequest(
     }
     const requestBody = JSON.parse(Buffer.concat(chunks).toString("utf8")) as { method?: string; args?: Record<string, unknown> };
     if (typeof requestBody.method !== "string" || !requestBody.args || typeof requestBody.args !== "object" || Array.isArray(requestBody.args)) throw new Error("CLI 请求参数无效。");
-    if (requestBody.method === "open_iterlay") showWindow();
+    if (["open_tuda", "open_iterlay"].includes(requestBody.method)) showWindow();
     const result = await runtime.call(requestBody.method, requestBody.args);
     response.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ result }));
   } catch (error) {

@@ -325,7 +325,7 @@ export class CodexOAuthService {
           response.end(callbackPage(ok, detail));
         };
         if (processing || settled) {
-          reply(409, false, "此授权回调已处理，请返回 Iterlay 查看登录结果。");
+          reply(409, false, "此授权回调已处理，请返回 Tuda 查看登录结果。");
           return;
         }
         const returnedState = url.searchParams.get("state") || "";
@@ -415,7 +415,7 @@ function safeEqual(expected: string, actual: string): boolean {
 
 function callbackPage(ok: boolean, detail: string): string {
   const title = ok ? "登录完成" : "登录未完成";
-  const message = ok ? "你可以关闭此页面并返回 Iterlay。" : escapeHtml(detail);
+  const message = ok ? "你可以关闭此页面并返回 Tuda。" : escapeHtml(detail);
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${title}</title><style>body{margin:0;background:#f5f5f5;color:#202020;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}.wrap{max-width:480px;margin:18vh auto;padding:28px;background:#fff;border:1px solid #ddd;border-radius:8px}h1{margin:0 0 10px;font-size:22px}p{margin:0;color:#666;line-height:1.7}</style></head><body><main class="wrap"><h1>${title}</h1><p>${message}</p></main></body></html>`;
 }
 

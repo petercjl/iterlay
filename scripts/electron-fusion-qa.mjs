@@ -3,8 +3,8 @@ import path from "node:path";
 import os from "node:os";
 import { URL, pathToFileURL, fileURLToPath } from "node:url";
 
-const directory = process.env.ITERLAY_QA_DATA_DIR;
-if (!directory || !path.resolve(directory).startsWith(path.join(os.tmpdir(), "iterlay-fusion-qa-"))) {
+const directory = process.env.TUDA_QA_DATA_DIR;
+if (!directory || !path.resolve(directory).startsWith(path.join(os.tmpdir(), "tuda-fusion-qa-"))) {
   throw new Error("An isolated temporary QA directory is required");
 }
 app.setPath("appData", directory);
@@ -18,7 +18,7 @@ globalThis.fetch = (input, options) => {
 app.once("ready", () => {
   session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
     const url = new URL(details.url);
-    const allowed = ["file:", "data:", "blob:", "iterlay-asset:", "devtools:"].includes(url.protocol) ||
+    const allowed = ["file:", "data:", "blob:", "tuda-asset:", "devtools:"].includes(url.protocol) ||
       ["127.0.0.1", "localhost"].includes(url.hostname);
     callback({ cancel: !allowed });
   });

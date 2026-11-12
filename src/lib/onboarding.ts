@@ -3,7 +3,7 @@ import type { OnboardingState, OnboardingStatus } from "../../shared/types";
 /** key 带版本号：引导内容大改时 bump version 即可对老用户重新展示，小改不打扰。 */
 export type TourId = "board" | "edit" | "library" | "gallery";
 
-const DEMO_START_SEEN_KEY = "iterlay.onboarding.demo-start.v1";
+const DEMO_START_SEEN_KEY = "tuda.onboarding.demo-start.v1";
 let persistedState: OnboardingState | null = null;
 let persistence: OnboardingPersistence | null = null;
 
@@ -14,7 +14,7 @@ export interface OnboardingPersistence {
 }
 
 function keyFor(id: TourId, version: number): string {
-  return `iterlay.onboarding.${id}.v${version}`;
+  return `tuda.onboarding.${id}.v${version}`;
 }
 
 export function hasSeenTour(id: TourId, version: number): boolean {
@@ -88,7 +88,7 @@ function readLegacyState(): OnboardingState {
   try {
     for (let index = 0; index < window.localStorage.length; index += 1) {
       const key = window.localStorage.key(index);
-      if (!key?.startsWith("iterlay.onboarding.")) continue;
+      if (!key?.startsWith("tuda.onboarding.")) continue;
       const raw = window.localStorage.getItem(key);
       if (!raw) continue;
       if (key === DEMO_START_SEEN_KEY) {

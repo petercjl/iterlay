@@ -8,7 +8,7 @@ export function buildGithubTemplateIssue(name: string): string {
     "### 模板介绍", "", name.trim().slice(0, 200), "",
     "请补充模板用途、使用方法和示例效果。", "",
     "### 模板附件", "",
-    "请将 Iterlay 导出的 .itt 文件压缩为 ZIP，拖入这里上传附件。", "",
+    "请将 Tuda 导出的 .itt 文件压缩为 ZIP，拖入这里上传附件。", "",
     "### 公开确认", "",
     "- [ ] 我已检查附件中的提示词和示例图，确认可以公开分享，并有权提供这些内容。"
   ].join("\n"));

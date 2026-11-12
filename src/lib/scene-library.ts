@@ -121,8 +121,8 @@ export const PRESET_SCENES: SceneDefinition[] = promptTemplates.map((template) =
   source: "preset"
 }));
 
-export const CUSTOM_SCENES_STORAGE_KEY = "iterlay.customScenes";
-export const FAVORITE_SCENE_IDS_STORAGE_KEY = "iterlay.favoriteSceneIds";
+export const CUSTOM_SCENES_STORAGE_KEY = "tuda.customScenes";
+export const FAVORITE_SCENE_IDS_STORAGE_KEY = "tuda.favoriteSceneIds";
 export const DEFAULT_FAVORITE_SCENE_IDS: string[] = [];
 export const QUICK_PRESET_SCENE_COUNT = 3;
 

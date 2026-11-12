@@ -6,11 +6,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { BoardStore } from '../electron/storage/board-store';
 import { normalizeBoardNode } from '../shared/contracts/board';
-import { createIterlayAgentTools } from '../electron/pi-agent-tools';
+import { createTudaAgentTools } from '../electron/pi-agent-tools';
 const directories: string[] = [];
 afterEach(async () => { await Promise.all(directories.splice(0).map(dir => rm(dir, { recursive: true, force: true }))); });
 async function fixture() {
-  const dir = await mkdtemp(path.join(os.tmpdir(), 'iterlay-code-canvas-')); directories.push(dir);
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'tuda-code-canvas-')); directories.push(dir);
   const store = new BoardStore(dir);
   const board = await store.createBoard('Canvas');
   return { store, board, dir };
@@ -43,7 +43,7 @@ describe('persistent code Canvas', () => {
       expect(method).toBe('create_canvas');
       return store.writeCanvasNode({ boardId: String(args.boardId), framework: 'html', code: String(args.code) });
     });
-    const tools = createIterlayAgentTools(dir, { boardId: board.id }, bridge).filter(tool => tool.name === 'create_canvas');
+    const tools = createTudaAgentTools(dir, { boardId: board.id }, bridge).filter(tool => tool.name === 'create_canvas');
     const operation = JSON.stringify({ text: '创建网页', toolCalls: [{ name: 'create_canvas', arguments: { boardId: board.id, framework: 'html', code } }] });
     const complete = vi.fn().mockResolvedValueOnce(operation + operation).mockResolvedValueOnce(operation)
       .mockResolvedValueOnce(JSON.stringify({ text: '提交结果', toolCalls: [{ name: 'finish_assistant_result', arguments: {
@@ -60,7 +60,7 @@ describe('persistent code Canvas', () => {
   });
 
   it('keeps AI Canvas writes scoped to the current board', async () => {
-    const tools = createIterlayAgentTools('/unused', { boardId: 'current' }, async () => ({}));
+    const tools = createTudaAgentTools('/unused', { boardId: 'current' }, async () => ({}));
     for (const name of ['create_canvas', 'update_canvas']) {
       const tool = tools.find(t => t.name === name)!;
       expect(tool.executionMode).toBe('sequential');

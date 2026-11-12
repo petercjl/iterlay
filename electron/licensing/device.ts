@@ -22,7 +22,7 @@ export interface DeviceFingerprintProvider {
 export class HashedDeviceFingerprintProvider implements DeviceFingerprintProvider {
   constructor(
     private readonly source: DeviceFingerprintSource,
-    private readonly productScope = "dev.dong.iterlay"
+    private readonly productScope = "dev.dong.tuda"
   ) {}
 
   async getDeviceId(): Promise<string> {

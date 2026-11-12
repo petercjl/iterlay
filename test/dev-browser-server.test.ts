@@ -20,7 +20,7 @@ afterEach(async () => {
 
 async function fixture(options: { sessionLeaseMs?: number; requestQuit?: () => void } = {}) {
   const invoke = vi.fn(async (_channel: string, args: unknown[]) => args);
-  const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-dev-server-"));
+  const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-dev-server-"));
   cleanups.push(() => rm(directory, { recursive: true, force: true }));
   const assets = new AssetStore(directory);
   const send = vi.fn();
@@ -32,16 +32,16 @@ async function fixture(options: { sessionLeaseMs?: number; requestQuit?: () => v
   const address = `http://127.0.0.1:${server.port}`;
   const headers = { [DEV_BROWSER_TOKEN_HEADER]: token, Origin: origin };
   const session = async (sessionId?: string) => {
-    const response = await fetch(`${address}/__iterlay_dev/session${sessionId ? `?sessionId=${sessionId}` : ""}`, { headers });
+    const response = await fetch(`${address}/__tuda_dev/session${sessionId ? `?sessionId=${sessionId}` : ""}`, { headers });
     return { response, body: await response.json() as { sessionId: string; error?: string } };
   };
-  const post = (route: string, body: unknown) => fetch(`${address}/__iterlay_dev/${route}`, {
+  const post = (route: string, body: unknown) => fetch(`${address}/__tuda_dev/${route}`, {
     method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify(body)
   });
   const connect = async (sessionId: string, lastEventId?: number) => {
     const controller = new AbortController();
     cleanups.push(() => controller.abort());
-    const response = await fetch(`${address}/__iterlay_dev/events?sessionId=${sessionId}`, {
+    const response = await fetch(`${address}/__tuda_dev/events?sessionId=${sessionId}`, {
       headers: { ...headers, ...(lastEventId === undefined ? {} : { "Last-Event-ID": String(lastEventId) }) },
       signal: AbortSignal.any([controller.signal, AbortSignal.timeout(3_000)])
     });
@@ -79,7 +79,7 @@ describe("development browser server", () => {
     const f = await fixture();
     for (const headers of [undefined, { [DEV_BROWSER_TOKEN_HEADER]: "wrong", Origin: origin },
       { [DEV_BROWSER_TOKEN_HEADER]: token, Origin: "https://foreign.example" }]) {
-      const response = await fetch(`${f.address}/__iterlay_dev/session`, { headers });
+      const response = await fetch(`${f.address}/__tuda_dev/session`, { headers });
       expect(response.status).toBe(403);
       expect(response.headers.get("access-control-allow-origin")).toBeNull();
     }
@@ -101,7 +101,7 @@ describe("development browser server", () => {
     const get = await fetch(`${f.address}/_control/quit`, { headers: f.headers });
     expect(get.status).toBe(404);
     await get.json();
-    const browserRoute = await fetch(`${f.address}/__iterlay_dev/_control/quit`, { method: "POST", headers: f.headers });
+    const browserRoute = await fetch(`${f.address}/__tuda_dev/_control/quit`, { method: "POST", headers: f.headers });
     expect(browserRoute.status).toBe(404);
     await browserRoute.json();
     expect(requestQuit).not.toHaveBeenCalled();
@@ -179,7 +179,7 @@ describe("development browser server", () => {
     const f = await fixture();
     const { body } = await f.session();
     const source = new Uint8Array([99, 1, 2, 3, 99]).subarray(1, 4);
-    const assetUrl = "iterlay-asset://local/signed_token";
+    const assetUrl = "tuda-asset://local/signed_token";
     const browserUrl = toDevBrowserAssetUrl(assetUrl);
     const args = [{ bytes: source, imageUrl: browserUrl, text: `Use ${browserUrl}.`,
       absoluteUrl: `${origin}${browserUrl}`, externalUrl: `https://foreign.example${browserUrl}` }];
@@ -224,7 +224,7 @@ describe("development browser server", () => {
       expect(args[3]).toBe("video/mp4");
       return [{ imported: true, bytes: (args[0] as ArrayBuffer).byteLength }];
     });
-    const response = await fetch(`${f.address}/__iterlay_dev/invoke`, { method: "POST", headers: f.headers, body: form });
+    const response = await fetch(`${f.address}/__tuda_dev/invoke`, { method: "POST", headers: f.headers, body: form });
     expect(response.status).toBe(200);
     expect(f.invoke).toHaveBeenCalledOnce();
     expect((await response.json()).result).toEqual([{ imported: true, bytes: video.byteLength }]);
@@ -234,7 +234,7 @@ describe("development browser server", () => {
     const f = await fixture();
     const { body } = await f.session();
     const payload = JSON.stringify({ sessionId: body.sessionId, channel: "video:import",
-      args: [{ __iterlayDevWire: "ArrayBuffer", attachment: 0 }, "video/mp4"] });
+      args: [{ __tudaDevWire: "ArrayBuffer", attachment: 0 }, "video/mp4"] });
     for (const invalid of ["missing", "duplicate", "text", "bad-index", "duplicate-payload"]) {
       const form = new FormData();
       form.append("payload", payload);
@@ -245,7 +245,7 @@ describe("development browser server", () => {
       if (invalid === "text") form.append("attachment:0", "a string is not a binary attachment");
       if (invalid === "bad-index") form.append("attachment:-1", new Blob(["video"]));
       if (invalid === "duplicate-payload") form.append("payload", payload);
-      const response = await fetch(`${f.address}/__iterlay_dev/invoke`, { method: "POST", headers: f.headers, body: form });
+      const response = await fetch(`${f.address}/__tuda_dev/invoke`, { method: "POST", headers: f.headers, body: form });
       expect(response.status).toBe(400);
     }
     expect(f.invoke).not.toHaveBeenCalled();
@@ -255,14 +255,14 @@ describe("development browser server", () => {
     const f = await fixture();
     const { body } = await f.session();
     f.publish("not:a:public:event", { ignored: true });
-    f.publish("workbench:event", { type: "first", imageUrl: "iterlay-asset://local/signed_token" });
+    f.publish("workbench:event", { type: "first", imageUrl: "tuda-asset://local/signed_token" });
     const stream = await f.connect(body.sessionId);
     expect(stream.response.status).toBe(200);
     expect(stream.response.headers.get("content-type")).toBe("text/event-stream");
     expect((await stream.next()).event).toBe("ready");
     const first = await stream.next();
     expect(first.id).toBe("1");
-    expect(first.data).toEqual({ channel: "workbench:event", args: [{ type: "first", imageUrl: "/__iterlay_dev/assets/signed_token" }] });
+    expect(first.data).toEqual({ channel: "workbench:event", args: [{ type: "first", imageUrl: "/__tuda_dev/assets/signed_token" }] });
     f.publish("workbench:event", { type: "second", bytes: new Uint8Array([1, 2, 3]) });
     expect((await stream.next()).id).toBe("2");
     await stream.close();
@@ -311,7 +311,7 @@ describe("development browser server", () => {
     expect(head.status).toBe(200);
     expect(head.headers.get("content-length")).toBe("32");
     expect(await head.text()).toBe("");
-    const arbitrary = await fetch(`${f.address}/__iterlay_dev/assets/%2fetc%2fpasswd`, { headers: f.headers });
+    const arbitrary = await fetch(`${f.address}/__tuda_dev/assets/%2fetc%2fpasswd`, { headers: f.headers });
     expect(arbitrary.status).toBe(404);
     const unsigned = await fetch(`${f.address}${route}`);
     expect(unsigned.status).toBe(403);

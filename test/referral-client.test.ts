@@ -17,7 +17,7 @@ describe("ManagerReferralClient", () => {
   it("loads the invitation overview through a signed device request", async () => {
     const fetcher = vi.fn().mockResolvedValue(Response.json({
       invitationCode: "HEYU2026",
-      invitationLink: "https://iterlay.example.com/download?ref=HEYU2026",
+      invitationLink: "https://tuda.example.com/download?ref=HEYU2026",
       rewardCredits: 200,
       totalInvited: 3,
       successfulCount: 2,
@@ -76,7 +76,7 @@ describe("ManagerReferralClient", () => {
         maxMajorVersion: 1,
         maxDevices: 2,
         activationCredits: 0,
-        shareMessage: "送你一份 Iterlay 永久授权",
+        shareMessage: "送你一份 Tuda 永久授权",
         status: "active",
         codesIssued: true
       },

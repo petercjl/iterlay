@@ -1,0 +1,6 @@
+Brand: Tuda · 图塔
+Tool: Codex built-in imagegen
+Output: tuda-icon-v1.png
+Transparent background: true
+
+Use case: logo-brand. Create one polished desktop application icon for Tuda, Chinese nickname 图塔, an ecommerce visual creation infinite-canvas app for arranging and comparing product imagery. Icon only, no lettering. Design a bold distinctive white geometric mark that fuses an abstract tower with two or three overlapping image cards, with an elegant subtle T-shaped silhouette. Compact, friendly, contemporary productivity software identity. Keep the silhouette simple and highly legible at 24px. Warm vivid tangerine orange rounded-square tile, generous corner radius, white central symbol, a small darker-orange layer accent is acceptable. Flat vector-like precision, balanced negative space, strong proportions, crisp smooth edges, minimal surface gradient only if necessary. Front view, centered, square composition, tile occupies about 88% of the image width with even clear padding. Transparent pixels outside the rounded-square tile. Deliver a single large high-resolution isolated app icon, no presentation board, no mockup, no captions, no wordmark, no decorative background, no photographic texture, no drop shadow.

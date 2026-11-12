@@ -48,7 +48,7 @@ const crop = (x: number, y: number, width = 588): CropData => ({
 
 const boards: BoardItem[] = [
   { id: "hmm", name: "HMM", count: 81, updated: "刚刚", size: "128 MB", crop: crop(521, 142), current: true },
-  { id: "logo", name: "Iterlay Logo", count: 12, updated: "1 分钟前", size: "22 MB", crop: crop(1142, 142) },
+  { id: "logo", name: "Tuda Logo", count: 12, updated: "1 分钟前", size: "22 MB", crop: crop(1142, 142) },
   { id: "interior", name: "空间氛围探索", count: 24, updated: "6 小时前", size: "46 MB", crop: crop(1763, 142) },
   { id: "character", name: "角色造型研究", count: 43, updated: "6 小时前", size: "78 MB", crop: crop(2383, 142) },
   { id: "campaign", name: "夏季 Campaign", count: 79, updated: "16 小时前", size: "116 MB", crop: crop(521, 741) },
@@ -130,7 +130,7 @@ function Sidebar(): React.ReactElement {
   return (
     <aside className="app-sidebar">
       <div className="traffic-lights"><i /><i /><i /></div>
-      <img className="app-logo" src={appIconDefault} alt="Iterlay" />
+      <img className="app-logo" src={appIconDefault} alt="Tuda" />
       <nav aria-label="主导航">
         <button type="button" title="创作"><Sparkles /></button>
         <button className="active" type="button" title="画板库"><Grid2X2 /></button>

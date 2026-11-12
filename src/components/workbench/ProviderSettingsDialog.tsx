@@ -116,8 +116,8 @@ export function ProviderSettingsDialog({
   onBoardAssistantAgentModeEnabledChange,
   piAgentBuiltinTools,
   onPiAgentBuiltinToolsChange,
-  piAgentIterlayTools,
-  onPiAgentIterlayToolsChange,
+  piAgentTudaTools,
+  onPiAgentTudaToolsChange,
   piAgentSkillPaths,
   onPiAgentSkillPathsChange,
   piAgentExtensionPaths,
@@ -377,7 +377,7 @@ export function ProviderSettingsDialog({
       } else if (result.status === "requested") {
         setNotificationTestResult({
           ok: false,
-          message: "通知请求已提交，但系统没有返回投递状态。请打开系统设置检查 Iterlay 通知权限。"
+          message: "通知请求已提交，但系统没有返回投递状态。请打开系统设置检查 Tuda 通知权限。"
         });
       } else {
         setNotificationTestResult({
@@ -584,7 +584,7 @@ export function ProviderSettingsDialog({
                     resourceError={piAgentResourceError}
                     assistantSkills={assistantSkills}
                     builtinTools={piAgentBuiltinTools}
-                    iterlayTools={piAgentIterlayTools}
+                    tudaTools={piAgentTudaTools}
                     skillPaths={piAgentSkillPaths}
                     extensionPaths={piAgentExtensionPaths}
                     customSkillPaths={piAgentCustomSkillPaths}
@@ -594,7 +594,7 @@ export function ProviderSettingsDialog({
                     onEnabledChange={onBoardAssistantAgentModeEnabledChange}
                     onConfigureModel={() => requestSection("provider")}
                     onBuiltinToolsChange={onPiAgentBuiltinToolsChange}
-                    onIterlayToolsChange={onPiAgentIterlayToolsChange}
+                    onTudaToolsChange={onPiAgentTudaToolsChange}
                     onSkillPathsChange={onPiAgentSkillPathsChange}
                     onExtensionPathsChange={onPiAgentExtensionPathsChange}
                     onCustomSkillPathsChange={onPiAgentCustomSkillPathsChange}

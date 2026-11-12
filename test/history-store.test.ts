@@ -9,7 +9,7 @@ describe("HistoryStore", () => {
   let dir: string;
 
   beforeEach(async () => {
-    dir = await mkdtemp(path.join(os.tmpdir(), "iterlay-history-"));
+    dir = await mkdtemp(path.join(os.tmpdir(), "tuda-history-"));
   });
 
   afterEach(async () => {

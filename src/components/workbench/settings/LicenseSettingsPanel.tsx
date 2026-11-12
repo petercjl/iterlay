@@ -25,7 +25,7 @@ export function LicenseSettingsPanel({
   const detail = !status
     ? "正在读取当前设备的授权信息。"
     : licensed
-      ? "当前设备已获得 Iterlay 正式授权。"
+      ? "当前设备已获得 Tuda 正式授权。"
       : status.state === "TRIAL_ACTIVE"
         ? "当前处于试用期，可随时输入激活码升级为正式授权。"
         : "激活正式授权后，可持续使用完整的生成与编辑能力。";
@@ -34,7 +34,7 @@ export function LicenseSettingsPanel({
     <>
       <SettingsGroup title={uiText("授权与激活")}>
         <SettingsRow
-          title={uiText("Iterlay 桌面版")}
+          title={uiText("Tuda 桌面版")}
           description={detail}
           control={(
             <span

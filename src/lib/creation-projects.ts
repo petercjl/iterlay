@@ -4,7 +4,7 @@ export interface CreationProject {
   createdAt: string;
 }
 
-const STORAGE_KEY = "iterlay:creation:projects";
+const STORAGE_KEY = "tuda:creation:projects";
 
 export function readCreationProjects(): CreationProject[] {
   try {

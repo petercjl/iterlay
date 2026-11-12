@@ -46,7 +46,7 @@ interface DeckPosition {
   zIndex: number;
 }
 
-const MODE_STORAGE_KEY = "iterlay.emptyCanvasMode";
+const MODE_STORAGE_KEY = "tuda.emptyCanvasMode";
 const DRAG_ADD_DISTANCE = 48;
 const CARD_DEAL_DURATION = 0.26;
 const CARD_DEAL_STAGGER = 0.025;

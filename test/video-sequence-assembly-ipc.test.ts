@@ -18,7 +18,7 @@ vi.mock("electron", () => ({
 
 describe("video assembly IPC", () => {
   let dir: string;
-  beforeEach(async () => { dir = await mkdtemp(path.join(os.tmpdir(), "iterlay-video-assembly-")); electronMocks.handlers.clear(); electronMocks.showSaveDialog.mockReset(); });
+  beforeEach(async () => { dir = await mkdtemp(path.join(os.tmpdir(), "tuda-video-assembly-")); electronMocks.handlers.clear(); electronMocks.showSaveDialog.mockReset(); });
   afterEach(async () => { await rm(dir, { recursive: true, force: true }); });
 
   it("freezes completed videos in selection order, creates an entry, and starts no Provider task", async () => {

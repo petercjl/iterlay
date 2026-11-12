@@ -16,7 +16,7 @@ const state: AiAssistantInteractionState = {
 };
 
 afterEach(() => { vi.restoreAllMocks(); });
-beforeEach(() => { window.localStorage.setItem("iterlay:language", "zh-CN"); });
+beforeEach(() => { window.localStorage.setItem("tuda:language", "zh-CN"); });
 
 describe("Fusion confirmation composer", () => {
   it("animates between measured surface heights and cancels on unmount", async () => {

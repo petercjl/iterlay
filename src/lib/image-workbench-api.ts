@@ -37,7 +37,7 @@ export function getWorkbenchErrorMessage(error: unknown, fallback = "桌面应�
     return translateSourceText("API Key 无效或无权访问，请检查 Provider 配置。");
   }
   if (/invalid device public key/i.test(message)) {
-    return translateSourceText("设备验证信息无效，请重启 Iterlay 后重试。");
+    return translateSourceText("设备验证信息无效，请重启 Tuda 后重试。");
   }
   return translateSourceText(message || fallback);
 }

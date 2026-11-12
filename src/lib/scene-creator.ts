@@ -80,7 +80,7 @@ export function resolveSceneAssistantInstruction(value: string, referenceCount: 
     : "";
 }
 
-export const SCENE_CREATOR_DRAFT_KEY = "iterlay.sceneCreatorDraft.v1";
+export const SCENE_CREATOR_DRAFT_KEY = "tuda.sceneCreatorDraft.v1";
 const GENERATE_FIELD_LABELS = [
   "任务",
   "主体",

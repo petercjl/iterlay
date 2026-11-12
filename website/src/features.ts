@@ -46,18 +46,18 @@ export const features: Feature[] = [
     {id:'design',name:'还原为可编辑设计稿',description:'通过图片更多操作进入 MasterGo 还原流程，检查并调整设计结果。',steps:['在图片更多操作中选择还原为可编辑设计稿。','完成相应的连接与还原流程。','检查生成的设计稿再继续编辑。']},
     {id:'sticker',name:'微信表情导出',description:'通过图片操作的专用入口处理微信表情导出。',steps:['在设置中确认相关入口已启用。','在图片更多操作中选择微信表情导出。','检查预览并导出。']},
   ]},
-  {id:'models',name:'模型与设置',icon:SlidersHorizontal,headline:'用你选的模型，连接自己的创作方式。',summary:'分别管理图片、视频与对话服务商，使用自己的 API Key 或受支持的账户授权。',preview:'models',boundary:'Iterlay 不提供模型额度充值；具体能力、费用与可用性以服务商为准。',source:'src/components/workbench/settings/AiModelsSettings.tsx',children:[
+  {id:'models',name:'模型与设置',icon:SlidersHorizontal,headline:'用你选的模型，连接自己的创作方式。',summary:'分别管理图片、视频与对话服务商，使用自己的 API Key 或受支持的账户授权。',preview:'models',boundary:'Tuda 不提供模型额度充值；具体能力、费用与可用性以服务商为准。',source:'src/components/workbench/settings/AiModelsSettings.tsx',children:[
     {id:'providers',name:'多服务商配置',description:'图片、视频与对话可使用不同的模型和服务商。',steps:['打开设置中的模型配置。','添加服务商与所需凭据。','为能力选择默认模型。']},
     {id:'auth',name:'API Key 与账户授权',description:'按所选服务商支持的方式保存 API Key，或使用 Codex 账户授权。',steps:['选择服务商。','完成对应认证方式。','检查配置后开始使用。']},
     {id:'preferences',name:'工作区偏好',description:'按自己的使用习惯调整界面与操作相关设置。',steps:['打开设置。','选择对应偏好分组。','修改后回到工作区检查效果。']},
   ]},
-  {id:'agent',name:'Coding Agent',icon:TerminalSquare,headline:'让编程助手，也能帮你完成视觉工作。',summary:'通过 CLI 与 Skill，让 Codex、Claude Code 等工具调用 App 已配置的模型生成、编辑和导出素材。',preview:'agent',boundary:'当前集成方式为 CLI + Skill；需先安装并配置 Iterlay，不会把官网演示变成真实调用。',source:'cli/README.md',children:[
+  {id:'agent',name:'Coding Agent',icon:TerminalSquare,headline:'让编程助手，也能帮你完成视觉工作。',summary:'通过 CLI 与 Skill，让 Codex、Claude Code 等工具调用 App 已配置的模型生成、编辑和导出素材。',preview:'agent',boundary:'当前集成方式为 CLI + Skill；需先安装并配置 Tuda，不会把官网演示变成真实调用。',source:'cli/README.md',children:[
     {id:'setup',name:'安装 CLI 与 Skill',description:'在设置的 Coding Agent 页面完成 CLI/Skill 安装或修复。',steps:['打开设置 → Coding Agent。','检查 CLI 安装状态。','为使用的编程助手安装 Skill。']},
-    {id:'automation',name:'生成与编辑素材',description:'让助手通过 Iterlay CLI 使用已保存的模型配置。',steps:['告诉助手具体的创作任务。','通过 CLI 提交图片或视频操作。','在 App 中检查结果。']},
+    {id:'automation',name:'生成与编辑素材',description:'让助手通过 Tuda CLI 使用已保存的模型配置。',steps:['告诉助手具体的创作任务。','通过 CLI 提交图片或视频操作。','在 App 中检查结果。']},
     {id:'deliver',name:'安排画板与导出',description:'让助手整理素材位置，将结果导出到项目目录。',steps:['指定需要的结果与目标目录。','通过 CLI 安排或导出。','核对文件尺寸与完整性。']},
   ]},
   {id:'plugins',name:'插件扩展',icon:Puzzle,headline:'为专门的创作任务，打开新的工具。',summary:'安装、启用与管理插件，在受控工具面板里扩展工作流，例如短剧制作。',preview:'plugins',boundary:'插件能力随安装包和版本变化；短剧工具需安装并启用对应插件，不是默认可用的通用 Agent SDK。',source:'docs/plugins.md',children:[
-    {id:'install',name:'插件安装与管理',description:'导入插件包并按权限启用，查看其工具与设置入口。',steps:['打开插件管理。','导入 .iterlay-plugin 包。','检查权限并启用。']},
+    {id:'install',name:'插件安装与管理',description:'导入插件包并按权限启用，查看其工具与设置入口。',steps:['打开插件管理。','导入 .tuda-plugin 包。','检查权限并启用。']},
     {id:'drama',name:'短剧制作工具',description:'通过对应插件处理角色、分镜与制作计划，媒体生成仍走 App 流程。',steps:['安装并启用短剧插件。','打开对应项目工具。','复核计划后逐步制作。']},
     {id:'develop',name:'插件开发',description:'基于项目 SDK 开发受控工具面板和设置页。',steps:['阅读插件开发说明。','使用 SDK 构建并打包。','在 App 中导入验证权限与行为。']},
   ]},

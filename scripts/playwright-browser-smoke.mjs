@@ -9,10 +9,10 @@ import { chromium } from "playwright";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const output = path.join(projectRoot, "output", "playwright");
-const rendererUrl = process.env.ITERLAY_BROWSER_SMOKE_URL || "http://127.0.0.1:5180";
-const userData = process.env.ITERLAY_BROWSER_DEV_USER_DATA;
+const rendererUrl = process.env.TUDA_BROWSER_SMOKE_URL || "http://127.0.0.1:5180";
+const userData = process.env.TUDA_BROWSER_DEV_USER_DATA;
 if (!userData) {
-  throw new Error("Start pnpm dev with a temporary ITERLAY_BROWSER_DEV_USER_DATA, then pass that same directory to this smoke test.");
+  throw new Error("Start pnpm dev with a temporary TUDA_BROWSER_DEV_USER_DATA, then pass that same directory to this smoke test.");
 }
 if (!["127.0.0.1", "localhost", "[::1]"].includes(new URL(rendererUrl).hostname)) {
   throw new Error("Browser smoke tests require a local development server.");
@@ -93,7 +93,7 @@ try {
       theme: "light", language: "zh-CN", apiKeyByProviderId: { [config.id]: "offline-test-only" }
     });
     for (const key of ["board", "library", "gallery", "edit", "demo-start"]) {
-      await window.imageWorkbench.markOnboardingSeen(`iterlay.onboarding.${key}.v1`, "completed");
+      await window.imageWorkbench.markOnboardingSeen(`tuda.onboarding.${key}.v1`, "completed");
     }
   }, providerConfig);
   const savedSettings = await page.evaluate(() => window.imageWorkbench.getSettings());
@@ -148,7 +148,7 @@ try {
   assert.equal(savedBoard.nodes.length, 2);
   assert.equal(savedBoard.nodes.find((node) => node.id === importedNodeId).x, 140);
   const assetUrl = savedBoard.images[imported.path];
-  assert.match(assetUrl, /^\/__iterlay_dev\/assets\//u);
+  assert.match(assetUrl, /^\/__tuda_dev\/assets\//u);
   const media = await page.evaluate(async (url) => {
     const full = await fetch(url);
     const fullBytes = new Uint8Array(await full.arrayBuffer());
@@ -190,7 +190,7 @@ try {
   }), { boardId: board.id, providerId: providerConfig.id, generationNodeId });
   assert.equal(generated.job.status, "succeeded", generated.job.error);
   assert.equal(generated.images.length, 1);
-  assert.match(generated.images[0].dataUrl, /^\/__iterlay_dev\/assets\//u);
+  assert.match(generated.images[0].dataUrl, /^\/__tuda_dev\/assets\//u);
   assert.equal(providerCalls, 1);
   assert.equal(providerRequests[0].model, "fixture");
   const generatedBoard = await page.evaluate((id) => window.imageWorkbench.getBoard(id), board.id);
@@ -251,9 +251,9 @@ try {
   if (page && !page.isClosed()) {
     try {
       await page.evaluate(async () => {
-        const sessionId = window.sessionStorage.getItem("iterlay:browser-debug-session");
+        const sessionId = window.sessionStorage.getItem("tuda:browser-debug-session");
         if (!sessionId) return;
-        const response = await fetch("/__iterlay_dev/disconnect", { method: "POST", headers: { "content-type": "application/json" },
+        const response = await fetch("/__tuda_dev/disconnect", { method: "POST", headers: { "content-type": "application/json" },
           body: JSON.stringify({ sessionId }), signal: AbortSignal.timeout(5_000) });
         if (!response.ok) throw new Error("Failed to release the smoke test's editor session.");
       });

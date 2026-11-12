@@ -27,7 +27,7 @@ export class PluginStore {
   }
   async catalog(): Promise<PluginPackage[]> {
     const files = await readdir(this.catalogRoot).catch((error: NodeJS.ErrnoException) => { if (error.code === "ENOENT") return []; throw error; });
-    return Promise.all(files.filter(f => f.endsWith(".iterlay-plugin")).map(async file => this.inspect(await readFile(path.join(this.catalogRoot, file)))));
+    return Promise.all(files.filter(f => f.endsWith(".tuda-plugin")).map(async file => this.inspect(await readFile(path.join(this.catalogRoot, file)))));
   }
   inspect(bytes: Uint8Array): PluginPackage {
     if (!bytes.length || bytes.length > MAX_PACKAGE_BYTES) throw new Error("插件包必须小于 8MB。");
@@ -50,7 +50,7 @@ export class PluginStore {
   }
   async installCatalog(id: string): Promise<InstalledPlugin> {
     this.pluginPath(id);
-    return this.install(await readFile(path.join(this.catalogRoot, `${id}.iterlay-plugin`)));
+    return this.install(await readFile(path.join(this.catalogRoot, `${id}.tuda-plugin`)));
   }
   setEnabled(id: string, enabled: boolean): Promise<void> {
     return this.mutations.run(async () => {

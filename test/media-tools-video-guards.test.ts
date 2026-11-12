@@ -25,7 +25,7 @@ function deferred<T>() {
 
 describe("video component submission and recovery guards", () => {
   let directory: string;
-  beforeEach(async () => { directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-tools-guards-")); handlers.clear(); });
+  beforeEach(async () => { directory = await mkdtemp(path.join(os.tmpdir(), "tuda-tools-guards-")); handlers.clear(); });
   afterEach(async () => { await rm(directory, { recursive: true, force: true }); });
 
   async function fixture(status: VideoSequenceTask["status"] = "pending") {

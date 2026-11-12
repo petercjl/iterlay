@@ -78,8 +78,8 @@ function CodeCanvasNodeComponent({ id, data, selected, dragging }: NodeProps) {
   useEffect(() => {
     if (!run) return;
     const receive = (event: MessageEvent) => {
-      if (event.source !== frame.current?.contentWindow || event.data?.source !== 'iterlay-code-sandbox') return;
-      if (event.data.type === 'ready') frame.current?.contentWindow?.postMessage({ source: 'iterlay-code-host', code: run.code, framework: run.framework }, '*');
+      if (event.source !== frame.current?.contentWindow || event.data?.source !== 'tuda-code-sandbox') return;
+      if (event.data.type === 'ready') frame.current?.contentWindow?.postMessage({ source: 'tuda-code-host', code: run.code, framework: run.framework }, '*');
       if (event.data.type === 'running') { clearTimeout(timeout); setStatus('运行中'); }
       if (event.data.type === 'console' && ['log', 'info', 'warn', 'error', 'debug', 'result'].includes(event.data.level) && typeof event.data.message === 'string') {
         setEntries(previous => [...previous.slice(-199), { level: event.data.level, message: event.data.message.slice(0, 4000), timestamp: Date.now() }]);
@@ -158,7 +158,7 @@ function CodeCanvasNodeComponent({ id, data, selected, dragging }: NodeProps) {
     </div>
     {consoleOpen && <ConsolePanel entries={entries} running={Boolean(run)} onClear={() => setEntries([])} onClose={() => setConsoleOpen(false)} onExecute={expression => {
       setEntries(previous => [...previous.slice(-199), { level: 'debug', message: `> ${expression}`, timestamp: Date.now() }]);
-      frame.current?.contentWindow?.postMessage({ source: 'iterlay-code-host', type: 'evaluate', expression }, '*');
+      frame.current?.contentWindow?.postMessage({ source: 'tuda-code-host', type: 'evaluate', expression }, '*');
     }} />}
     {error && !consoleOpen && <pre className="nodrag nopan nowheel code-canvas__error" role="alert">{error}</pre>}
   </section>;

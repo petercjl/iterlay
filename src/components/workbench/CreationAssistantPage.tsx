@@ -350,7 +350,7 @@ export function CreationAssistantPage({
     const latest = (await api.listCreationSessions()).find((item) => item.id === session.id) ?? session;
     const saved = await api.saveCreationSession({ ...latest, ...patch });
     setSessions((current) => updateSessionList(current, saved));
-    window.dispatchEvent(new CustomEvent("iterlay:creation:metadata", { detail: saved }));
+    window.dispatchEvent(new CustomEvent("tuda:creation:metadata", { detail: saved }));
   }
   async function removeProject(id: string): Promise<void> {
     for (const session of sessions.filter((item) => item.projectId === id)) await updateSession(session, { projectId: undefined });
@@ -483,7 +483,7 @@ export function CreationAssistantPage({
     void api.listCreationSessions().then(async (items) => {
       if (!alive) return;
       setSessions(items);
-      const selectedId = window.localStorage.getItem("iterlay:creation:active");
+      const selectedId = window.localStorage.getItem("tuda:creation:active");
       const selected = items.find((item) => item.id === selectedId);
       if (selected) await restoreSavedSession(selected);
     }).catch(() => undefined).finally(() => { if (alive) setSessionReady(true); });
@@ -498,7 +498,7 @@ export function CreationAssistantPage({
       const selected = sessions.find((item) => item.id === id);
       if (selected) void restoreSavedSession(selected);
     };
-    window.addEventListener("iterlay:creation:open", open);
+    window.addEventListener("tuda:creation:open", open);
     const start = (): void => resetConversation();
     const metadata = (event: Event): void => {
       const session = (event as CustomEvent<CreationSession>).detail;
@@ -508,8 +508,8 @@ export function CreationAssistantPage({
       };
       setSessionTitle(session.title); setTitleSource(session.titleSource); setProjectId(session.projectId); setSessionPinned(Boolean(session.pinned)); setSessionArchived(Boolean(session.archived));
     };
-    window.addEventListener("iterlay:creation:new", start);
-    window.addEventListener("iterlay:creation:metadata", metadata);
+    window.addEventListener("tuda:creation:new", start);
+    window.addEventListener("tuda:creation:metadata", metadata);
     const updated = (event: Event): void => {
       const session = (event as CustomEvent<CreationSession>).detail;
       if (!session) return;
@@ -520,9 +520,9 @@ export function CreationAssistantPage({
         setShowArtifacts(true);
       }
     };
-    window.addEventListener("iterlay:creation:updated", updated);
-    return () => { window.removeEventListener("iterlay:creation:open", open); window.removeEventListener("iterlay:creation:new", start);
-      window.removeEventListener("iterlay:creation:metadata", metadata); window.removeEventListener("iterlay:creation:updated", updated); };
+    window.addEventListener("tuda:creation:updated", updated);
+    return () => { window.removeEventListener("tuda:creation:open", open); window.removeEventListener("tuda:creation:new", start);
+      window.removeEventListener("tuda:creation:metadata", metadata); window.removeEventListener("tuda:creation:updated", updated); };
   // These handlers resolve the selected Session at the time of the event.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessions, conversationId, artifacts]);
@@ -536,7 +536,7 @@ export function CreationAssistantPage({
       if (typeof api.saveCreationSession !== "function") return;
       void api.saveCreationSession(snapshot).then((saved) => {
         setSessions((current) => updateSessionList(current, saved));
-        window.dispatchEvent(new CustomEvent("iterlay:creation:updated", { detail: saved }));
+        window.dispatchEvent(new CustomEvent("tuda:creation:updated", { detail: saved }));
       }).catch(() => undefined);
     }, 350);
     return () => window.clearTimeout(timer);
@@ -743,7 +743,7 @@ export function CreationAssistantPage({
     setSessionPinned(false);
     setSessionArchived(false);
     setSessionCreatedAt(new Date().toISOString());
-    window.localStorage.removeItem("iterlay:creation:active");
+    window.localStorage.removeItem("tuda:creation:active");
     setClarificationRounds(0);
     setInterpreting(false);
     setGeneratingMessageId(null);
@@ -845,7 +845,7 @@ export function CreationAssistantPage({
       (lastAssistant.formInteraction || lastAssistant.prompt && !lastAssistant.confirmed && !completedPrompts.has(lastAssistant.prompt))
       ? lastAssistant.id : null);
     setShowArtifacts(resolvedArtifacts.length > 0);
-    window.localStorage.setItem("iterlay:creation:active", session.id);
+    window.localStorage.setItem("tuda:creation:active", session.id);
   }
 
   function conversationBeforeCurrentTurn(
@@ -911,7 +911,7 @@ export function CreationAssistantPage({
     const runEventId = crypto.randomUUID();
     setActiveRunId(runId);
     setSessionEvents((current) => [...current, { id: runEventId, kind: "run", runId, status: "running", label: "正在梳理需求", at: new Date().toISOString() }]);
-    window.localStorage.setItem("iterlay:creation:active", conversationId);
+    window.localStorage.setItem("tuda:creation:active", conversationId);
     const abort = new AbortController();
     streamAbortRef.current?.abort();
     streamAbortRef.current = abort;

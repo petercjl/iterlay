@@ -4,7 +4,7 @@ import { readFile, mkdir } from "node:fs/promises";
 import { chromium } from "playwright";
 
 // Use an isolated pnpm dev workspace; all model/media requests stay local.
-const origin = process.env.ITERLAY_BROWSER_SMOKE_URL ?? "http://127.0.0.1:5301";
+const origin = process.env.TUDA_BROWSER_SMOKE_URL ?? "http://127.0.0.1:5301";
 assert(["127.0.0.1", "localhost"].includes(new URL(origin).hostname));
 const fixture = await readFile("demo-assets/lamp-studio.jpg");
 let imageSubmissions = 0;
@@ -77,12 +77,12 @@ try {
       apiKeyByProviderId: { "finish-free-image": "offline-test-only", "finish-free-text": "offline-test-only" },
       assistantAgentModeEnabled: false, piAgentMaxTurns: 30,
       piAgentBuiltinTools: [], piAgentSkillPaths: [], piAgentExtensionPaths: [],
-      piAgentIterlayTools: ["create_board", "generate_image", "get_generation_status"],
+      piAgentTudaTools: ["create_board", "generate_image", "get_generation_status"],
       memoryEnabled: false, boardAssistantAwarenessEnabled: false, boardAssistantIntentSuggestionsEnabled: false,
       editSmartSuggestionsEnabled: false, language: "zh-CN", theme: "light"
     });
-    for (const key of ["board", "library", "gallery", "edit", "demo-start"]) await api.markOnboardingSeen(`iterlay.onboarding.${key}.v1`, "completed");
-    localStorage.setItem("iterlay.libraryOpen", "1");
+    for (const key of ["board", "library", "gallery", "edit", "demo-start"]) await api.markOnboardingSeen(`tuda.onboarding.${key}.v1`, "completed");
+    localStorage.setItem("tuda.libraryOpen", "1");
     return old;
   }, baseUrl);
   await page.reload();
@@ -110,7 +110,7 @@ try {
   assert(!await page.locator("body").innerText().then((text) => /仅补交状态|对话记录内容无效|完成助手回复/.test(text)));
   await mkdir("output/playwright", { recursive: true });
   assert.equal(await page.locator('[data-assistant-message="assistant"]').last().locator('.create-chat-response').innerText(), "水彩马图片已通过业务工具生成。");
-  const savedId = await page.evaluate(() => localStorage.getItem("iterlay:creation:active"));
+  const savedId = await page.evaluate(() => localStorage.getItem("tuda:creation:active"));
   let persisted = false;
   for (let attempt = 0; attempt < 100 && !persisted; attempt++) {
     persisted = await page.evaluate(async (id) => {
@@ -174,8 +174,8 @@ try {
 } finally {
   await page.evaluate(async (settings) => { if (settings) await window.imageWorkbench.saveSettings(settings); }, originalSettings).catch(() => {});
   await page.evaluate(async () => {
-    const sessionId = sessionStorage.getItem("iterlay:browser-debug-session");
-    if (sessionId) await fetch("/__iterlay_dev/disconnect", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId }) });
+    const sessionId = sessionStorage.getItem("tuda:browser-debug-session");
+    if (sessionId) await fetch("/__tuda_dev/disconnect", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId }) });
   }).catch(() => {});
   await browser.close();
   await new Promise((resolve) => provider.close(resolve));

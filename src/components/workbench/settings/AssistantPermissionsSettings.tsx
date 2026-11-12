@@ -36,7 +36,7 @@ export function AssistantPermissionsSettings(): React.ReactElement {
         </select>} />
       <SettingsRow title={uiText("授权管理")} description={uiText("改为“每次询问”可撤销持续授权；改为“不允许”后，后续请求不会获取屏幕。已发送给模型的内容无法收回。")}/>
       {status?.platform === "darwin" ? <SettingsRow title={uiText("系统屏幕录制权限")}
-        description={uiText(status.systemPermission === "granted" ? "系统已允许屏幕访问。" : "还需要在 macOS 系统设置中允许 Iterlay 录制屏幕。")}
+        description={uiText(status.systemPermission === "granted" ? "系统已允许屏幕访问。" : "还需要在 macOS 系统设置中允许 Tuda 录制屏幕。")}
         control={<Button variant="outline" size="sm" onClick={() => void getImageWorkbenchApi().openScreenCaptureSettings().catch((failure) => setError(getWorkbenchErrorMessage(failure, "无法打开系统设置。")))}>{uiText("打开系统设置")}</Button>} /> : null}
     </SettingsGroup>
     {error ? <div className="mt-4 text-sm text-destructive" role="alert"><p>{error}</p><Button variant="outline" size="sm" onClick={() => void load()}>{uiText("重试")}</Button></div> : null}

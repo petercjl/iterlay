@@ -2,7 +2,7 @@ name: Desktop and CLI checks
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, feature/tuda-app]
   workflow_dispatch:
     inputs:
       run_desktop_smoke:

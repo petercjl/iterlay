@@ -97,8 +97,8 @@ export function buildInitialDemoBoardSeed(
       createdAt: timestamp(now, 8),
       completedAt: timestamp(now, 7),
       prompt: BASE_PROMPT,
-      providerId: "iterlay-demo",
-      providerName: "Iterlay 演示数据",
+      providerId: "tuda-demo",
+      providerName: "Tuda 演示数据",
       model: "gpt-image-2",
       input: {
         workflowMode: "generate",
@@ -129,8 +129,8 @@ export function buildInitialDemoBoardSeed(
       createdAt: timestamp(now, 6),
       completedAt: timestamp(now, 5),
       prompt: DUSK_PROMPT,
-      providerId: "iterlay-demo",
-      providerName: "Iterlay 演示数据",
+      providerId: "tuda-demo",
+      providerName: "Tuda 演示数据",
       model: "gpt-image-2",
       input: {
         workflowMode: "edit",
@@ -158,8 +158,8 @@ export function buildInitialDemoBoardSeed(
       createdAt: timestamp(now, 4),
       completedAt: timestamp(now, 3),
       prompt: SAGE_PROMPT,
-      providerId: "iterlay-demo",
-      providerName: "Iterlay 演示数据",
+      providerId: "tuda-demo",
+      providerName: "Tuda 演示数据",
       model: "gpt-image-2",
       input: {
         workflowMode: "edit",
@@ -187,8 +187,8 @@ export function buildInitialDemoBoardSeed(
       createdAt: timestamp(now, 2),
       completedAt: timestamp(now, 1),
       prompt: CONTACT_SHEET_PROMPT,
-      providerId: "iterlay-demo",
-      providerName: "Iterlay 演示数据",
+      providerId: "tuda-demo",
+      providerName: "Tuda 演示数据",
       model: "gpt-image-2",
       input: {
         workflowMode: "generate",

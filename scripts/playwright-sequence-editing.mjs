@@ -4,7 +4,7 @@ import { readFileSync, mkdtempSync, rmSync, mkdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-const temp = mkdtempSync(join(tmpdir(), 'iterlay-sequence-'));
+const temp = mkdtempSync(join(tmpdir(), 'tuda-sequence-'));
 const fixture = join(temp, 'video.mp4');
 execFileSync('ffmpeg', ['-loglevel','error','-f','lavfi','-i','testsrc=size=160x90:rate=24','-t','3','-pix_fmt','yuv420p',fixture]);
 const video = readFileSync(fixture);

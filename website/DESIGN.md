@@ -1,5 +1,5 @@
 ---
-name: Iterlay Website
+name: Tuda Website
 description: 白底黑字、浅绿重点，以当前产品的可操作画板引导下载。
 colors:
   paper: "#ffffff"
@@ -123,7 +123,7 @@ components:
     backgroundColor: "{colors.agent-secondary-hover}"
 ---
 
-# Design System: Iterlay Website
+# Design System: Tuda Website
 
 ## Default browsing
 
@@ -135,7 +135,7 @@ components:
 
 主展示之后平铺具体任务与新生成的前后效果。当前已验收并接入 YUZU 气泡饮的独立包装设计→上新海报、银色越野跑鞋→赭红沙丘广告。透明掌机原图通过检查，但其首张海面效果图有透明缺口，必须隔离，不能以未验收的结果填充第三个案例。
 
-用户已授权使用 Iterlay 中的 GPT Relay（gpt-image-2.5-flare）生成六张新图。每组先新设计产品原图，再以该原图为唯一编辑参考；不使用旧香水、台灯或仓库现成图。方案与完整提示词在 design/image-prompts-v2.json，任务回执与验证信息在 design/image-generation-v2.json。
+用户已授权使用 Tuda 中的 GPT Relay（gpt-image-2.5-flare）生成六张新图。每组先新设计产品原图，再以该原图为唯一编辑参考；不使用旧香水、台灯或仓库现成图。方案与完整提示词在 design/image-prompts-v2.json，任务回执与验证信息在 design/image-generation-v2.json。
 
 网页资源使用完整画面的 1024×1024 WebP，嵌入提示词，来源同时写入 public/gallery/v2/manifest.json。界面仍低饱和，图像本身有清楚的造型与配色：柚子黄/朱红/开心果绿；银色技术织物/浅黄绿鞋带/赭红沙丘。广告与海报是虚构演示，不冒充真实客户项目。
 
@@ -173,7 +173,7 @@ Escape 在有对比/历史时先关闭局部状态，否则退出体验。退出
 
 用户提供钉钉下载页截图，要求按其布局还原。下载页采用独立 download.css，白底大标题、蓝色手绘双下划线、标题左右小型品牌装饰、副标题与三行真实版本信息。桌面浅灰双栏比例 1.82:1、间隔 26px、面板圆角 43px；左侧逐行列出 Windows x64、Windows ARM64、macOS Intel、macOS Apple 及源码入口。每行左侧系统图标与说明、右侧下载图标；可准确识别架构时标记当前设备，不根据不完整 UA 猜测 Intel/Apple。
 
-右侧保留截图的二维码与面板层级，但按 Iterlay 的真实支持范围标为「其他设备」，二维码指向正式官网 /#/download，不假装提供不存在的移动端。二维码为本地生成 SVG。版本号、发布日期、各平台安装包来自 GitHub Releases。加载、失败重试、缺少某平台安装包均明确呈现，缺包时链接 Releases。下方保留平台可选的历史版本与发布说明。手机双栏改为单列，不水平溢出。
+右侧保留截图的二维码与面板层级，但按 Tuda 的真实支持范围标为「其他设备」，二维码指向正式官网 /#/download，不假装提供不存在的移动端。二维码为本地生成 SVG。版本号、发布日期、各平台安装包来自 GitHub Releases。加载、失败重试、缺少某平台安装包均明确呈现，缺包时链接 Releases。下方保留平台可选的历史版本与发布说明。手机双栏改为单列，不水平溢出。
 
 ## Multi-scene entry and feature Wiki (2026-10-17)
 
@@ -251,9 +251,9 @@ Agent 内容不添加阴影或浮动窗口，依靠白底、浅灰绿分区、�
 
 ### Do's and Don'ts
 
-- 保留正常文档滚动和三步阅读顺序：准备 Iterlay → 给 Agent 具体任务 → 检查并交付。默认英文，`/#/agents?lang=zh` 为中文；页头、正文、页脚与语言一致，英文下载进入 `/#/download?lang=en`，再选择真实 GitHub Releases 安装包。
+- 保留正常文档滚动和三步阅读顺序：准备 Tuda → 给 Agent 具体任务 → 检查并交付。默认英文，`/#/agents?lang=zh` 为中文；页头、正文、页脚与语言一致，英文下载进入 `/#/download?lang=en`，再选择真实 GitHub Releases 安装包。
 - 从 `shared/agent-starter.ts` 生成检查、创作、交付三类任务，与 App「开始使用」共享事实。已有 FIELD 画板可无 Provider 查看和导出；新创作才需要图片模型及费用确认。已保存配置不代表远端服务已实测健康。
-- 交付指向实际文件：橙色原图 → `hero.png`、户外图 → `scene.png`、海报 → `campaign.png`，写入 `./public/iterlay-starter/`，保留已有文件与橙→绿版本链；绿色为编辑变体。
+- 交付指向实际文件：橙色原图 → `hero.png`、户外图 → `scene.png`、海报 → `campaign.png`，写入 `./public/tuda-starter/`，保留已有文件与橙→绿版本链；绿色为编辑变体。
 - 网站不调用模型或启动 App。CLI 准备检查可为建立连接启动 App；画板与素材保存在本机，Prompt 与所需参考图发送给所选服务，凭据留在 App。安装某 Agent 的 Skill 不产生独立工作区、额度或权限边界。
 - `examples/field/field-review.mp4` 是已有 FIELD 画板的真实版本检查与滑块回看实录，不是新生成或外部 Agent 执行录像；本轮没有承诺模型生成视频。
 

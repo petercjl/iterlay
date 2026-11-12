@@ -1,0 +1,6 @@
+Brand: Tuda · 图塔
+Direction: 蓝色叠片
+Tool: Codex built-in imagegen
+Transparent background: true
+
+Use case: logo-brand. One distinctive minimalist desktop app icon for Tuda 图塔, an ecommerce image-comparison and infinite-canvas creative workspace. Direction A: blue layered image tiles. Three solid rounded rectangular tiles overlap in an elegant compact ascending composition; subtle negative-space alignment suggests a capital T without drawing text. Sophisticated cobalt blue and periwinkle palette, one soft ice-blue highlight. Premium modern productivity-app identity, simple bold geometric silhouette, flat vector-like artwork with meticulous optical balance, generous negative space, instantly readable at small taskbar sizes. Single centered icon on a deep cobalt rounded-square tile occupying 88% of a square image; transparent outside the tile. Symbol occupies roughly 60% of tile. No literal castle, no landscape pictogram, no wordmark, no lettering, no presentation layout, no mockup, no decorative sparkles or tiny details.

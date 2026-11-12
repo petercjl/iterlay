@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { OnboardingRecord, OnboardingState, OnboardingStatus } from "../../shared/types.js";
 
-const ONBOARDING_KEY_PATTERN = /^iterlay\.onboarding\.[a-z0-9-]+\.v[1-9]\d*$/;
+const ONBOARDING_KEY_PATTERN = /^tuda\.onboarding\.[a-z0-9-]+\.v[1-9]\d*$/;
 
 export class OnboardingStore {
   private readonly filePath: string;

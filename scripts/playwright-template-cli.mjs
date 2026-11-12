@@ -4,9 +4,9 @@ import { promisify } from "node:util";
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { chromium } from "playwright";
-const userData = process.env.ITERLAY_BROWSER_DEV_USER_DATA;
-if (!userData) throw new Error("Use an isolated pnpm dev workspace and set ITERLAY_BROWSER_DEV_USER_DATA.");
-const url = process.env.ITERLAY_BROWSER_SMOKE_URL || "http://127.0.0.1:5180";
+const userData = process.env.TUDA_BROWSER_DEV_USER_DATA;
+if (!userData) throw new Error("Use an isolated pnpm dev workspace and set TUDA_BROWSER_DEV_USER_DATA.");
+const url = process.env.TUDA_BROWSER_SMOKE_URL || "http://127.0.0.1:5180";
 if (new URL(url).hostname !== "127.0.0.1") throw new Error("Local development only.");
 const run = promisify(execFile);
 const cli = async (...args) => JSON.parse((await run(process.execPath, ["cli/dist/main.js", ...args, "--user-data-path", userData, "--json"], { maxBuffer: 1024 * 1024 })).stdout).data;
@@ -22,15 +22,15 @@ const page = await context.newPage();
 const legacy = { id: `custom:legacy-${Date.now()}`, name: "旧模板迁移检查", description: "", prompt: "旧版固定规则", category: "other", mode: "generate", useCase: "other", source: "custom" };
 let originalSettings, board, created;
 try {
-  await context.addInitScript(t => { if (!localStorage.getItem("iterlay.templatesMigrated")) localStorage.setItem("iterlay.customScenes", JSON.stringify([t])); }, legacy);
+  await context.addInitScript(t => { if (!localStorage.getItem("tuda.templatesMigrated")) localStorage.setItem("tuda.customScenes", JSON.stringify([t])); }, legacy);
   await page.goto(url);
   await page.waitForFunction(() => document.documentElement.dataset.workbenchConnection === "connected");
-  await page.waitForFunction(() => localStorage.getItem("iterlay.templatesMigrated") === "1");
+  await page.waitForFunction(() => localStorage.getItem("tuda.templatesMigrated") === "1");
   assert((await cli("templates", "list")).some(t => t.id === legacy.id));
   created = await cli("templates", "create", "--name", "CLI 可复用模板检查", "--prompt", "米白背景，黑色大标题", "--category", "marketing");
-  await page.waitForFunction(id => JSON.parse(localStorage.getItem("iterlay.customScenes") || "[]").some(t => t.id === id), created.id);
+  await page.waitForFunction(id => JSON.parse(localStorage.getItem("tuda.customScenes") || "[]").some(t => t.id === id), created.id);
   await cli("templates", "update", created.id, "--description", "双端共享检查");
-  await page.waitForFunction(id => JSON.parse(localStorage.getItem("iterlay.customScenes") || "[]").find(t => t.id === id)?.description === "双端共享检查", created.id);
+  await page.waitForFunction(id => JSON.parse(localStorage.getItem("tuda.customScenes") || "[]").find(t => t.id === id)?.description === "双端共享检查", created.id);
   // Exercise the same persistence helper used by the template editor, including unchanged sibling entries.
   await page.evaluate(async id => {
     const library = await import("/src/lib/scene-library.ts");
@@ -63,8 +63,8 @@ try {
     await api.syncTemplates(all, all.filter(t => !ids.includes(t.id)));
   }, [legacy.id, created?.id]).catch(() => {});
   await page.evaluate(async () => {
-    const sessionId = sessionStorage.getItem("iterlay:browser-debug-session");
-    if (sessionId) await fetch("/__iterlay_dev/disconnect", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId }) });
+    const sessionId = sessionStorage.getItem("tuda:browser-debug-session");
+    if (sessionId) await fetch("/__tuda_dev/disconnect", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId }) });
   }).catch(() => {});
   await browser.close(); await new Promise(resolve => server.close(resolve));
 }

@@ -1,0 +1,6 @@
+Brand: Tuda · 图塔
+Direction: 蓝绿字母 T
+Tool: Codex built-in imagegen
+Transparent background: true
+
+Use case: logo-brand. Design one bold memorable desktop application icon for Tuda 图塔, a professional ecommerce visual creation workspace. Direction C: a custom capital T monogram built from two interlocking rounded geometric pieces, an elegant long horizontal cap and a confident centered stem; a slight offset cut hints at movable canvas cards. Beautiful blue-to-teal restrained two-color treatment, royal blue cap and fresh turquoise stem, white or very pale cool rounded-square tile occupying 88% of the square image. Friendly precise contemporary brand, almost Swiss graphic design, flat vector-like edges and optical balance, generous padding, strong silhouette at 24px. Transparent outside the rounded-square tile. The single T is the icon itself; no other text. No literal tower or castle, no image landscape pictogram, no outline frames, no mockup, no presentation board, no small ornamental details.

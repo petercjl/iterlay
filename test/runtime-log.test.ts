@@ -7,7 +7,7 @@ import { exportLogArchive, redactLog, RuntimeLog } from "../electron/runtime-log
 
 const directories: string[] = [];
 async function temporaryDirectory() {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-logs-"));
+  const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-logs-"));
   directories.push(directory);
   return directory;
 }

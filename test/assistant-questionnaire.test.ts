@@ -17,7 +17,7 @@ afterEach(async () => {
 });
 
 async function render(fields: Form["fields"], extras = {}) {
-  localStorage.setItem("iterlay:language", "zh-CN");
+  localStorage.setItem("tuda:language", "zh-CN");
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container),

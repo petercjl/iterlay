@@ -508,7 +508,7 @@ function estimateTasks(tasks: VideoSequenceTask[], providers: VideoProviderConfi
   return tasks.length ? { currency: "credit" as const, total: tasks.length, authoritative: false } : undefined;
 }
 function buildManifest(sequence: VideoSequence, version: VideoSequenceExportVersion) {
-  return { format: "iterlay-video-sequence", formatVersion: 1, exportedAt: new Date().toISOString(), sequenceId: sequence.id, name: sequence.name, defaults: sequence.defaults, export: version, segments: sequence.segments.map((item) => ({ id: item.id, fromKeyframeId: item.fromKeyframeId, toKeyframeId: item.toKeyframeId, config: item.config, trim: item.trim, activeVersionId: item.activeVersionId })) };
+  return { format: "tuda-video-sequence", formatVersion: 1, exportedAt: new Date().toISOString(), sequenceId: sequence.id, name: sequence.name, defaults: sequence.defaults, export: version, segments: sequence.segments.map((item) => ({ id: item.id, fromKeyframeId: item.fromKeyframeId, toKeyframeId: item.toKeyframeId, config: item.config, trim: item.trim, activeVersionId: item.activeVersionId })) };
 }
 
 function registerTemplateHandlers(deps: Dependencies, emit: (event: unknown) => void): void {
@@ -531,14 +531,14 @@ function registerTemplateHandlers(deps: Dependencies, emit: (event: unknown) => 
   ipcMain.handle("videoSequenceTemplate:export", async (_event, input: { templateId: string }) => {
     const template = (await deps.templates.list()).find((item) => item.id === input.templateId);
     if (!template) throw new Error("视频序列模板不存在。");
-    const result = await dialog.showSaveDialog({ defaultPath: `${safeFileName(template.name)}.its.json`, filters: [{ name: "Iterlay 视频序列模板", extensions: ["json"] }] });
+    const result = await dialog.showSaveDialog({ defaultPath: `${safeFileName(template.name)}.its.json`, filters: [{ name: "Tuda 视频序列模板", extensions: ["json"] }] });
     if (result.canceled || !result.filePath) return { ok: false };
     await writeFile(result.filePath, JSON.stringify(template, null, 2), "utf8");
     return { ok: true, path: result.filePath };
   });
   const importBytes = async (bytes: Buffer) => deps.templates.import(JSON.parse(bytes.toString("utf8")) as VideoSequenceTemplate);
   ipcMain.handle("videoSequenceTemplate:import", async () => {
-    const result = await dialog.showOpenDialog({ properties: ["openFile"], filters: [{ name: "Iterlay 视频序列模板", extensions: ["json"] }] });
+    const result = await dialog.showOpenDialog({ properties: ["openFile"], filters: [{ name: "Tuda 视频序列模板", extensions: ["json"] }] });
     return result.canceled || !result.filePaths[0] ? null : importBytes(await readFile(result.filePaths[0]));
   });
   ipcMain.handle("videoSequenceTemplate:importData", (_event, data: ArrayBuffer) => importBytes(Buffer.from(data)));

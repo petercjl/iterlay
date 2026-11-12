@@ -85,7 +85,7 @@ export interface BoardTextNode extends BoardNodeBase {
   heightMode?: "auto" | "manual";
 }
 
-export const CANVAS_EDITOR_FLUSH_EVENT = "iterlay:canvas-editor:flush";
+export const CANVAS_EDITOR_FLUSH_EVENT = "tuda:canvas-editor:flush";
 export type CanvasFramework = "html" | "react" | "vue";
 export interface BoardCanvasNode extends BoardNodeBase {
   type: "canvas";

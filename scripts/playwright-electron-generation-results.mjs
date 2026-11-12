@@ -5,9 +5,9 @@ import { fileURLToPath } from "node:url";
 import { _electron as electron } from "playwright";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const sourceWorkspace = path.join(process.env.HOME, "Library", "Application Support", "Iterlay", "workspace");
+const sourceWorkspace = path.join(process.env.HOME, "Library", "Application Support", "Tuda", "workspace");
 const outputDirectory = path.join(projectRoot, "output", "playwright");
-const qaUserDataDirectory = await realpath(await mkdtemp(path.join(tmpdir(), "iterlay-generation-results-")));
+const qaUserDataDirectory = await realpath(await mkdtemp(path.join(tmpdir(), "tuda-generation-results-")));
 const qaWorkspace = path.join(qaUserDataDirectory, "workspace");
 const qaBoards = path.join(qaWorkspace, "boards");
 const qaOutputs = path.join(qaWorkspace, "outputs");
@@ -107,10 +107,10 @@ await Promise.all([
 const electronApp = await electron.launch({
   args: [`--user-data-dir=${qaUserDataDirectory}`, "."],
   cwd: projectRoot,
-  ...(process.env.ITERLAY_E2E_ELECTRON ? { executablePath: process.env.ITERLAY_E2E_ELECTRON } : {}),
+  ...(process.env.TUDA_E2E_ELECTRON ? { executablePath: process.env.TUDA_E2E_ELECTRON } : {}),
   env: {
     ...process.env,
-    ITERLAY_PLAYWRIGHT: "1",
+    TUDA_PLAYWRIGHT: "1",
     VITE_DEV_SERVER_URL: process.env.VITE_DEV_SERVER_URL ?? "http://127.0.0.1:5180"
   },
   timeout: 30_000

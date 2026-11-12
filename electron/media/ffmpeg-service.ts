@@ -39,9 +39,9 @@ export class FfmpegService {
     const binaryDir = resourcesPath ? path.join(resourcesPath, "ffmpeg") : undefined;
     const packagedFfmpeg = binaryDir ? path.join(binaryDir, executable("ffmpeg")) : undefined;
     const packagedFfprobe = binaryDir ? path.join(binaryDir, executable("ffprobe")) : undefined;
-    this.ffmpegPath = process.env.ITERLAY_FFMPEG_PATH
+    this.ffmpegPath = process.env.TUDA_FFMPEG_PATH
       || (packagedFfmpeg && existsSync(packagedFfmpeg) ? packagedFfmpeg : systemBinary("ffmpeg"));
-    this.ffprobePath = process.env.ITERLAY_FFPROBE_PATH
+    this.ffprobePath = process.env.TUDA_FFPROBE_PATH
       || (packagedFfprobe && existsSync(packagedFfprobe) ? packagedFfprobe : systemBinary("ffprobe"));
     this.outputDir = path.join(dataDir, "sequence-outputs");
     this.tempDir = path.join(dataDir, "sequence-temp");
@@ -61,7 +61,7 @@ export class FfmpegService {
       ]);
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
-      throw new Error(`FFmpeg/ffprobe 不可用（${process.platform}-${process.arch}）。已尝试 ffmpeg=${tools.ffmpeg}，ffprobe=${tools.ffprobe}。请安装系统 FFmpeg 或设置 ITERLAY_FFMPEG_PATH 与 ITERLAY_FFPROBE_PATH。${detail}`);
+      throw new Error(`FFmpeg/ffprobe 不可用（${process.platform}-${process.arch}）。已尝试 ffmpeg=${tools.ffmpeg}，ffprobe=${tools.ffprobe}。请安装系统 FFmpeg 或设置 TUDA_FFMPEG_PATH 与 TUDA_FFPROBE_PATH。${detail}`);
     }
     return tools;
   }

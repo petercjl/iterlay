@@ -13,5 +13,5 @@ zip.addFile("manifest.json", Buffer.from(JSON.stringify(manifest, null, 2)));
 zip.addFile("index.html", Buffer.from(html));
 for (const entry of zip.getEntries()) entry.header.time = new Date("2026-01-01T00:00:00Z");
 await mkdir(new URL("resources/plugins/", root), { recursive: true });
-await writeFile(new URL(`resources/plugins/${manifest.id}.iterlay-plugin`, root), zip.toBuffer());
+await writeFile(new URL(`resources/plugins/${manifest.id}.tuda-plugin`, root), zip.toBuffer());
 console.log(`Built ${manifest.id}@${manifest.version} (${Math.round(zip.toBuffer().length / 1024)} kB)`);

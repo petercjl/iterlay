@@ -6,7 +6,7 @@ import type { TemplateExtractionScenario, TemplateAssistantEntryIntent } from ".
 
 export type PiAgentBuiltinToolName = "read" | "bash" | "edit" | "write" | "grep" | "find" | "ls";
 
-export const PI_AGENT_DEFAULT_ITERLAY_TOOLS = [
+export const PI_AGENT_DEFAULT_TUDA_TOOLS = [
   "create_canvas",
   "update_canvas",
   "list_boards",
@@ -34,7 +34,7 @@ export const PI_AGENT_DEFAULT_ITERLAY_TOOLS = [
   "stop_video_polling",
   "import_video",
   "export_assets",
-  "open_iterlay"
+  "open_tuda"
 ] as const;
 
 export interface PiAgentResourceEntry {
@@ -54,7 +54,7 @@ export interface PiAgentResourceInventory {
     description: string;
     risk: "read" | "write" | "execute";
   }>;
-  iterlayTools: Array<{ name: string; description: string }>;
+  tudaTools: Array<{ name: string; description: string }>;
   skills: PiAgentResourceEntry[];
   extensions: PiAgentResourceEntry[];
   warnings: string[];

@@ -253,11 +253,11 @@ describe("board archive (.itb)", () => {
     expect(parsed.board.nodes).toHaveLength(4);
   });
 
-  it("rejects archives that are not Iterlay boards", async () => {
+  it("rejects archives that are not Tuda boards", async () => {
     const AdmZip = (await import("adm-zip")).default;
     const zip = new AdmZip();
     zip.addFile("manifest.json", Buffer.from(JSON.stringify({ format: "other", formatVersion: 1 })));
-    await expect(parseBoardArchive(zip.toBuffer())).rejects.toThrow(/不是 Iterlay 画板/);
+    await expect(parseBoardArchive(zip.toBuffer())).rejects.toThrow(/不是 Tuda 画板/);
   });
 
   it("rejects unsafe archive entry paths", async () => {

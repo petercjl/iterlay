@@ -9,8 +9,8 @@ import type {
 } from "../shared/types.js";
 
 const APP_ICON_FILES: Record<BuiltinAppIconPreference, string> = {
-  default: "iterlay-default.png",
-  mascot: "iterlay-mascot.png"
+  default: "tuda-default.png",
+  mascot: "tuda-mascot.png"
 };
 
 export function normalizeAppIcon(value: unknown, customIcons: CustomAppIcon[] = []): AppIconPreference {

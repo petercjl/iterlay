@@ -502,7 +502,7 @@ describe("MasterGo editable UI reconstruction", () => {
   });
 
   it("crops Pi-selected regions into MasterGo-relative local assets", async () => {
-    const workspace = await mkdtemp(path.join(os.tmpdir(), "iterlay-mastergo-assets-"));
+    const workspace = await mkdtemp(path.join(os.tmpdir(), "tuda-mastergo-assets-"));
     const cropCalls: Array<{
       rect: { x: number; y: number; width: number; height: number };
       removeConnectedBackground?: boolean;
@@ -565,7 +565,7 @@ describe("MasterGo editable UI reconstruction", () => {
   });
 
   it("uses foreground instance segmentation for photo subject layers", async () => {
-    const workspace = await mkdtemp(path.join(os.tmpdir(), "iterlay-photo-assets-"));
+    const workspace = await mkdtemp(path.join(os.tmpdir(), "tuda-photo-assets-"));
     const segmentationModes: Array<string | undefined> = [];
     try {
       const analysis = validateMasterGoUiAnalysis({
@@ -619,7 +619,7 @@ describe("MasterGo editable UI reconstruction", () => {
   });
 
   it("builds the photo background after subject masks are available", async () => {
-    const workspace = await mkdtemp(path.join(os.tmpdir(), "iterlay-clean-photo-background-"));
+    const workspace = await mkdtemp(path.join(os.tmpdir(), "tuda-clean-photo-background-"));
     const cleanedWith: string[] = [];
     try {
       const analysis = validateMasterGoUiAnalysis({
@@ -681,7 +681,7 @@ describe("MasterGo editable UI reconstruction", () => {
   });
 
   it("lets the image model repair a hard object when local segmentation fails", async () => {
-    const workspace = await mkdtemp(path.join(os.tmpdir(), "iterlay-photo-model-repair-"));
+    const workspace = await mkdtemp(path.join(os.tmpdir(), "tuda-photo-model-repair-"));
     const calls: string[] = [];
     try {
       const analysis = validateMasterGoUiAnalysis({
@@ -759,7 +759,7 @@ describe("MasterGo editable UI reconstruction", () => {
   });
 
   it("uses the image model to complete animal subject layers", async () => {
-    const workspace = await mkdtemp(path.join(os.tmpdir(), "iterlay-animal-model-repair-"));
+    const workspace = await mkdtemp(path.join(os.tmpdir(), "tuda-animal-model-repair-"));
     const repaired: string[] = [];
     try {
       const analysis = validateMasterGoUiAnalysis({

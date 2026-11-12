@@ -55,7 +55,7 @@ import type {
 } from "@shared/types";
 import { constrainReferenceImageDimensions } from "@shared/reference-image-limits";
 import { Button } from "@/components/ui/button";
-import { iterlayToast } from "@/components/ui/iterlay-toast";
+import { tudaToast } from "@/components/ui/tuda-toast";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
@@ -567,7 +567,7 @@ export function SceneDetail({
     setGenerating(true);
     let delayedNoticeId: string | number | undefined;
     const delayedNoticeTimer = window.setTimeout(() => {
-      delayedNoticeId = iterlayToast.generationPending();
+      delayedNoticeId = tudaToast.generationPending();
     }, GENERATION_ESTIMATE_MS);
     const previews: string[] = [];
     const warnings: string[] = [];
@@ -615,7 +615,7 @@ export function SceneDetail({
       }
 
       if (completedCount > 0) {
-        iterlayToast.result({
+        tudaToast.result({
           count: completedCount,
           title: translateSourceText("已生成 {{ui:0}} 张示例图", [completedCount]),
           detail: failedCount > 0
@@ -632,7 +632,7 @@ export function SceneDetail({
       warnings.forEach((warning) => toast.warning(warning));
     } finally {
       window.clearTimeout(delayedNoticeTimer);
-      if (delayedNoticeId !== undefined) iterlayToast.dismiss(delayedNoticeId);
+      if (delayedNoticeId !== undefined) tudaToast.dismiss(delayedNoticeId);
       generationRunRef.current = false;
       setGenerating(false);
       setGenerationStartedAt(null);
@@ -1839,7 +1839,7 @@ function SceneMediaStage({
             );
           })()
         : await api.saveAsset(item.result.path);
-      if (result.ok) iterlayToast.exported({ path: result.path });
+      if (result.ok) tudaToast.exported({ path: result.path });
     } catch (error) {
       toast.error(getWorkbenchErrorMessage(error, "图片下载失败，请稍后重试。"));
     } finally {

@@ -17,7 +17,7 @@ export const BOARD_TOUR: TourDefinition = {
     {
       id: "welcome",
       variant: "welcome",
-      title: "欢迎来到 Iterlay",
+      title: "欢迎来到 Tuda",
       body: "先看一遍常用工作流，再进入画板完成第一次生成。"
     },
     {

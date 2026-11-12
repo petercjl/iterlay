@@ -95,7 +95,7 @@ function Preview(): React.ReactElement {
   return (
     <main className="creative-preview-shell" ref={previewRef}>
       <header className="creative-preview-header">
-        {screen === "conversation" ? <button className="creative-icon-button" type="button" aria-label="返回灵感" onClick={() => setScreen("inspiration")}><ArrowLeft /></button> : <div className="creative-mark" aria-label="Iterlay">i</div>}
+        {screen === "conversation" ? <button className="creative-icon-button" type="button" aria-label="返回灵感" onClick={() => setScreen("inspiration")}><ArrowLeft /></button> : <div className="creative-mark" aria-label="Tuda">i</div>}
         {screen === "conversation" ? <div className="creative-header-title"><strong>雨后的气味</strong><span>正在继续</span></div> : null}
         <button className="creative-icon-button" type="button" aria-label="更多选项"><MoreHorizontal /></button>
       </header>

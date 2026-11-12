@@ -4,15 +4,15 @@ import { decodeDevBrowserWire, encodeDevBrowserWire } from "@shared/dev-browser-
 import { WINDOW_RENDERER_READY } from "@shared/window-lifecycle";
 import { toast } from "sonner";
 
-const BRIDGE_PREFIX = "/__iterlay_dev";
-const SESSION_STORAGE_KEY = "iterlay:browser-debug-session";
-const EDITOR_LOCK_NAME = "iterlay:browser-debug-editor";
+const BRIDGE_PREFIX = "/__tuda_dev";
+const SESSION_STORAGE_KEY = "tuda:browser-debug-session";
+const EDITOR_LOCK_NAME = "tuda:browser-debug-editor";
 const CONNECTION_TIMEOUT_MS = 10_000;
 const CONNECTION_TOAST_ID = "browser-workbench-connection";
 type Listener = (...args: unknown[]) => void;
 
 interface BrowserWorkbenchWindow extends Window {
-  __iterlayBrowserWorkbench?: BrowserWorkbenchConnection;
+  __tudaBrowserWorkbench?: BrowserWorkbenchConnection;
 }
 
 function describeError(error: unknown): string {
@@ -74,8 +74,8 @@ class BrowserWorkbenchConnection {
   }
 
   private reportError = (error: unknown): void => {
-    console.error("Iterlay 网页调试通信失败：", error);
-    window.dispatchEvent(new CustomEvent("iterlay:browser-workbench-error", { detail: describeError(error) }));
+    console.error("Tuda 网页调试通信失败：", error);
+    window.dispatchEvent(new CustomEvent("tuda:browser-workbench-error", { detail: describeError(error) }));
   };
 
   private setConnectionState(state: "connecting" | "connected" | "reconnecting" | "restarting" | "disconnected"): void {
@@ -202,12 +202,12 @@ class BrowserWorkbenchConnection {
         this.setConnectionState("restarting");
         toast.loading(translateSourceText("开发后端已重启，正在重新加载工作区…"), { id: CONNECTION_TOAST_ID });
         const saves: Promise<void>[] = [];
-        window.dispatchEvent(new CustomEvent("iterlay:browser-workbench-before-reload", {
+        window.dispatchEvent(new CustomEvent("tuda:browser-workbench-before-reload", {
           detail: { waitUntil: (task: Promise<void>) => { saves.push(task); } }
         }));
         try {
           await Promise.all(saves);
-          if (window.dispatchEvent(new Event("iterlay:browser-workbench-reload", { cancelable: true }))) window.location.reload();
+          if (window.dispatchEvent(new Event("tuda:browser-workbench-reload", { cancelable: true }))) window.location.reload();
         } catch (error) {
           this.setConnectionState("disconnected");
           toast.error(translateSourceText("画板保存失败，请重试保存后刷新页面：{{ui:0}}", [describeError(error)]), { id: CONNECTION_TOAST_ID, duration: Infinity });
@@ -302,19 +302,19 @@ class BrowserWorkbenchConnection {
 
 export function isBrowserWorkbench(): boolean {
   const host = window as BrowserWorkbenchWindow;
-  return Boolean(host.__iterlayBrowserWorkbench && host.imageWorkbench === host.__iterlayBrowserWorkbench.api);
+  return Boolean(host.__tudaBrowserWorkbench && host.imageWorkbench === host.__tudaBrowserWorkbench.api);
 }
 
 export async function initializeBrowserWorkbench(): Promise<void> {
   if (!import.meta.env.DEV || window.imageWorkbench) return;
   const host = window as BrowserWorkbenchWindow;
-  const connection = host.__iterlayBrowserWorkbench ??= new BrowserWorkbenchConnection();
+  const connection = host.__tudaBrowserWorkbench ??= new BrowserWorkbenchConnection();
   try {
     await connection.ready;
     host.imageWorkbench = connection.api;
   } catch (error) {
     connection.dispose();
-    if (host.__iterlayBrowserWorkbench === connection) delete host.__iterlayBrowserWorkbench;
+    if (host.__tudaBrowserWorkbench === connection) delete host.__tudaBrowserWorkbench;
     throw error;
   }
 }

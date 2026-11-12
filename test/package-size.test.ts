@@ -18,14 +18,14 @@ afterEach(async () => {
 });
 
 async function fixture(files: Record<string, string | null>, platform = "mac") {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-package-audit-"));
+  const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-package-audit-"));
   temporary.push(directory);
   const source = path.join(directory, "source");
-  const appPath = path.join(directory, platform === "mac" ? "Iterlay.app" : "win-unpacked");
+  const appPath = path.join(directory, platform === "mac" ? "Tuda.app" : "win-unpacked");
   const resources = path.join(appPath, platform === "mac" ? "Contents/Resources" : "resources");
   await mkdir(resources, { recursive: true });
   const packageFiles = {
-    "dist/code-sandbox/index.html": '<script>parent.postMessage({ source: "iterlay-code-sandbox", type: "ready" }, "*")</script>',
+    "dist/code-sandbox/index.html": '<script>parent.postMessage({ source: "tuda-code-sandbox", type: "ready" }, "*")</script>',
     "dist/code-sandbox/LICENSES.txt": "runtime licenses",
     ...files
   };

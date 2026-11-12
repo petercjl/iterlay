@@ -7,19 +7,19 @@ A complete fictional speaker example for generating, editing, comparing and deli
 ## Start with a usable result
 
 1. Download `field-starter.zip` from the Agent page, unzip it and open `site/index.html`. This is an offline static website: no build step, account or external CDN. Its orange/green controls switch between the actual original and edited images.
-2. In the Iterlay board list, choose **Import board** and open `field-starter.itb`; you can also drop the `.itb` into the workbench. Find **FIELD · 便携音箱视觉探索**. If names are duplicated, identify the newly imported board before proceeding.
+2. In the Tuda board list, choose **Import board** and open `field-starter.itb`; you can also drop the `.itb` into the workbench. Find **FIELD · 便携音箱视觉探索**. If names are duplicated, identify the newly imported board before proceeding.
 3. The board contains the original burnt-orange product image, a sage editing node, outdoor image and poster. The sage node preserves the real orange v1 → sage v2 history. Orange is both the original and the reference for the other three images; sage is an edit variant.
-4. Open Settings → Coding Agent and install the CLI and the Skill for your agent. In your project's terminal, invoke `$using-iterlay` in Codex or `/using-iterlay` in Claude Code, then give it the delivery task below.
+4. Open Settings → Coding Agent and install the CLI and the Skill for your agent. In your project's terminal, invoke `$using-tuda` in Codex or `/using-tuda` in Claude Code, then give it the delivery task below.
 
-After installation, an existing terminal may need to be reopened; alternatively use the launcher path shown in settings. The CLI reuses a running Iterlay service or starts it in the background without showing a window or stealing focus. Opening the App explicitly reveals the same workspace. You do not need to read App settings files or share your API key with the agent.
+After installation, an existing terminal may need to be reopened; alternatively use the launcher path shown in settings. The CLI reuses a running Tuda service or starts it in the background without showing a window or stealing focus. Opening the App explicitly reveals the same workspace. You do not need to read App settings files or share your API key with the agent.
 
 ## Give your agent the delivery task
 
 Invoke the corresponding Skill first, then paste:
 
-> Deliver the FIELD example I imported using Iterlay, without calling a model. Run `iterlay status --json`, then `iterlay boards list --json`, find “FIELD · 便携音箱视觉探索”, and inspect nodes and versions with `iterlay boards show <returned-board-id> --json`. Ask me to choose if names are duplicated. Import remaps IDs, so do not use the original example IDs. Select the original burnt-orange product image for `hero.png`, the outdoor image for `scene.png`, and the poster for `campaign.png`. Sage is an edit variant; preserve the orange-to-sage version history. Export to `./public/iterlay-starter/` with `iterlay assets export --path <returned-managed-path> --out <destination> --json`. Preserve existing files and do not use `--overwrite`. Verify the three files exist and check actual dimensions, then return their nodes/versions and paths.
+> Deliver the FIELD example I imported using Tuda, without calling a model. Run `tuda status --json`, then `tuda boards list --json`, find “FIELD · 便携音箱视觉探索”, and inspect nodes and versions with `tuda boards show <returned-board-id> --json`. Ask me to choose if names are duplicated. Import remaps IDs, so do not use the original example IDs. Select the original burnt-orange product image for `hero.png`, the outdoor image for `scene.png`, and the poster for `campaign.png`. Sage is an edit variant; preserve the orange-to-sage version history. Export to `./public/tuda-starter/` with `tuda assets export --path <returned-managed-path> --out <destination> --json`. Preserve existing files and do not use `--overwrite`. Verify the three files exist and check actual dimensions, then return their nodes/versions and paths.
 
-There is currently no CLI command to import `.itb` board archives; import them in the App. To select an existing version, first read the actual `set_image_version` schema from `iterlay tools list --json`. Do not regenerate an image just to choose an earlier version.
+There is currently no CLI command to import `.itb` board archives; import them in the App. To select an existing version, first read the actual `set_image_version` schema from `tuda tools list --json`. Do not regenerate an image just to choose an earlier version.
 
 | File | Source | Website use |
 | --- | --- | --- |
@@ -34,7 +34,7 @@ The example HTML uses smaller WebP copies. The agent exports the original genera
 
 The website and App installation guide offer three tasks: **Check readiness**, **Create one image**, and **Deliver the existing example**. Readiness checks report the local connection and saved configuration without calling a model. Listed provider settings do not prove remote availability, and tool discovery does not prove the Skill is loaded.
 
-The creation task states the provider, model and billing source, waits for your confirmation, then generates exactly one image and exports it to `./public/iterlay-starter/hero.png`. Existing files are preserved. If generation succeeds but export fails, export the same task again instead of submitting another paid request.
+The creation task states the provider, model and billing source, waits for your confirmation, then generates exactly one image and exports it to `./public/tuda-starter/hero.png`. Existing files are preserved. If generation succeeds but export fails, export the same task again instead of submitting another paid request.
 
 ## Review the actual versions
 
@@ -42,7 +42,7 @@ The creation task states the provider, model and billing source, waits for your 
 
 ## Provenance, model and reproduction limits
 
-- On 2026-10-16, Codex actually made these four images through the Iterlay CLI in an isolated browser development workspace. The `.itb` was exported from that board and its four successful jobs. It preserves the original layout, PNG bytes, timestamps and version chain; delivery notes were added, and provider names/IDs and local paths were removed.
+- On 2026-10-16, Codex actually made these four images through the Tuda CLI in an isolated browser development workspace. The `.itb` was exported from that board and its four successful jobs. It preserves the original layout, PNG bytes, timestamps and version chain; delivery notes were added, and provider names/IDs and local paths were removed.
 - `prompts.json` contains the complete actual prompts, original task IDs, output hashes, reference roles and delivery mapping. `history.json` inside `.itb` preserves actual generation/edit inputs, rather than a reconstructed execution history.
 - The original service was OpenAI-compatible, using `gpt-image-1`. Requested size was 1024 × 1024; actual output was 1254 × 1254. An initial request rejected the default `style` parameter; the successful jobs used an empty style. This example does not claim success on the first attempt.
 - Importing and exporting existing results does not call a model. Re-running prompts uses your provider and its billing rules. Other providers/models may change dimensions, product shape, reference fidelity and lettering; pixel-identical reproduction is not guaranteed.

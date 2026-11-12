@@ -7,7 +7,7 @@ import { BoardStore } from "../electron/storage/board-store";
 
 describe("recoverable parent-child board commits", () => {
   let directory: string;
-  beforeEach(async () => { directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-board-transactions-")); });
+  beforeEach(async () => { directory = await mkdtemp(path.join(os.tmpdir(), "tuda-board-transactions-")); });
   afterEach(async () => { vi.restoreAllMocks(); await rm(directory, { recursive: true, force: true }); });
   const journalFile = () => path.join(directory, "boards/.transaction.json");
 

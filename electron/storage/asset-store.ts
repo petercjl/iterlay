@@ -3,7 +3,7 @@ import { copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs
 import path from "node:path";
 import type { ProviderImageResult, ReferenceImagePayload, StoredReferenceImage } from "../../shared/types.js";
 
-export const ASSET_PROTOCOL = "iterlay-asset";
+export const ASSET_PROTOCOL = "tuda-asset";
 export const MAX_MANAGED_IMAGE_BYTES = 25 * 1024 * 1024;
 export const MAX_MANAGED_VIDEO_BYTES = 512 * 1024 * 1024;
 export const MAX_MANAGED_AUDIO_BYTES = 15 * 1024 * 1024;

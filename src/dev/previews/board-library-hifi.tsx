@@ -45,13 +45,13 @@ const crop = (x: number, y: number, width = 588, height = 442): CropData => ({
 
 const boards: BoardData[] = [
   { id: "hmm", name: "HMM", count: 81, updated: "刚刚", crop: crop(521, 142), current: true },
-  { id: "logo", name: "Iterlay Logo", count: 12, updated: "1 分钟前", crop: crop(1142, 142) },
+  { id: "logo", name: "Tuda Logo", count: 12, updated: "1 分钟前", crop: crop(1142, 142) },
   { id: "board-5", name: "画板 5", count: 2, updated: "6 小时前", crop: crop(1763, 142) },
   { id: "board-6", name: "画板 6", count: 43, updated: "6 小时前", crop: crop(2383, 142) },
   { id: "demo", name: "Demo1", count: 79, updated: "16 小时前", crop: crop(521, 741) },
   { id: "empty", name: "画板 8", count: 0, updated: "16 小时前" },
   { id: "board-7", name: "画板 7", count: 4, updated: "17 小时前", crop: crop(1763, 741) },
-  { id: "aura", name: "Iterlay 功能演示 · AURA 灯具", count: 6, updated: "20 小时前", crop: crop(2383, 741) },
+  { id: "aura", name: "Tuda 功能演示 · AURA 灯具", count: 6, updated: "20 小时前", crop: crop(2383, 741) },
   { id: "board-4", name: "画板 4", count: 8, updated: "1 天前", crop: crop(521, 1337) }
 ];
 
@@ -61,7 +61,7 @@ function App(): React.ReactElement {
       <header className="review-bar">
         <div className="review-title">
           <img src={appIconDefault} alt="" />
-          <strong>Iterlay</strong>
+          <strong>Tuda</strong>
           <span>画板库 · 高保真提案</span>
         </div>
         <div className="review-status"><i /> 可交互预览</div>
@@ -123,7 +123,7 @@ function LibrarySidebar(): React.ReactElement {
       <div className="traffic-lights" aria-hidden="true"><i /><i /><i /></div>
       <div className="brand-row">
         <img src={appIconDefault} alt="" />
-        <strong>Iterlay</strong>
+        <strong>Tuda</strong>
       </div>
       <nav className="main-nav" aria-label="库导航">
         <SidebarButton icon={<LayoutGrid />} label="画板库" active />

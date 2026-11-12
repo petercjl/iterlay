@@ -6,7 +6,7 @@ import type {
   TrialGrantPayload
 } from "../../shared/licensing.js";
 import {
-  ITERLAY_PRODUCT_ID,
+  TUDA_PRODUCT_ID,
   LICENSE_CHECK_INTERVAL_MS,
   LICENSE_OFFLINE_VALIDITY_MS,
   TRIAL_DURATION_MS
@@ -47,7 +47,7 @@ export class GrantVerificationError extends Error {
 
 export function signCompactGrant(payload: GrantPayload, kid: string, privateKey: GrantKey): string {
   const validatedPayload = parseGrantPayload(payload);
-  const header: CompactGrantHeader = { alg: "EdDSA", typ: "ITERLAY-GRANT", v: 1, kid };
+  const header: CompactGrantHeader = { alg: "EdDSA", typ: "TUDA-GRANT", v: 1, kid };
   const encodedHeader = encodeJson(header);
   const encodedPayload = encodeJson(validatedPayload);
   const signingInput = `${encodedHeader}.${encodedPayload}`;
@@ -80,7 +80,7 @@ export function verifyCompactGrant(
   }
 
   const payload = parseGrantPayload(decodeJson(encodedPayload, "INVALID_PAYLOAD"));
-  const expectedProductId = expectations.productId ?? ITERLAY_PRODUCT_ID;
+  const expectedProductId = expectations.productId ?? TUDA_PRODUCT_ID;
   if (payload.productId !== expectedProductId) {
     throw new GrantVerificationError("GRANT_SCOPE_MISMATCH", "授权凭证不属于当前产品");
   }
@@ -118,10 +118,10 @@ function parseHeader(value: unknown): CompactGrantHeader {
   if (!isRecord(value) || !hasOnlyKeys(value, ["alg", "typ", "v", "kid"])) {
     throw new GrantVerificationError("INVALID_HEADER", "授权凭证头无效");
   }
-  if (value.alg !== "EdDSA" || value.typ !== "ITERLAY-GRANT" || value.v !== 1 || !isNonEmptyString(value.kid)) {
+  if (value.alg !== "EdDSA" || value.typ !== "TUDA-GRANT" || value.v !== 1 || !isNonEmptyString(value.kid)) {
     throw new GrantVerificationError("INVALID_HEADER", "授权凭证头不受支持");
   }
-  return { alg: "EdDSA", typ: "ITERLAY-GRANT", v: 1, kid: value.kid };
+  return { alg: "EdDSA", typ: "TUDA-GRANT", v: 1, kid: value.kid };
 }
 
 function parseGrantPayload(value: unknown): GrantPayload {

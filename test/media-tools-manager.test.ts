@@ -13,8 +13,8 @@ vi.mock("node:child_process", () => ({ execFile: execFileMock }));
 const directories: string[] = [];
 
 beforeEach(() => {
-  vi.stubEnv("ITERLAY_FFMPEG_PATH", "");
-  vi.stubEnv("ITERLAY_FFPROBE_PATH", "");
+  vi.stubEnv("TUDA_FFMPEG_PATH", "");
+  vi.stubEnv("TUDA_FFPROBE_PATH", "");
   execFileMock.mockImplementation((binary: string, _args: string[], _options: unknown, done: (error: Error | null, output: string) => void) => {
     done(null, `${path.basename(binary)} version 6.0 Copyright FFmpeg developers\n`);
   });
@@ -28,7 +28,7 @@ afterEach(async () => {
 });
 
 async function fixture(mutator?: (zip: AdmZip) => void) {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-media-tools-"));
+  const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-media-tools-"));
   directories.push(directory);
   const binary = Buffer.alloc(64);
   binary.writeUInt32LE(0xfeedfacf, 0);
@@ -219,7 +219,7 @@ describe("MediaToolsManager", () => {
     }
     const bundled = fixtureData.manager({ resourcesPath: path.dirname(bundledDirectory) });
     expect((await bundled.getState()).status).toBe("ready");
-    vi.stubEnv("ITERLAY_FFMPEG_PATH", path.join(bundledDirectory, "ffmpeg"));
+    vi.stubEnv("TUDA_FFMPEG_PATH", path.join(bundledDirectory, "ffmpeg"));
     expect((await fixtureData.manager().requireReady()).ffprobe).toBe(path.join(bundledDirectory, "ffprobe"));
     expect(fixtureData.fetcher).not.toHaveBeenCalled();
   });

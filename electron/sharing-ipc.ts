@@ -129,7 +129,7 @@ export function registerSharingIpc({
       return {
         bytes,
         targetPath,
-        fileName: path.basename(targetPath) || "iterlay-image.png"
+        fileName: path.basename(targetPath) || "tuda-image.png"
       };
     }));
 
@@ -169,7 +169,7 @@ export function registerSharingIpc({
       }))
       : [];
     const logoImage = nativeImage.createFromPath(getAppIconPath("default"));
-    if (logoImage.isEmpty()) throw new Error("无法读取 Iterlay 品牌图标。");
+    if (logoImage.isEmpty()) throw new Error("无法读取 Tuda 品牌图标。");
     const logoBytes = logoImage.resize({ width: 96, height: 96, quality: "best" }).toPNG();
     const page = Buffer.from(buildOnlineImageSharePage({
       prompt: job?.prompt ?? "",

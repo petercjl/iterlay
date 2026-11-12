@@ -19,7 +19,7 @@ const expectedArgs = versionIndex < 0 ? (rebuild ? 1 : 0) : (rebuild ? 3 : 2);
 if (!/^ffmpeg6-r[1-9][0-9]*$/u.test(version ?? "") || args.length !== expectedArgs) {
   throw new Error("Usage: pnpm media-tools:build [--version ffmpeg6-r2] [--rebuild]");
 }
-const artifact = `iterlay-media-tools-${version}-darwin-arm64.zip`;
+const artifact = `tuda-media-tools-${version}-darwin-arm64.zip`;
 const versionDir = path.join(root, "output", "media-tools", `${version}-darwin-arm64`);
 const sameVersion = currentManifest?.version === version;
 if (currentManifest && !sameVersion && Number(version.split("-r")[1]) <= Number(currentManifest.version.split("-r")[1])) {
@@ -39,7 +39,7 @@ if (sameVersion && !rebuild) {
 const outputDir = sameVersion ? path.join(versionDir, "candidate") : versionDir;
 const stagingDir = path.join(outputDir, "staging");
 if (process.platform !== "darwin" || process.arch !== "arm64") throw new Error("Media tools currently support macOS ARM64 only.");
-if (process.env.ITERLAY_FFMPEG_SOURCE_DIR) throw new Error("Media tool releases must be built from pinned source; prebuilt FFmpeg overrides are not accepted.");
+if (process.env.TUDA_FFMPEG_SOURCE_DIR) throw new Error("Media tool releases must be built from pinned source; prebuilt FFmpeg overrides are not accepted.");
 await mkdir(outputDir, { recursive: true });
 await rm(stagingDir, { recursive: true, force: true });
 await mkdir(stagingDir);

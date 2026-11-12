@@ -3,7 +3,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { normalizeAppLanguage, resolveAppLocale, type AppLanguage, type ResolvedAppLocale } from "@shared/i18n";
 import { enUS, zhCN, type MessageKey } from "./messages";
 
-const LANGUAGE_STORAGE_KEY = "iterlay:language";
+const LANGUAGE_STORAGE_KEY = "tuda:language";
 
 interface I18nContextValue {
   language: AppLanguage;

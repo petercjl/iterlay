@@ -32,8 +32,8 @@ afterEach(async () => {
   container?.remove();
   container = undefined;
   Reflect.deleteProperty(globalThis, "imageWorkbench");
-  window.localStorage.removeItem("iterlay:creation:active");
-  window.localStorage.removeItem("iterlay:creation:projects");
+  window.localStorage.removeItem("tuda:creation:active");
+  window.localStorage.removeItem("tuda:creation:projects");
   vi.clearAllMocks();
 });
 
@@ -83,7 +83,7 @@ describe("CreationAssistantPage", () => {
     const session = makeCreationSession();
     session.references = [{ id: "ref-1", kind: "upload", role: "reference", name: "孩子照片",
       mimeType: "image/png", imagePath: "/references/child.png" }];
-    window.localStorage.setItem("iterlay:creation:active", session.id);
+    window.localStorage.setItem("tuda:creation:active", session.id);
     const save = vi.fn().mockImplementation(async (value) => value);
     Object.defineProperty(globalThis, "imageWorkbench", { configurable: true, value: {
       listCreationSessions: vi.fn().mockResolvedValue([session]), saveCreationSession: save,
@@ -127,7 +127,7 @@ describe("CreationAssistantPage", () => {
       { id: "u2", role: "user", content: "想给儿子做一本书" },
       { id: "a2", role: "assistant", content: "我们来设计亲子绘本" }
     ];
-    window.localStorage.setItem("iterlay:creation:active", session.id);
+    window.localStorage.setItem("tuda:creation:active", session.id);
     const summarize = vi.fn().mockResolvedValue("为儿子创作亲子绘本");
     Object.defineProperty(globalThis, "imageWorkbench", { configurable: true, value: {
       listCreationSessions: vi.fn().mockResolvedValue([session]),
@@ -195,11 +195,11 @@ describe("CreationAssistantPage", () => {
     expect(order()).toEqual(["first", "second", "third"]);
     expect(container?.querySelector('[data-session-id="third"] [aria-current="page"]')).not.toBeNull();
     await act(async () => {
-      window.dispatchEvent(new CustomEvent("iterlay:creation:updated", { detail: { ...sessions[1], title: "renamed" } }));
+      window.dispatchEvent(new CustomEvent("tuda:creation:updated", { detail: { ...sessions[1], title: "renamed" } }));
     });
     expect(order()).toEqual(["first", "second", "third"]);
     await act(async () => {
-      window.dispatchEvent(new CustomEvent("iterlay:creation:updated", { detail: { ...makeCreationSession(), id: "new" } }));
+      window.dispatchEvent(new CustomEvent("tuda:creation:updated", { detail: { ...makeCreationSession(), id: "new" } }));
     });
     expect(order()).toEqual(["new", "first", "second", "third"]);
   });
@@ -215,7 +215,7 @@ describe("CreationAssistantPage", () => {
         input?.dispatchEvent(new Event("input", { bubbles: true }));
         input?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
       });
-      expect(JSON.parse(window.localStorage.getItem("iterlay:creation:projects") ?? "[]")).toEqual([
+      expect(JSON.parse(window.localStorage.getItem("tuda:creation:projects") ?? "[]")).toEqual([
         expect.objectContaining({ name: "咖啡广告" }),
       ]);
     expect(container?.textContent).toContain("咖啡广告");
@@ -269,7 +269,7 @@ describe("CreationAssistantPage", () => {
       listCreationSessions: vi.fn().mockResolvedValue([]), saveCreationSession: vi.fn().mockImplementation(async (session) => session),
       listPlugins: vi.fn().mockResolvedValue([]), getVideoJob: vi.fn().mockResolvedValue(job),
       getBoard: vi.fn().mockResolvedValue({ id: "board-1", name: "人物肖像", nodes: [{ id: "video-node", type: "video", videoPath: "video.mp4", jobId: "video-job" }],
-        images: {}, media: { "video.mp4": "iterlay-asset://local/video" } }),
+        images: {}, media: { "video.mp4": "tuda-asset://local/video" } }),
       suggestAssistantIntents: vi.fn().mockResolvedValue({ suggestions: [] })
     } });
     const onCreate = vi.fn();
@@ -292,7 +292,7 @@ describe("CreationAssistantPage", () => {
     session.queued = ["生成一张新的封面"];
     session.messages = [{ id: "u", role: "user", content: "咖啡短片" }];
     session.activeRunId = "interrupted-run";
-    window.localStorage.setItem("iterlay:creation:active", session.id);
+    window.localStorage.setItem("tuda:creation:active", session.id);
     Object.defineProperty(globalThis, "imageWorkbench", { configurable: true, value: {
       listCreationSessions: vi.fn().mockResolvedValue([session]), getBoard: vi.fn().mockResolvedValue(null),
       saveCreationSession: vi.fn().mockResolvedValue(session), suggestAssistantIntents: vi.fn().mockResolvedValue({ suggestions: [] })

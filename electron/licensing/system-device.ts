@@ -11,13 +11,13 @@ export class SystemDeviceFingerprintSource implements DeviceFingerprintSource {
     if (process.platform === "win32") {
       return { platform: "win32", machineId: await readWindowsMachineGuid() };
     }
-    throw new Error("Iterlay 授权目前仅支持 macOS 和 Windows。");
+    throw new Error("Tuda 授权目前仅支持 macOS 和 Windows。");
   }
 }
 
 export function currentLicensePlatform(): SupportedLicensePlatform {
   if (process.platform === "darwin" || process.platform === "win32") return process.platform;
-  throw new Error("Iterlay 授权目前仅支持 macOS 和 Windows。");
+  throw new Error("Tuda 授权目前仅支持 macOS 和 Windows。");
 }
 
 export function currentDeviceName(): string {

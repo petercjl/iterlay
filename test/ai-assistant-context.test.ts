@@ -15,7 +15,7 @@ globalThis.ResizeObserver = class ResizeObserver {
 };
 
 function withI18n(element: ReactElement, language: "zh-CN" | "en-US" = "zh-CN"): ReactElement {
-  window.localStorage.setItem("iterlay:language", language);
+  window.localStorage.setItem("tuda:language", language);
   return createElement(I18nProvider, null, element);
 }
 

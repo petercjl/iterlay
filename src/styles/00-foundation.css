@@ -149,10 +149,10 @@ body {
 }
 
 /*
- * Iterlay notifications stay compact and neutral so image work remains the focus.
+ * Tuda notifications stay compact and neutral so image work remains the focus.
  * Semantic color is reserved for the status icon, not the entire surface.
  */
-.iterlay-toaster[data-sonner-toaster] {
+.tuda-toaster[data-sonner-toaster] {
   width: min(var(--width), calc(100vw - 2rem));
   font-family: inherit;
   -webkit-app-region: no-drag;

@@ -67,7 +67,7 @@ export async function handoffBoardComments(options: HandoffOptions): Promise<Com
   const cli = [options.cliExecutable, options.cliScriptPath, "--user-data-path", options.userDataPath, "--no-launch"].map(quote).join(" ");
   const command = platform === "win32" ? `$env:ELECTRON_RUN_AS_NODE='1'; & ${cli}` : `ELECTRON_RUN_AS_NODE=1 ${cli}`;
   const prompt = [
-    "请接手 Iterlay 当前画板的评论修改建议。",
+    "请接手 Tuda 当前画板的评论修改建议。",
     `画板：${JSON.stringify(options.board.name)}（${options.board.id}）。`,
     `完整上下文文件：${contextPath}`,
     "先读取该 JSON 和其中 sourcePath 的图片；它包含评论原文、图片内归一化标注坐标、固定源版本和版本链。",

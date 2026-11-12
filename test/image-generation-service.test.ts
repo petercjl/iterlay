@@ -10,7 +10,7 @@ function fixture() {
   const history = { findByIdempotencyKey: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => null), addJob: vi.fn<(_job: GenerationJob) => Promise<void>>(async () => undefined), updateJob: vi.fn<(_job: GenerationJob) => Promise<void>>(async () => undefined) };
   const dependencies = {
     settings: { getSettings: () => ({ activeProviderId: "custom", providers: [config] }), getApiKey: () => "fixture-only" },
-    history, assets: { saveReferenceImageBytes: async () => [], saveOutputs: async () => ["/managed/result.png"], toAssetUrl: () => "iterlay-asset://result" },
+    history, assets: { saveReferenceImageBytes: async () => [], saveOutputs: async () => ["/managed/result.png"], toAssetUrl: () => "tuda-asset://result" },
     getProviderAdapter: () => ({ generate }), recordMemory: vi.fn(), sceneMedia: {}, backfillThumbHashes: vi.fn(),
     createGeneratedBoardNodes: async () => [], boards: {}, analytics: { track: async () => undefined }
   };

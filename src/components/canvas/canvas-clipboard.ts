@@ -1,7 +1,7 @@
 import { IMAGE_NODE_WIDTH, imageNodeHeight, type GeneratedImage } from "./image-node-model";
 import type { CanvasDropPoint } from "./canvas-drop";
 
-export const CANVAS_CLIPBOARD_TYPE = "application/x-iterlay-canvas-nodes";
+export const CANVAS_CLIPBOARD_TYPE = "application/x-tuda-canvas-nodes";
 
 export interface CanvasClipboardItem {
   image: GeneratedImage;

@@ -7,7 +7,7 @@ import { workspaceFixture } from "./helpers/workspace-fixture";
 const dirs: string[] = [];
 afterEach(async () => { await Promise.all(dirs.splice(0).map(d => rm(d, { recursive: true, force: true }))); });
 async function fixture() {
-  const dir = await mkdtemp(path.join(os.tmpdir(), "iterlay-templates-")); dirs.push(dir);
+  const dir = await mkdtemp(path.join(os.tmpdir(), "tuda-templates-")); dirs.push(dir);
   const file = path.join(dir, "templates.json"); return { file, store: new TemplateStore(file) };
 }
 describe("shared reusable templates", () => {

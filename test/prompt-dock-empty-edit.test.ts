@@ -8,7 +8,7 @@ import { COMMUNITY_IMAGE_PROVIDER } from "../shared/community-providers";
 import type { UiDesignBrief } from "../shared/types";
 describe("prompt dock empty edit lifecycle", () => {
   it("renders a normal board before an edit target exists", () => {
-    localStorage.setItem("iterlay:language", "zh-CN");
+    localStorage.setItem("tuda:language", "zh-CN");
     const noop = () => undefined;
     const props: ComponentProps<typeof PromptDock> = {
       boardId: "board", input: { workflowMode: "generate", prompt: "", model: "gpt-image-1", size: "auto", n: 1, referenceImages: [] },
@@ -35,6 +35,6 @@ describe("prompt dock empty edit lifecycle", () => {
       expect(html).not.toContain('role="switch"');
       expect(html).not.toContain("prompt-dock-layer");
       expect(html).not.toContain("prompt-dock-assistant-button");
-    } finally { localStorage.removeItem("iterlay:language"); }
+    } finally { localStorage.removeItem("tuda:language"); }
   });
 });

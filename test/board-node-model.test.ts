@@ -15,7 +15,7 @@ describe("board node model", () => {
   let dir: string;
 
   beforeEach(async () => {
-    dir = await mkdtemp(path.join(os.tmpdir(), "iterlay-board-model-"));
+    dir = await mkdtemp(path.join(os.tmpdir(), "tuda-board-model-"));
   });
 
   afterEach(async () => {

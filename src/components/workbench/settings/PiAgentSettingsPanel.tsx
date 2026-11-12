@@ -24,7 +24,7 @@ type PiAgentPanelTab = "permissions" | "overview" | "tools" | "assistant-skills"
 
 interface PiAgentCatalogItem {
   id: string;
-  kind: "builtin-tool" | "iterlay-tool" | "assistant-skill" | "skill" | "extension";
+  kind: "builtin-tool" | "tuda-tool" | "assistant-skill" | "skill" | "extension";
   name: string;
   description: string;
   enabled: boolean;
@@ -43,7 +43,7 @@ export function PiAgentSettingsPanel({
   resourceError,
   assistantSkills,
   builtinTools,
-  iterlayTools,
+  tudaTools,
   skillPaths,
   extensionPaths,
   customSkillPaths,
@@ -53,7 +53,7 @@ export function PiAgentSettingsPanel({
   onEnabledChange,
   onConfigureModel,
   onBuiltinToolsChange,
-  onIterlayToolsChange,
+  onTudaToolsChange,
   onSkillPathsChange,
   onExtensionPathsChange,
   onCustomSkillPathsChange,
@@ -74,7 +74,7 @@ export function PiAgentSettingsPanel({
   resourceError: string | null;
   assistantSkills: AssistantSkillSummary[];
   builtinTools: PiAgentBuiltinToolName[];
-  iterlayTools: string[];
+  tudaTools: string[];
   skillPaths: string[];
   extensionPaths: string[];
   customSkillPaths: string[];
@@ -84,7 +84,7 @@ export function PiAgentSettingsPanel({
   onEnabledChange: (value: boolean) => void;
   onConfigureModel?: () => void;
   onBuiltinToolsChange: (value: PiAgentBuiltinToolName[]) => void;
-  onIterlayToolsChange: (value: string[]) => void;
+  onTudaToolsChange: (value: string[]) => void;
   onSkillPathsChange: (value: string[]) => void;
   onExtensionPathsChange: (value: string[]) => void;
   onCustomSkillPathsChange: (value: string[]) => void;
@@ -127,13 +127,13 @@ export function PiAgentSettingsPanel({
           enabled: builtinTools.includes(tool.name),
           badge: tool.risk === "read" ? "只读" : tool.risk === "write" ? "写入" : "执行"
         })),
-        ...inventory.iterlayTools.map((tool): PiAgentCatalogItem => ({
-          id: `iterlay:${tool.name}`,
-          kind: "iterlay-tool",
+        ...inventory.tudaTools.map((tool): PiAgentCatalogItem => ({
+          id: `tuda:${tool.name}`,
+          kind: "tuda-tool",
           name: tool.name,
           description: tool.description,
-          enabled: iterlayTools.includes(tool.name),
-          badge: "Iterlay"
+          enabled: tudaTools.includes(tool.name),
+          badge: "Tuda"
         }))
       ];
     }
@@ -166,7 +166,7 @@ export function PiAgentSettingsPanel({
       path: resource.path,
       resource
     }));
-  }, [assistantSkills, builtinTools, extensionPaths, inventory, iterlayTools, skillPaths, tab]);
+  }, [assistantSkills, builtinTools, extensionPaths, inventory, tudaTools, skillPaths, tab]);
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase();
@@ -222,8 +222,8 @@ export function PiAgentSettingsPanel({
   function toggleItem(item: PiAgentCatalogItem, next: boolean): void {
     if (item.kind === "builtin-tool") {
       onBuiltinToolsChange(toggle(builtinTools, item.name, next) as PiAgentBuiltinToolName[]);
-    } else if (item.kind === "iterlay-tool") {
-      onIterlayToolsChange(toggle(iterlayTools, item.name, next));
+    } else if (item.kind === "tuda-tool") {
+      onTudaToolsChange(toggle(tudaTools, item.name, next));
     } else if (item.kind === "skill" && item.path) {
       onSkillPathsChange(toggle(skillPaths, item.path, next));
     } else if (item.kind === "extension" && item.path) {
@@ -235,7 +235,7 @@ export function PiAgentSettingsPanel({
     if (!inventory) return;
     if (preset === "readonly") {
       onBuiltinToolsChange(["read", "grep", "find", "ls"]);
-      onIterlayToolsChange(inventory.iterlayTools
+      onTudaToolsChange(inventory.tudaTools
         .map((tool) => tool.name)
         .filter((name) => /^(?:list|get|open|fit|focus)/u.test(name)));
       return;
@@ -243,7 +243,7 @@ export function PiAgentSettingsPanel({
     onBuiltinToolsChange(preset === "all"
       ? inventory.builtinTools.map((tool) => tool.name)
       : ["read", "grep", "find", "ls"]);
-    onIterlayToolsChange(inventory.iterlayTools.map((tool) => tool.name));
+    onTudaToolsChange(inventory.tudaTools.map((tool) => tool.name));
   }
 
   function addCustomPath(kind: "skill" | "extension"): void {
@@ -299,7 +299,7 @@ export function PiAgentSettingsPanel({
           {([
             ["overview", "使用说明", ""],
             ["permissions", "权限", ""],
-            ["tools", "可执行操作", inventory ? String(inventory.builtinTools.length + inventory.iterlayTools.length) : "—"],
+            ["tools", "可执行操作", inventory ? String(inventory.builtinTools.length + inventory.tudaTools.length) : "—"],
             ["assistant-skills", "创作指南", String(assistantSkills.length)],
             ["skills", "自定义指南", inventory ? String(inventory.skills.length) : "—"],
             ["extensions", "高级扩展", inventory ? String(inventory.extensions.length) : "—"],
@@ -329,7 +329,7 @@ export function PiAgentSettingsPanel({
             available={available}
             enabled={enabled}
             model={model}
-            toolCount={builtinTools.length + iterlayTools.length}
+            toolCount={builtinTools.length + tudaTools.length}
             skillCount={enabledSkillCount}
             extensionCount={enabledExtensionCount}
             maxTurns={maxTurns}
@@ -648,7 +648,7 @@ function PiAgentItemDetail({
               ? uiText("进入对应助手场景时自动加载。用户覆盖版本只影响新会话。")
               : item.kind === "builtin-tool"
                 ? uiText("由模型按任务需要调用。写入和执行类工具应保持最小授权。")
-                : uiText("用于读取或操作当前 Iterlay 工作区，写操作仍受宿主权限和确认限制。")}
+                : uiText("用于读取或操作当前 Tuda 工作区，写操作仍受宿主权限和确认限制。")}
           </p>
         </div>
       )}
@@ -727,7 +727,7 @@ function sourceLabel(source: PiAgentResourceEntry["source"]): string {
 
 function catalogKindLabel(kind: PiAgentCatalogItem["kind"]): string {
   if (kind === "builtin-tool") return "内置工具";
-  if (kind === "iterlay-tool") return "Iterlay 工具";
+  if (kind === "tuda-tool") return "Tuda 工具";
   if (kind === "assistant-skill") return "助手场景 Skill";
   if (kind === "skill") return "Skill";
   return "本地扩展";

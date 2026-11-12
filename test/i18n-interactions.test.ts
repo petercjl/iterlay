@@ -31,7 +31,7 @@ describe("assistant interaction localization", () => {
 
   it("switches an open confirmation between languages without translating its prompt or losing edits", async () => {
     await loadUiTextCatalog();
-    localStorage.setItem("iterlay:language", "en-US");
+    localStorage.setItem("tuda:language", "en-US");
     const state: AiAssistantInteractionState = {
       id: "locale-test",
       interaction: buildAssistantActionConfirmInteraction("canvas-prompt", { changesPrompt: true, hasCurrentPrompt: false, generationRequestCount: 1, generationImageCount: 1 }),

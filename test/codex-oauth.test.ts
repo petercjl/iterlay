@@ -22,7 +22,7 @@ import {
 const tempDirs: string[] = [];
 
 function tempDir(): string {
-  const directory = mkdtempSync(path.join(os.tmpdir(), "iterlay-codex-oauth-"));
+  const directory = mkdtempSync(path.join(os.tmpdir(), "tuda-codex-oauth-"));
   tempDirs.push(directory);
   return directory;
 }

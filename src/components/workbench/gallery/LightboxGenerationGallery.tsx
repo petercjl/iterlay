@@ -34,7 +34,7 @@ export const LightboxGenerationGallery = memo(function LightboxGenerationGallery
     <section className="gallery-lightbox" aria-label={uiText("灵感灯箱")}>
       <div className="gallery-lightbox__housing">
         <div className="gallery-lightbox__hardware" aria-hidden>
-          <span className="gallery-lightbox__brand">ITERLAY · CONTACT</span>
+          <span className="gallery-lightbox__brand">TUDA · CONTACT</span>
           <span className="gallery-lightbox__ticks" />
           <span className="gallery-lightbox__power" />
         </div>

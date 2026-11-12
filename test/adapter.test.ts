@@ -45,7 +45,7 @@ describe("OpenAICompatibleTextTransport function calling probe", () => {
           tool_calls: [{
             id: "call_1",
             type: "function",
-            function: { name: "iterlay_function_calling_probe", arguments: "{}" }
+            function: { name: "tuda_function_calling_probe", arguments: "{}" }
           }]
         }
       }]
@@ -55,9 +55,9 @@ describe("OpenAICompatibleTextTransport function calling probe", () => {
     const body = JSON.parse(String(fetchMock.mock.calls[0][1].body));
     expect(body.tool_choice).toEqual({
       type: "function",
-      function: { name: "iterlay_function_calling_probe" }
+      function: { name: "tuda_function_calling_probe" }
     });
-    expect(body.tools[0].function.name).toBe("iterlay_function_calling_probe");
+    expect(body.tools[0].function.name).toBe("tuda_function_calling_probe");
   });
 
   it("treats ignored or rejected tools as unsupported without failing a valid connection", async () => {

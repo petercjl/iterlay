@@ -14,7 +14,7 @@ function deferred<T>() {
 
 describe("VideoSequenceScheduler snapshots", () => {
   let dir: string;
-  beforeEach(async () => { dir = await mkdtemp(path.join(os.tmpdir(), "iterlay-sequence-scheduler-")); });
+  beforeEach(async () => { dir = await mkdtemp(path.join(os.tmpdir(), "tuda-sequence-scheduler-")); });
   afterEach(async () => { await rm(dir, { recursive: true, force: true }); });
 
   it("publishes the frozen task frames when the sequence is edited before the old task completes", async () => {

@@ -1,7 +1,8 @@
 import type { MenuItemConstructorOptions } from "electron";
 import type { ResolvedAppLocale } from "../shared/i18n.js";
 
-const APP_NAME = "Iterlay";
+import { BRAND } from "../shared/brand.js";
+const APP_NAME = BRAND.name;
 
 export function buildApplicationMenuTemplate(
   createNewWindow: () => void,

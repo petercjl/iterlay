@@ -15,7 +15,7 @@ function image(id: string, width = 100, height = 100): GeneratedImage {
   return {
     id,
     path: `/images/${id}.png`,
-    dataUrl: `iterlay-asset://local/${id}`,
+    dataUrl: `tuda-asset://local/${id}`,
     jobId: `job-${id}`,
     width,
     height

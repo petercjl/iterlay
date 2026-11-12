@@ -6,8 +6,8 @@ import * as Vue from 'vue/dist/vue.esm-bundler.js';
 import { transform } from '@babel/standalone';
 // Browser build avoids Node filesystem dependencies.
 import { parse, compileScript } from '@vue/compiler-sfc/dist/compiler-sfc.esm-browser.js';
-const post = (type: string, message = '') => parent.postMessage({ source: 'iterlay-code-sandbox', type, message: message.slice(0, 4000) }, '*');
-installSandboxConsole(entry => parent.postMessage({ source: 'iterlay-code-sandbox', type: 'console', ...entry }, '*'));
+const post = (type: string, message = '') => parent.postMessage({ source: 'tuda-code-sandbox', type, message: message.slice(0, 4000) }, '*');
+installSandboxConsole(entry => parent.postMessage({ source: 'tuda-code-sandbox', type: 'console', ...entry }, '*'));
 window.addEventListener('error', event => post('error', event.message));
 window.addEventListener('unhandledrejection', event => post('error', String(event.reason)));
 function evaluate(code: string) {
@@ -24,10 +24,10 @@ function evaluate(code: string) {
 }
 let started = false;
 window.addEventListener('message', event => {
-  if (event.source !== parent || event.data?.source !== 'iterlay-code-host') return;
+  if (event.source !== parent || event.data?.source !== 'tuda-code-host') return;
   if (event.data.type === 'evaluate' && started) {
     if (typeof event.data.expression !== 'string' || event.data.expression.length > 4000) return;
-    const report = (level: string, result: unknown) => parent.postMessage({ source: 'iterlay-code-sandbox', type: 'console', level, message: serializeConsoleValue(result), timestamp: Date.now() }, '*');
+    const report = (level: string, result: unknown) => parent.postMessage({ source: 'tuda-code-sandbox', type: 'console', level, message: serializeConsoleValue(result), timestamp: Date.now() }, '*');
     try { Promise.resolve((0, eval)(event.data.expression)).then(result => report('result', result), error => report('error', error)); }
     catch (error) { report('error', error); }
     return;

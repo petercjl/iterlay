@@ -8,7 +8,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <WelcomeTourStep
       titleId="preview-title"
       descriptionId="preview-description"
-      title="欢迎来到 Iterlay"
+      title="欢迎来到 Tuda"
       description="先看一遍常用工作流，再进入画板完成第一次生成。"
       reduceMotion
       creditBalance={100}

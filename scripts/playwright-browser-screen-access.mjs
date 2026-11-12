@@ -5,7 +5,7 @@ import { mkdir } from "node:fs/promises";
 import { chromium } from "playwright";
 
 // Isolated development workspace only. This test never grants OS capture permission.
-const origin = process.env.ITERLAY_BROWSER_SMOKE_URL || "http://127.0.0.1:5299";
+const origin = process.env.TUDA_BROWSER_SMOKE_URL || "http://127.0.0.1:5299";
 assert(["127.0.0.1", "localhost"].includes(new URL(origin).hostname));
 let calls = 0;
 const provider = createServer(async (request, response) => {
@@ -39,9 +39,9 @@ try {
     await api.saveSettings({ ...settings, textProviders: [{ id: "screen-fixture", name: "屏幕授权离线模型", type: "openai-compatible", baseUrl: `${baseUrl}/v1`, model: "fixture" }], activeTextProviderId: "screen-fixture",
       apiKeyByProviderId: { "screen-fixture": "offline-test-only" }, assistantAgentModeEnabled: false, boardAssistantAgentModeEnabled: false, assistantScreenAccess: "ask",
       boardAssistantEnabled: true, memoryEnabled: false, boardAssistantAwarenessEnabled: false, boardAssistantIntentSuggestionsEnabled: false, boardSmartSuggestionsEnabled: false, editSmartSuggestionsEnabled: false, language: "zh-CN", theme: "light" });
-    for (const key of ["board", "library", "gallery", "edit", "demo-start"]) await api.markOnboardingSeen(`iterlay.onboarding.${key}.v1`, "completed");
-    localStorage.setItem("iterlay.libraryOpen", "0");
-    localStorage.setItem("iterlay:agent-hint:v1:cli", "dismissed");
+    for (const key of ["board", "library", "gallery", "edit", "demo-start"]) await api.markOnboardingSeen(`tuda.onboarding.${key}.v1`, "completed");
+    localStorage.setItem("tuda.libraryOpen", "0");
+    localStorage.setItem("tuda:agent-hint:v1:cli", "dismissed");
   }, `http://127.0.0.1:${provider.address().port}`);
   await page.reload(); await ready();
   const closeHint = page.getByRole("button", { name: "关闭此提醒", exact: true });
@@ -117,8 +117,8 @@ try {
 } finally {
   if (originalSettings) await page.evaluate((settings) => window.imageWorkbench.saveSettings(settings), originalSettings).catch(() => {});
   await page.evaluate(async () => {
-    const sessionId = window.sessionStorage.getItem("iterlay:browser-debug-session");
-    if (sessionId) await fetch("/__iterlay_dev/disconnect", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId }) });
+    const sessionId = window.sessionStorage.getItem("tuda:browser-debug-session");
+    if (sessionId) await fetch("/__tuda_dev/disconnect", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId }) });
   }).catch(() => {});
   await browser.close();
   await new Promise((resolve) => provider.close(resolve));

@@ -9,7 +9,7 @@ import manifest from "../plugins/short-drama/manifest.json";
 const folders: string[] = [];
 afterEach(async () => { await Promise.all(folders.splice(0).map(folder => rm(folder, { recursive: true, force: true }))); });
 async function fixture() {
-  const root = await mkdtemp(path.join(os.tmpdir(), "iterlay-plugins-")); folders.push(root);
+  const root = await mkdtemp(path.join(os.tmpdir(), "tuda-plugins-")); folders.push(root);
   const catalog = path.join(root, "catalog"); await mkdir(catalog);
   return { store: new PluginStore(path.join(root, "plugins"), catalog), catalog };
 }
@@ -20,7 +20,7 @@ describe("plugin packages and lifecycle", () => {
   it("installs the real bundled React plugin, disables access, and preserves state across reinstall", async () => {
     const { store } = await fixture();
     const { readFile } = await import("node:fs/promises");
-    const bytes = await readFile(new URL("../resources/plugins/dev.iterlay.short-drama.iterlay-plugin", import.meta.url));
+    const bytes = await readFile(new URL("../resources/plugins/dev.tuda.short-drama.tuda-plugin", import.meta.url));
     expect(store.inspect(bytes).html).toContain('id="root"');
     expect(store.inspect(bytes).manifest.version).toBe(manifest.version);
     await store.install(bytes);
@@ -36,7 +36,7 @@ describe("plugin packages and lifecycle", () => {
   });
   it("uses the same package validation for catalog and imported packages", async () => {
     const { store, catalog } = await fixture();
-    await writeFile(path.join(catalog, `${manifest.id}.iterlay-plugin`), pack());
+    await writeFile(path.join(catalog, `${manifest.id}.tuda-plugin`), pack());
     expect((await store.catalog())[0].manifest.id).toBe(manifest.id);
     await store.installCatalog(manifest.id);
     expect((await store.list())[0].enabled).toBe(true);

@@ -33,7 +33,7 @@ afterEach(async () => {
 describe("FeedbackWidget", () => {
   it("localizes the dock label, feedback options, placeholders in English", async () => {
     await loadUiTextCatalog();
-    localStorage.setItem("iterlay:language", "en-US");
+    localStorage.setItem("tuda:language", "en-US");
     container = document.createElement("div"); document.body.append(container); root = createRoot(container);
     await act(async () => root?.render(createElement(I18nProvider, null, createElement(FeedbackWidget, { view: "board" }))));
     expect(document.body.querySelector("[data-feedback-edge-text]")?.textContent).toBe("Feedback");
@@ -61,7 +61,7 @@ describe("FeedbackWidget", () => {
     expect(document.body.textContent).toContain("哪一步不顺手？");
     expect(document.body.textContent).toContain("在 GitHub Issues 告诉我们");
     expect(document.body.textContent).not.toContain("Credit");
-    expect(localStorage.getItem("iterlay:feedback-incentive-nudge:v1")).not.toBeNull();
+    expect(localStorage.getItem("tuda:feedback-incentive-nudge:v1")).not.toBeNull();
 
     await clickButtonByLabel("关闭反馈提示");
     expect(document.body.textContent).not.toContain("哪一步不顺手？");
@@ -130,7 +130,7 @@ describe("FeedbackWidget", () => {
 
     expect(entry.style.left).toBe("0px");
     expect(entry.dataset.feedbackDockSide).toBe("left");
-    expect(localStorage.getItem("iterlay:feedback-widget-position:v1")).toBe(JSON.stringify({ x: 0, y: 304 }));
+    expect(localStorage.getItem("tuda:feedback-widget-position:v1")).toBe(JSON.stringify({ x: 0, y: 304 }));
     expect(entry.dataset.feedbackDocked).toBe("true");
     expect(entry.dataset.feedbackDockSide).toBe("left");
     expect(entry.querySelector("[data-feedback-edge-label]")?.className).toContain("left-0");
@@ -162,7 +162,7 @@ describe("FeedbackWidget", () => {
 
     expect(entry.style.left).toBe("476px");
     expect(entry.dataset.feedbackDocked).toBe("false");
-    expect(localStorage.getItem("iterlay:feedback-widget-position:v1")).toBe(JSON.stringify({ x: 476, y: 304 }));
+    expect(localStorage.getItem("tuda:feedback-widget-position:v1")).toBe(JSON.stringify({ x: 476, y: 304 }));
     await act(async () => { vi.advanceTimersByTime(2_000); });
     expect(entry.dataset.feedbackDocked).toBe("false");
   });
@@ -232,17 +232,17 @@ describe("FeedbackWidget", () => {
     const link = findIssueLink();
     expect(link.getAttribute("aria-disabled")).toBe("false");
     const url = new URL(link.href);
-    expect(`${url.origin}${url.pathname}`).toBe("https://github.com/Davied-H/iterlay/issues/new");
+    expect(`${url.origin}${url.pathname}`).toBe("https://github.com/petercjl/iterlay/issues/new");
     expect(url.searchParams.get("title")).toBe("[功能建议] 希望支持批量导出 & 图片");
     expect(url.searchParams.get("body")).toContain("保留原始尺寸");
     expect(url.searchParams.get("body")).not.toContain("私密新品画板");
     expect(url.searchParams.get("body")).not.toContain("private-board-1");
     expect(document.body.textContent).toContain("需登录 GitHub 并确认提交");
     expect(submitFeedback).not.toHaveBeenCalled();
-    expect(localStorage.getItem("iterlay:feedback-draft:v1")).toContain("希望支持批量导出");
+    expect(localStorage.getItem("tuda:feedback-draft:v1")).toContain("希望支持批量导出");
     expect(document.body.textContent).not.toContain("提交成功");
     expect(document.body.querySelector('a[aria-label="查看 GitHub Issues"]')?.getAttribute("href"))
-      .toBe("https://github.com/Davied-H/iterlay/issues");
+      .toBe("https://github.com/petercjl/iterlay/issues");
   });
 
   it("keeps the GitHub link disabled for blank or too-short feedback", async () => {
@@ -265,7 +265,7 @@ describe("FeedbackWidget", () => {
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining(longContent));
     expect(findIssueLink().getAttribute("aria-disabled")).toBe("false");
     expect(findIssueLink().href.length).toBeLessThan(7_500);
-    expect(localStorage.getItem("iterlay:feedback-draft:v1")).toContain(longContent);
+    expect(localStorage.getItem("tuda:feedback-draft:v1")).toContain(longContent);
     await changeTextarea(longContent + "修改");
     expect(findIssueLink().getAttribute("href")).toBeNull();
   });

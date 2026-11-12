@@ -12,19 +12,19 @@ import { assertBrowserBackendStopped } from "./dev-browser-state.mjs";
 
 const require = createRequire(import.meta.url);
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const userData = path.resolve(process.env.ITERLAY_BROWSER_DEV_USER_DATA || path.join(projectRoot, "tmp/browser-dev/user-data"));
+const userData = path.resolve(process.env.TUDA_BROWSER_DEV_USER_DATA || path.join(projectRoot, "tmp/browser-dev/user-data"));
 const bridgeConfig = path.join(userData, "browser-dev-bridge.json");
 const lockPath = path.join(userData, "browser-dev.lock");
 const buildInfoPath = path.join(userData, "electron.tsbuildinfo");
 const electronOutput = path.join(projectRoot, "dist-electron");
-const rendererPort = Number(process.env.ITERLAY_BROWSER_DEV_PORT || "5180");
+const rendererPort = Number(process.env.TUDA_BROWSER_DEV_PORT || "5180");
 if (!Number.isInteger(rendererPort) || rendererPort < 1024 || rendererPort > 65535) throw new Error("Invalid browser development port.");
 const rendererUrl = `http://127.0.0.1:${rendererPort}`;
 const env = {
   ...process.env,
-  ITERLAY_BROWSER_DEV: "1",
-  ITERLAY_BROWSER_DEV_USER_DATA: userData,
-  ITERLAY_BROWSER_DEV_BRIDGE_CONFIG: bridgeConfig,
+  TUDA_BROWSER_DEV: "1",
+  TUDA_BROWSER_DEV_USER_DATA: userData,
+  TUDA_BROWSER_DEV_BRIDGE_CONFIG: bridgeConfig,
   VITE_DEV_SERVER_URL: rendererUrl
 };
 // Some terminal hosts set this for their own Node subprocesses. Electron must run
@@ -91,7 +91,7 @@ function stopElectron() {
       if (config.pid !== child.pid || !Number.isInteger(config.port) || config.port < 1 || config.port > 65535
         || typeof config.token !== "string" || !config.token) throw new Error("Browser bridge shutdown configuration is stale or invalid.");
       const response = await fetch(`http://127.0.0.1:${config.port}/_control/quit`, {
-        method: "POST", headers: { "x-iterlay-dev-token": config.token }, signal: AbortSignal.timeout(5_000)
+        method: "POST", headers: { "x-tuda-dev-token": config.token }, signal: AbortSignal.timeout(5_000)
       });
       if (!response.ok) throw new Error(`Browser bridge rejected shutdown (${response.status}).`);
     }

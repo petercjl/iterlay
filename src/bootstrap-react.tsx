@@ -18,7 +18,7 @@ const Workspace = React.lazy(async () => {
   };
 });
 
-performance.mark("iterlay:react-bootstrap-start");
+performance.mark("tuda:react-bootstrap-start");
 const bootTheme = new URLSearchParams(window.location.search).get("bootTheme");
 document.documentElement.classList.toggle("dark", bootTheme === "dark");
 document.documentElement.classList.remove("boot-dark", "boot-light");
@@ -37,4 +37,4 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   </React.StrictMode>
 );
 
-requestAnimationFrame(() => performance.mark("iterlay:react-first-frame"));
+requestAnimationFrame(() => performance.mark("tuda:react-first-frame"));

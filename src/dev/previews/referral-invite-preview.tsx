@@ -17,7 +17,7 @@ const previewApi = {
       maxMajorVersion: 1,
       maxDevices: 2,
       activationCredits: 100,
-      shareMessage: "送你一个 Iterlay 永久激活名额。下载安装后，填写自己的邮箱和下方激活码即可使用。",
+      shareMessage: "送你一个 Tuda 永久激活名额。下载安装后，填写自己的邮箱和下方激活码即可使用。",
       status: "active" as const,
       codesIssued: true,
       redemptionEndsAt: "2026-08-31T15:59:59.000Z"
@@ -37,7 +37,7 @@ const previewApi = {
   recordGiftActivationShare: async () => undefined,
   getReferralOverview: async () => ({
     invitationCode: "HEYU2026",
-    invitationLink: "https://iterlay.app/download?ref=HEYU2026",
+    invitationLink: "https://github.com/petercjl/iterlay/releases?ref=HEYU2026",
     rewardCredits: 200,
     totalInvited: 3,
     successfulCount: 2,

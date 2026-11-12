@@ -6,7 +6,7 @@ import { PiAgentEvolutionStore } from "../electron/pi-agent-evolution.js";
 
 describe("PiAgentEvolutionStore", () => {
   it("persists verified outcomes and converts them into bounded guidance", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-pi-evolution-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-pi-evolution-"));
     try {
       const store = new PiAgentEvolutionStore(directory);
       await store.start();

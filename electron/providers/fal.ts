@@ -124,7 +124,7 @@ export class FalImageProvider {
     assertApiKey(apiKey);
     const model = normalizeModelId(config.model);
     // 只读查询不会提交生成；404/422 不能证明鉴权成功，必须作为未通过处理。
-    const url = `${joinFalUrl(config.baseUrl, model)}/requests/iterlay-connection-test/status`;
+    const url = `${joinFalUrl(config.baseUrl, model)}/requests/tuda-connection-test/status`;
     const response = await this.fetchWithDeadline(url, { headers: falHeaders(apiKey) }, Date.now() + 15_000);
     if (!response.ok) {
       await throwFalError(response);

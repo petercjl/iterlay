@@ -34,7 +34,7 @@ import {
   OFFICIAL_TEXT_PROVIDER_ID,
   OFFICIAL_VIDEO_PROVIDER_CONFIG,
   OFFICIAL_VIDEO_PROVIDER_ID,
-  PI_AGENT_DEFAULT_ITERLAY_TOOLS
+  PI_AGENT_DEFAULT_TUDA_TOOLS
 } from "../../shared/types.js";
 
 interface SettingsSchema {
@@ -67,7 +67,7 @@ interface SettingsSchema {
   boardAssistantAgentModeEnabled?: boolean;
   assistantAgentModeEnabled?: boolean;
   piAgentBuiltinTools?: PiAgentBuiltinToolName[];
-  piAgentIterlayTools?: string[];
+  piAgentTudaTools?: string[];
   piAgentSkillPaths?: string[];
   piAgentExtensionPaths?: string[];
   piAgentCustomSkillPaths?: string[];
@@ -231,9 +231,9 @@ export class SettingsStore {
       assistantAgentModeEnabled:
         current.assistantAgentModeEnabled ?? current.boardAssistantAgentModeEnabled ?? false,
       piAgentBuiltinTools: normalizePiAgentBuiltinTools(current.piAgentBuiltinTools),
-      piAgentIterlayTools: current.piAgentIterlayTools === undefined
-        ? [...PI_AGENT_DEFAULT_ITERLAY_TOOLS]
-        : normalizeIterlayTools(current.piAgentIterlayTools),
+      piAgentTudaTools: current.piAgentTudaTools === undefined
+        ? [...PI_AGENT_DEFAULT_TUDA_TOOLS]
+        : normalizeTudaTools(current.piAgentTudaTools),
       piAgentSkillPaths: normalizeStringList(current.piAgentSkillPaths),
       piAgentExtensionPaths: normalizeStringList(current.piAgentExtensionPaths),
       piAgentCustomSkillPaths: normalizeStringList(current.piAgentCustomSkillPaths),
@@ -373,9 +373,9 @@ export class SettingsStore {
         ?? current.boardAssistantAgentModeEnabled
         ?? false,
       piAgentBuiltinTools: normalizePiAgentBuiltinTools(settings.piAgentBuiltinTools),
-      piAgentIterlayTools: settings.piAgentIterlayTools === undefined
-        ? [...PI_AGENT_DEFAULT_ITERLAY_TOOLS]
-        : normalizeIterlayTools(settings.piAgentIterlayTools),
+      piAgentTudaTools: settings.piAgentTudaTools === undefined
+        ? [...PI_AGENT_DEFAULT_TUDA_TOOLS]
+        : normalizeTudaTools(settings.piAgentTudaTools),
       piAgentSkillPaths: normalizeStringList(settings.piAgentSkillPaths),
       piAgentExtensionPaths: normalizeStringList(settings.piAgentExtensionPaths),
       piAgentCustomSkillPaths: normalizeStringList(settings.piAgentCustomSkillPaths),
@@ -700,9 +700,9 @@ function migrate(parsed: Partial<SettingsSchema> & LegacySettingsSchema): Settin
     assistantAgentModeEnabled:
       parsed.assistantAgentModeEnabled ?? parsed.boardAssistantAgentModeEnabled ?? false,
     piAgentBuiltinTools: normalizePiAgentBuiltinTools(parsed.piAgentBuiltinTools),
-    piAgentIterlayTools: parsed.piAgentIterlayTools === undefined
-      ? [...PI_AGENT_DEFAULT_ITERLAY_TOOLS]
-      : normalizeIterlayTools(parsed.piAgentIterlayTools),
+    piAgentTudaTools: parsed.piAgentTudaTools === undefined
+      ? [...PI_AGENT_DEFAULT_TUDA_TOOLS]
+      : normalizeTudaTools(parsed.piAgentTudaTools),
     piAgentSkillPaths: normalizeStringList(parsed.piAgentSkillPaths),
     piAgentExtensionPaths: normalizeStringList(parsed.piAgentExtensionPaths),
     piAgentCustomSkillPaths: normalizeStringList(parsed.piAgentCustomSkillPaths),
@@ -1046,9 +1046,9 @@ function normalizeKnownProvider(provider: Partial<ProviderConfig>, defaults: Pro
   };
 }
 
-function normalizeIterlayTools(value: unknown): string[] {
+function normalizeTudaTools(value: unknown): string[] {
   const tools = normalizeStringList(value);
-  const previousDefaults = PI_AGENT_DEFAULT_ITERLAY_TOOLS.filter(name => name !== "create_canvas" && name !== "update_canvas");
+  const previousDefaults = PI_AGENT_DEFAULT_TUDA_TOOLS.filter(name => name !== "create_canvas" && name !== "update_canvas");
   // Upgrade the full former default set, preserving deliberately restricted lists.
   return previousDefaults.every(name => tools.includes(name)) ? [...new Set([...tools, "create_canvas", "update_canvas"])] : tools;
 }

@@ -15,7 +15,7 @@ describe("BoardImageTrashStore", () => {
   it("keeps deleted board images recoverable until the configured retention expires", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-07-25T00:00:00.000Z"));
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-image-trash-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-image-trash-"));
     directories.push(directory);
     const store = new BoardImageTrashStore(directory);
 

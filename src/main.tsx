@@ -1,4 +1,4 @@
-performance.mark("iterlay:startup-shell-ready");
+performance.mark("tuda:startup-shell-ready");
 
 const developmentPreviewEntries = {
   "board-library-production": () => import("./dev/previews/board-library-production-preview"),
@@ -38,8 +38,8 @@ function showBootstrapFailure(error: unknown): void {
   message.textContent = error instanceof Error
     ? error.message
     : isChinese
-      ? "应用加载失败，请重新启动 Iterlay。"
-      : "Iterlay failed to load. Please restart the app.";
+      ? "应用加载失败，请重新启动 Tuda。"
+      : "Tuda failed to load. Please restart the app.";
   root.replaceChildren(message);
 }
 
@@ -55,6 +55,6 @@ async function loadEntry(preview: string | null): Promise<unknown> {
 
 requestAnimationFrame(() => {
   const params = new URLSearchParams(window.location.search);
-  if (import.meta.env.DEV && params.get("__iterlay_backend") === "1") return;
+  if (import.meta.env.DEV && params.get("__tuda_backend") === "1") return;
   void loadEntry(params.get("preview")).catch(showBootstrapFailure);
 });

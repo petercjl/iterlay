@@ -17,7 +17,7 @@ afterEach(async () => {
 });
 
 async function createStore(): Promise<{ directory: string; store: AssetStore }> {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-assets-"));
+  const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-assets-"));
   temporaryDirectories.push(directory);
   return { directory, store: new AssetStore(directory) };
 }

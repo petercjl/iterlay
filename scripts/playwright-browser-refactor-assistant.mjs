@@ -5,7 +5,7 @@ import { clearTimeout, setTimeout } from "node:timers";
 import { URL } from "node:url";
 import { chromium } from "playwright";
 
-const origin = process.env.ITERLAY_BROWSER_SMOKE_URL || "http://127.0.0.1:5297";
+const origin = process.env.TUDA_BROWSER_SMOKE_URL || "http://127.0.0.1:5297";
 assert(["127.0.0.1", "localhost"].includes(new URL(origin).hostname));
 let calls = 0;
 let fixtureMode = "chat";
@@ -61,13 +61,13 @@ try {
       boardAssistantAwarenessEnabled: false, boardAssistantIntentSuggestionsEnabled: false,
       boardSmartSuggestionsEnabled: false, editSmartSuggestionsEnabled: false, language: "zh-CN", theme: "light"
     });
-    for (const key of ["board", "library", "gallery", "edit", "demo-start"]) await api.markOnboardingSeen(`iterlay.onboarding.${key}.v1`, "completed");
+    for (const key of ["board", "library", "gallery", "edit", "demo-start"]) await api.markOnboardingSeen(`tuda.onboarding.${key}.v1`, "completed");
     const board = await api.createBoard("重构验收 · 主创作助手");
     await api.setLastOpenedBoard(board.id);
-    localStorage.setItem("iterlay.libraryOpen", "0");
-    localStorage.setItem("iterlay:agent-hint:v1:cli", "dismissed");
-    localStorage.removeItem("iterlay.assistantDockLayout");
-    localStorage.removeItem("iterlay.assistantPanelSize");
+    localStorage.setItem("tuda.libraryOpen", "0");
+    localStorage.setItem("tuda:agent-hint:v1:cli", "dismissed");
+    localStorage.removeItem("tuda.assistantDockLayout");
+    localStorage.removeItem("tuda.assistantPanelSize");
     return { originalSettings, originalBoardId, boardId: board.id };
   }, `http://127.0.0.1:${provider.address().port}`));
   await page.reload(); await ready();
@@ -231,8 +231,8 @@ try {
     if (originalSettings) await api.saveSettings(originalSettings);
     if (originalBoardId) await api.setLastOpenedBoard(originalBoardId);
     if (boardId) await api.deleteBoard(boardId);
-    const sessionId = window.sessionStorage.getItem("iterlay:browser-debug-session");
-    if (sessionId) await fetch("/__iterlay_dev/disconnect", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId }) });
+    const sessionId = window.sessionStorage.getItem("tuda:browser-debug-session");
+    if (sessionId) await fetch("/__tuda_dev/disconnect", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId }) });
   }, { originalSettings, originalBoardId, boardId }).catch(error => console.error("Cleanup:", error.message));
   await browser.close();
   provider.closeAllConnections(); provider.close();

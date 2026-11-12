@@ -19,7 +19,7 @@ const result: CollaborateSceneResult = {
 };
 
 async function fixture(memoryEnabled = true) {
-  const dir = await mkdtemp(path.join(os.tmpdir(), "iterlay-assistant-session-"));
+  const dir = await mkdtemp(path.join(os.tmpdir(), "tuda-assistant-session-"));
   directories.push(dir);
   const conversations = new AssistantConversationStore(dir);
   const memories = { record: vi.fn(async () => undefined), retrieve: vi.fn(async () => []) };

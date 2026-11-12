@@ -59,6 +59,6 @@ describe("image workbench API bridge", () => {
       getWorkbenchErrorMessage(
         new Error("Error invoking remote method 'license:activate': Error: invalid device public key")
       )
-    ).toBe("设备验证信息无效，请重启 Iterlay 后重试。");
+    ).toBe("设备验证信息无效，请重启 Tuda 后重试。");
   });
 });

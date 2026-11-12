@@ -1,4 +1,4 @@
-export const CLI_BACKGROUND_FLAG = "--iterlay-background";
+export const CLI_BACKGROUND_FLAG = "--tuda-background";
 
 interface SessionWindow {
   isDestroyed(): boolean;

@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import os from "node:os";
 import { randomUUID } from "node:crypto";
+import { handleManagement, automaticUpdateCheck } from "./management.js";
 import { runAdd, runRemove } from "./commands.js";
 import { defaultUserDataPath } from "./paths.js";
 import { connect } from "./runtime.js";
@@ -11,35 +12,35 @@ import { listWorkspaceTools } from "../../electron/workspace-tools.js";
 import { assertInlineMediaByteLength } from "../../shared/media-import.js";
 import type { CodingAgentId } from "../../shared/agent-integration.js";
 
-const HELP = `Iterlay CLI — 使用 App 保存的模型创作
+const HELP = `Tuda CLI — 使用 App 保存的模型创作
 
-iterlay status                         工作区状态
-iterlay providers list [--kind image]   已保存的模型服务（不包含密钥）
-iterlay providers show <id>             查看配置（不包含密钥）
-iterlay providers set --kind video|audio --provider <id> --model <id> [配置选项]
-iterlay providers default|remove <id> --kind video|audio
-iterlay models list --provider <id>     服务已保存的模型
-iterlay models set --kind video|audio --provider <id> --model <id> [--saved-model <id>]
+tuda status                         工作区状态
+tuda providers list [--kind image]   已保存的模型服务（不包含密钥）
+tuda providers show <id>             查看配置（不包含密钥）
+tuda providers set --kind video|audio --provider <id> --model <id> [配置选项]
+tuda providers default|remove <id> --kind video|audio
+tuda models list --provider <id>     服务已保存的模型
+tuda models set --kind video|audio --provider <id> --model <id> [--saved-model <id>]
 配置：--type --name --base-url --voice --speech-endpoint --connection-provider
       --saved-model <id>（可重复） --default --api-key-env <变量名> | --api-key-stdin
       --clear-api-key 清除密钥；省略密钥参数则保留原凭证。audio 为独立 TTS 配置。
-iterlay image generate --prompt <text> [--reference <file>] [--out <file>]
-iterlay image slice --path <managed-path> --rows 3 --columns 4 [--out <directory>]
-iterlay image edit --input <file> --prompt <text> [--out <file>]
-iterlay video generate --prompt <text> [--board <id>]
-iterlay tasks list|get|wait|cancel [task-id] [--kind video] [--out <file>]
-iterlay boards list|create|show|open [id] [--name <name>]
-iterlay assets list|import|export [--input <file>] [--path <managed-path>] [--out <file>]
-iterlay templates list|show [id]       查询可复用模板
-iterlay templates create --name <name> --prompt <rules>
-iterlay templates update <id> --prompt <rules>
+tuda image generate --prompt <text> [--reference <file>] [--out <file>]
+tuda image slice --path <managed-path> --rows 3 --columns 4 [--out <directory>]
+tuda image edit --input <file> --prompt <text> [--out <file>]
+tuda video generate --prompt <text> [--board <id>]
+tuda tasks list|get|wait|cancel [task-id] [--kind video] [--out <file>]
+tuda boards list|create|show|open [id] [--name <name>]
+tuda assets list|import|export [--input <file>] [--path <managed-path>] [--out <file>]
+tuda templates list|show [id]       查询可复用模板
+tuda templates create --name <name> --prompt <rules>
+tuda templates update <id> --prompt <rules>
 模板字段：--description --category --mode --use-case；--input <JSON文件>
 图片生成/编辑：--template <id> --prompt <本次内容>
-iterlay tools list                      完整操作目录及 JSON schema
-iterlay guard descriptor                离线输出 Guard 命令描述（不会安装或启用 Guard）
-iterlay call <operation> --input '<JSON>'  调用任意工作台操作
-iterlay add [--agent <id>]              安装 CLI Skill，迁移旧集成
-iterlay remove --agent <id>             移除 Skill
+tuda tools list                      完整操作目录及 JSON schema
+tuda guard descriptor                离线输出 Guard 命令描述（不会安装或启用 Guard）
+tuda call <operation> --input '<JSON>'  调用任意工作台操作
+tuda add [--agent <id>]              安装 CLI Skill，迁移旧集成
+tuda remove --agent <id>             移除 Skill
 
 通用选项：--json --async --provider <id> --model <id> --board <id>
 --user-data-path <path> --app-path <path> --no-launch --timeout <seconds>
@@ -100,6 +101,8 @@ async function exportFiles(call: Awaited<ReturnType<typeof connect>>, paths: str
   return outputs;
 }
 async function main(): Promise<void> {
+  if (await handleManagement(process.argv.slice(2))) return;
+  await automaticUpdateCheck();
   const { words, flags } = parse(process.argv.slice(2));
   const get = (key: string) => flags[key]?.at(-1);
   if (flags.help || words[0] === "help" || (!words.length && !flags.version)) { process.stdout.write(HELP + "\n"); return; }
@@ -109,22 +112,22 @@ async function main(): Promise<void> {
   }
   const timeout = Number(get("timeout") ?? "600");
   if (!Number.isFinite(timeout) || timeout <= 0) throw new Error("--timeout 必须是正数。");
-  const userDataPath = get("user-data-path") ?? process.env.ITERLAY_USER_DATA_PATH ?? defaultUserDataPath();
+  const userDataPath = get("user-data-path") ?? process.env.TUDA_USER_DATA_PATH ?? defaultUserDataPath();
   const [group, action, id] = words;
   const output = (data: unknown) => process.stdout.write(JSON.stringify(flags.json ? { schemaVersion: 1, ok: true, data } : data, (key, value: unknown) => key === "previewImageDataUrls" ? undefined : value, 2) + "\n");
   if (group === "guard" && action === "descriptor") {
-    output(JSON.parse(await readFile(path.resolve(moduleDir,"../guard/command.iterlay.json"),"utf8")));
+    output(JSON.parse(await readFile(path.resolve(moduleDir,"../guard/command.tuda.json"),"utf8")));
     return;
   }
   if (group === "add" || group === "remove") {
     const agents = flags.agent as CodingAgentId[] | undefined;
     const supported = new Set(["codex", "claude-code", "workbuddy", "cursor", "windsurf", "cline", "roo-cline", "gemini-cli", "opencode"]);
     if (agents?.some((a) => !supported.has(a))) throw new Error("未知的 Coding Agent。");
-    const options = { homeDir: get("home") ?? os.homedir(), userDataPath, agents: agents ?? null, bundledSkillPath: path.resolve(moduleDir, "../skills/using-iterlay") };
+    const options = { homeDir: get("home") ?? os.homedir(), userDataPath, agents: agents ?? null, bundledSkillPath: path.resolve(moduleDir, "../skills/using-tuda") };
     output(await (group === "add" ? runAdd(options) : runRemove(options))); return;
   }
   if (group === "tools" && action === "list") { output(listWorkspaceTools()); return; }
-  const call = await connect({ userDataPath, appRoot: get("app-path"), noLaunch: Boolean(flags["no-launch"]) || Boolean(process.env.ITERLAY_USER_DATA_PATH) || Boolean(get("user-data-path")) });
+  const call = await connect({ userDataPath, appRoot: get("app-path"), noLaunch: Boolean(flags["no-launch"]) || Boolean(process.env.TUDA_USER_DATA_PATH) || Boolean(get("user-data-path")) });
   if (group === "status" || group === "doctor") { output(await call("status")); return; }
   if (group === "providers" && action === "list") { output(await call("list_providers", get("kind") ? { kind: get("kind") } : {})); return; }
   if (group === "providers" && action === "show") { output(await call("get_provider", { providerId: id ?? get("provider") })); return; }
@@ -161,7 +164,7 @@ async function main(): Promise<void> {
   }
   if (group === "models" && action === "list") { output(await call("list_models", { providerId: get("provider") })); return; }
   if (group === "call") {
-    if (!action || !listWorkspaceTools().some((tool) => tool.name === action)) throw new Error("未知的工作台操作，请运行 iterlay tools list。");
+    if (!action || !listWorkspaceTools().some((tool) => tool.name === action)) throw new Error("未知的工作台操作，请运行 tuda tools list。");
     const args: unknown = JSON.parse(get("input") ?? "{}");
     if (!args || typeof args !== "object" || Array.isArray(args)) throw new Error("--input 必须是 JSON 对象。");
     output(await call(action, args as Record<string, unknown>)); return;
@@ -193,7 +196,7 @@ async function main(): Promise<void> {
     if (action === "list") { output(await call("list_assets")); return; }
     if (action === "import" && get("input")) { output({ path: await importFile(call, get("input")!, get("board")) }); return; }
     if (action === "export" && get("path") && get("out")) { output({ paths: await exportFiles(call, [get("path")!], get("out")!, Boolean(flags.overwrite)) }); return; }
-    throw new Error("素材操作缺少参数。运行 iterlay help 查看用法。");
+    throw new Error("素材操作缺少参数。运行 tuda help 查看用法。");
   }
   if (group === "image" && action === "slice") {
     if ([get("input"), get("path"), get("node")].filter(Boolean).length !== 1) throw new Error("切图须指定且仅指定 --input、--path 或 --node。");
@@ -240,7 +243,7 @@ async function main(): Promise<void> {
     try { result = await call(video ? "generate_video" : action === "edit" ? "edit_image" : "generate_image", args); }
     catch (error) { throw new Error(`${error instanceof Error ? error.message : String(error)}${video ? "" : `；请求 ID ${String(args.requestId)}，请先查询任务状态再决定是否重新生成。`}`); }
     if (flags.async) { output(result); return; }
-  } else throw new Error("未知命令。运行 iterlay help 查看用法。");
+  } else throw new Error("未知命令。运行 tuda help 查看用法。");
   let task = record(result);
   const taskId = task.generationId ?? task.videoGenerationId;
   if (typeof taskId !== "string") throw new Error("任务不存在或未返回任务 ID。");
@@ -262,7 +265,7 @@ async function main(): Promise<void> {
 }
 void main().catch((error) => {
   const message = error instanceof Error ? error.message : String(error);
-  if (process.argv.includes("--json")) process.stdout.write(JSON.stringify({ schemaVersion: 1, ok: false, error: { code: "ITERLAY_ERROR", message } }) + "\n");
-  else process.stderr.write(`iterlay：${message}\n`);
+  if (process.argv.includes("--json")) process.stdout.write(JSON.stringify({ schemaVersion: 1, ok: false, error: { code: /^([A-Z][A-Z0-9_]+):/.exec(message)?.[1] ?? "TUDA_ERROR", message } }) + "\n");
+  else process.stderr.write(`tuda：${message}\n`);
   process.exitCode = 1;
 });

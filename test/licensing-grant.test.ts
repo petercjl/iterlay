@@ -18,7 +18,7 @@ function keys() {
 function licensePayload(overrides: Partial<LicenseGrantPayload> = {}): LicenseGrantPayload {
   return {
     subjectType: "license",
-    productId: "iterlay",
+    productId: "tuda",
     licenseId: "license-1",
     deviceId: "device-1",
     devicePublicKey: "device-public-key",
@@ -33,7 +33,7 @@ function licensePayload(overrides: Partial<LicenseGrantPayload> = {}): LicenseGr
 function trialPayload(overrides: Partial<TrialGrantPayload> = {}): TrialGrantPayload {
   return {
     subjectType: "trial",
-    productId: "iterlay",
+    productId: "tuda",
     trialId: "trial-1",
     deviceId: "device-1",
     devicePublicKey: "device-public-key",
@@ -53,7 +53,7 @@ describe("compact license grant", () => {
     });
 
     expect(compact.split(".")).toHaveLength(3);
-    expect(verified.header).toEqual({ alg: "EdDSA", typ: "ITERLAY-GRANT", v: 1, kid: "2026-01" });
+    expect(verified.header).toEqual({ alg: "EdDSA", typ: "TUDA-GRANT", v: 1, kid: "2026-01" });
     expect(verified.payload).toEqual(payload);
   });
 

@@ -1,27 +1,12 @@
-name: Build desktop release packages
+name: Build Tuda Windows installers
 on:
   workflow_dispatch:
-    inputs:
-      platform:
-        description: Platforms to package
-        type: choice
-        options: [all, mac, win]
-        default: all
 permissions:
   contents: read
 jobs:
   package:
-    name: Package ${{ matrix.platform }} ${{ matrix.arch }}
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: ${{ fromJSON(inputs.platform == 'all' && '["mac","win"]' || format('["{0}"]', inputs.platform)) }}
-        arch: [arm64, x64]
-    runs-on: ${{ matrix.platform == 'mac' && 'macos-14' || 'windows-latest' }}
+    runs-on: windows-latest
     timeout-minutes: 40
-    defaults:
-      run:
-        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -30,13 +15,13 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm setup:subprojects
-      - run: bash scripts/release.sh --platform "${{ matrix.platform }}" --arch "${{ matrix.arch }}"
+      - run: npm ci --prefix cli
+      - run: pnpm exec install-electron
+      - run: pnpm release --arch x64
       - uses: actions/upload-artifact@v4
         with:
-          name: installers-${{ matrix.platform }}-${{ matrix.arch }}
+          name: tuda-windows-x64
           if-no-files-found: error
           path: |
-            release/*.dmg
             release/*.exe
             output/package-size/*.json

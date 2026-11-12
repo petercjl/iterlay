@@ -1,4 +1,4 @@
-# Iterlay 开源官网
+# Tuda 开源官网
 
 官网首页提供基于当前产品代码设计的交互工作台与预制案例，保留真实下载页面。不包含购买、客户中心、邀请奖励、后台和商业 API。
 
@@ -10,7 +10,7 @@ npm test
 npm run build
 ```
 
-默认部署到 https://davied-h.github.io/iterlay/ 。使用正常中英文路径和构建时静态生成，下载页为 `/zh/download/` 或 `/en/download/`；GitHub Pages 直接提供每个目录的 HTML，无需 SPA 回退。旧 Hash 链接通过浏览器兼容转换。
+默认部署到 https://petercjl.github.io/iterlay/ 。使用正常中英文路径和构建时静态生成，下载页为 `/zh/download/` 或 `/en/download/`；GitHub Pages 直接提供每个目录的 HTML，无需 SPA 回退。旧 Hash 链接通过浏览器兼容转换。
 
 ## 当前 SEO 与 AI 搜索实现
 
@@ -28,7 +28,7 @@ npm run build
 
 下载列表从公开 GitHub Releases API 获取，支持 Apple 芯片 DMG、Intel DMG、Windows x64 EXE。安装包直接链接到 GitHub Release 附件；没有附件、网络失败或 API 限流时提供明确状态及 Releases 备用入口。稳定版作为主要下载，测试版出现在历史记录。
 
-发布安装包时，DMG 名称需包含 `arm64` 或 `x64`；Windows x64 使用 `.exe`，如 `Iterlay Setup 0.1.56.exe`。推荐在 GitHub Release 中同时写更新说明。站点没有凭据，也不上传安装包。
+发布安装包时，DMG 名称需包含 `arm64` 或 `x64`；Windows x64 使用 `.exe`，如 `Tuda Setup 0.1.56.exe`。推荐在 GitHub Release 中同时写更新说明。站点没有凭据，也不上传安装包。
 
 `.github/workflows/pages.yml` 使用 GitHub Actions 部署。需将仓库 Settings → Pages → Source 设为 GitHub Actions。工作流自动使用 Pages base path，也可通过 `PAGES_BASE_PATH` 设置本地构建前缀。
 
@@ -50,13 +50,13 @@ npm run build
 
 ## 新素材生成与校验
 
-本轮通过用户授权的 Iterlay CLI / GPT Relay（gpt-image-2.5-flare）生成；原图独立创作，效果图只引用对应的新原图。规划、完整提示词、任务回执、验收状态分别记录在 design/image-direction-v2.md、design/image-prompts-v2.json、design/image-generation-v2.json。原始 PNG 在 output/imagegen/iterlay-website-v2/；网页使用 public/gallery/v2/ 的 1024×1024 WebP。全部验收资源已内嵌提示词，v2/manifest.json 也保存来源，不裁切原画面。
+本轮通过用户授权的 Tuda CLI / GPT Relay（gpt-image-2.5-flare）生成；原图独立创作，效果图只引用对应的新原图。规划、完整提示词、任务回执、验收状态分别记录在 design/image-direction-v2.md、design/image-prompts-v2.json、design/image-generation-v2.json。原始 PNG 在 output/imagegen/tuda-website-v2/；网页使用 public/gallery/v2/ 的 1024×1024 WebP。全部验收资源已内嵌提示词，v2/manifest.json 也保存来源，不裁切原画面。
 
 模型本次返回 1254×1254 原图，三组 App 节点与版本元数据相符；网页成品完整缩放到 1024×1024。生成素材与官网体验运行分离：官网仍不调用模型，浏览/进入/退出/编辑/对比按既有流程工作。未通过的掌机结果不会展示给访客。
 
 ## 下载页
 
-下载页按用户提供的钉钉截图还原白底大标题、装饰、浅灰圆角双栏与平台列表。仅列 Iterlay 真实安装包平台；二维码指向 https://davied-h.github.io/iterlay/#/download，含义是从其他设备打开下载页，并非移动客户端。架构检测仅在浏览器提供可确认信息时显示当前设备。保留 GitHub Releases 加载/失败重试/缺包/稳定版/测试版及平台历史切换。
+下载页按用户提供的钉钉截图还原白底大标题、装饰、浅灰圆角双栏与平台列表。仅列 Tuda 真实安装包平台；二维码指向 https://petercjl.github.io/iterlay/#/download，含义是从其他设备打开下载页，并非移动客户端。架构检测仅在浏览器提供可确认信息时显示当前设备。保留 GitHub Releases 加载/失败重试/缺包/稳定版/测试版及平台历史切换。
 
 ## 首页场景与功能 Wiki
 

@@ -103,7 +103,7 @@ function job(): VideoGenerationJob {
     id: "job",
     status: "recovering",
     createdAt: "2026-08-21T08:09:31.722Z",
-    providerId: "iterlay-official-video",
+    providerId: "tuda-official-video",
     model: "官方视频模型",
     remoteTaskId: "remote-job",
     input: {

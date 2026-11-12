@@ -11,7 +11,7 @@ function manifest(overrides: Partial<UpdateManifest> = {}): UpdateManifest {
   return {
     version: "0.2.0",
     platform: "darwin",
-    downloadUrl: "https://example.com/Iterlay-0.2.0-arm64.dmg",
+    downloadUrl: "https://example.com/Tuda-0.2.0-arm64.dmg",
     ...overrides
   };
 }

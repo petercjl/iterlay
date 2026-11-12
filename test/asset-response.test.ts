@@ -12,12 +12,12 @@ describe("asset response", () => {
   });
 
   it("streams only the requested local video bytes", async () => {
-    directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-asset-response-"));
+    directory = await mkdtemp(path.join(os.tmpdir(), "tuda-asset-response-"));
     const filePath = path.join(directory, "fixture.mp4");
     await writeFile(filePath, Buffer.from(Array.from({ length: 32 }, (_, index) => index)));
 
     const response = await createAssetResponse(
-      new Request("iterlay-asset://local/fixture", { headers: { Range: "bytes=8-15" } }),
+      new Request("tuda-asset://local/fixture", { headers: { Range: "bytes=8-15" } }),
       () => filePath
     );
 
@@ -30,12 +30,12 @@ describe("asset response", () => {
   });
 
   it("returns 416 for an unsatisfiable range without reading the file", async () => {
-    directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-asset-response-"));
+    directory = await mkdtemp(path.join(os.tmpdir(), "tuda-asset-response-"));
     const filePath = path.join(directory, "fixture.mp4");
     await writeFile(filePath, Buffer.alloc(16));
 
     const response = await createAssetResponse(
-      new Request("iterlay-asset://local/fixture", { headers: { Range: "bytes=16-" } }),
+      new Request("tuda-asset://local/fixture", { headers: { Range: "bytes=16-" } }),
       () => filePath
     );
 

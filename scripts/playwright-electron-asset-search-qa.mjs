@@ -8,13 +8,13 @@ import { _electron as electron } from "playwright";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outputDirectory = path.join(projectRoot, "output", "playwright");
-const qaUserDataDirectory = await mkdtemp(path.join(tmpdir(), "iterlay-asset-search-qa-"));
+const qaUserDataDirectory = await mkdtemp(path.join(tmpdir(), "tuda-asset-search-qa-"));
 const qaWorkspaceDirectory = path.join(qaUserDataDirectory, "workspace");
 const sourceWorkspaceDirectory = path.join(
   process.env.HOME,
   "Library",
   "Application Support",
-  "Iterlay",
+  "Tuda",
   "workspace"
 );
 
@@ -36,7 +36,7 @@ const electronApp = await electron.launch({
   cwd: projectRoot,
   env: {
     ...process.env,
-    ITERLAY_PLAYWRIGHT: "1",
+    TUDA_PLAYWRIGHT: "1",
     VITE_DEV_SERVER_URL: "http://127.0.0.1:5180"
   },
   timeout: 30_000

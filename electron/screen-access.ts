@@ -16,10 +16,10 @@ export async function capturePrimaryScreen(): Promise<ScreenCaptureSnapshot> {
   const sources = await desktopCapturer.getSources({ types: ["screen"], fetchWindowIcons: false,
     thumbnailSize: { width: Math.round(primary.size.width * scale), height: Math.round(primary.size.height * scale) } });
   if (process.platform === "darwin" && systemPreferences.getMediaAccessStatus("screen") !== "granted") {
-    throw new ProviderError("SCREEN_SYSTEM_PERMISSION_REQUIRED", "请在系统设置的屏幕录制权限中允许 Iterlay，然后重试查看屏幕。");
+    throw new ProviderError("SCREEN_SYSTEM_PERMISSION_REQUIRED", "请在系统设置的屏幕录制权限中允许 Tuda，然后重试查看屏幕。");
   }
   const source = sources.find((candidate) => candidate.display_id === String(primary.id)) ?? (sources.length === 1 ? sources[0] : undefined);
-  if (!source || source.thumbnail.isEmpty()) throw new ProviderError("SCREEN_CAPTURE_UNAVAILABLE", "无法读取屏幕，请在系统设置中允许 Iterlay 录制屏幕后重试。");
+  if (!source || source.thumbnail.isEmpty()) throw new ProviderError("SCREEN_CAPTURE_UNAVAILABLE", "无法读取屏幕，请在系统设置中允许 Tuda 录制屏幕后重试。");
   const size = source.thumbnail.getSize();
   return { mimeType: "image/png", dataBase64: source.thumbnail.toPNG().toString("base64"), ...size };
 }

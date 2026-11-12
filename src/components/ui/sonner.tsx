@@ -10,7 +10,7 @@ export function Toaster(props: ToasterProps): React.ReactElement {
 
   return (
     <Sonner
-      className={cn("iterlay-toaster", className)}
+      className={cn("tuda-toaster", className)}
       duration={2400}
       gap={8}
       visibleToasts={3}
@@ -22,14 +22,14 @@ export function Toaster(props: ToasterProps): React.ReactElement {
         ...toastOptions,
         classNames: {
           ...classNames,
-          toast: cn("iterlay-toast", classNames?.toast),
-          content: cn("iterlay-toast__content", classNames?.content),
-          title: cn("iterlay-toast__title", classNames?.title),
-          description: cn("iterlay-toast__description", classNames?.description),
-          icon: cn("iterlay-toast__icon", classNames?.icon),
-          actionButton: cn("iterlay-toast__action", classNames?.actionButton),
-          cancelButton: cn("iterlay-toast__cancel", classNames?.cancelButton),
-          closeButton: cn("iterlay-toast__close", classNames?.closeButton)
+          toast: cn("tuda-toast", classNames?.toast),
+          content: cn("tuda-toast__content", classNames?.content),
+          title: cn("tuda-toast__title", classNames?.title),
+          description: cn("tuda-toast__description", classNames?.description),
+          icon: cn("tuda-toast__icon", classNames?.icon),
+          actionButton: cn("tuda-toast__action", classNames?.actionButton),
+          cancelButton: cn("tuda-toast__cancel", classNames?.cancelButton),
+          closeButton: cn("tuda-toast__close", classNames?.closeButton)
         }
       }}
       {...sonnerProps}

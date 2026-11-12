@@ -1,13 +1,14 @@
-export const ITERLAY_DEEP_LINK_SCHEME = "iterlay";
-export const ITERLAY_DEEP_LINK_CHANNEL = "deep-link:open";
-export const ITERLAY_DEEP_LINK_READY_CHANNEL = "deep-link:ready";
+import { BRAND } from "./brand.js";
+export const TUDA_DEEP_LINK_SCHEME = BRAND.scheme;
+export const TUDA_DEEP_LINK_CHANNEL = "deep-link:open";
+export const TUDA_DEEP_LINK_READY_CHANNEL = "deep-link:ready";
 
 export type DeepLinkLibraryTab = "boards" | "assets" | "templates" | "trash";
 export type DeepLinkNodeView = "focus" | "details" | "edit";
 export type DeepLinkTemplateAction = "preview" | "apply";
 export type DeepLinkSettingsSection = "default" | "providers" | "models";
 
-export type IterlayDeepLink =
+export type TudaDeepLink =
   | { kind: "library"; tab: DeepLinkLibraryTab }
   | { kind: "board"; boardId: string; nodeId?: string; view: DeepLinkNodeView; prompt?: string }
   | { kind: "template"; templateId: string; action: DeepLinkTemplateAction }
@@ -22,8 +23,8 @@ export type IterlayDeepLink =
   | { kind: "gallery"; boardId?: string }
   | { kind: "settings"; section: DeepLinkSettingsSection };
 
-export type ParseIterlayDeepLinkResult =
-  | { ok: true; value: IterlayDeepLink; canonicalUrl: string }
+export type ParseTudaDeepLinkResult =
+  | { ok: true; value: TudaDeepLink; canonicalUrl: string }
   | { ok: false; reason: string };
 
 const MAX_URL_LENGTH = 8_192;
@@ -65,13 +66,13 @@ function parseEnum<T extends string>(
 }
 
 function canonicalize(url: URL): string {
-  url.protocol = `${ITERLAY_DEEP_LINK_SCHEME}:`;
+  url.protocol = `${TUDA_DEEP_LINK_SCHEME}:`;
   url.hostname = url.hostname.toLowerCase();
   url.hash = "";
   return url.toString();
 }
 
-export function parseIterlayDeepLink(rawUrl: string): ParseIterlayDeepLinkResult {
+export function parseTudaDeepLink(rawUrl: string): ParseTudaDeepLinkResult {
   if (rawUrl.length === 0 || rawUrl.length > MAX_URL_LENGTH) {
     return { ok: false, reason: "链接为空或过长。" };
   }
@@ -83,8 +84,8 @@ export function parseIterlayDeepLink(rawUrl: string): ParseIterlayDeepLinkResult
     return { ok: false, reason: "链接格式无效。" };
   }
 
-  if (url.protocol.toLowerCase() !== `${ITERLAY_DEEP_LINK_SCHEME}:`) {
-    return { ok: false, reason: "不是 Iterlay 链接。" };
+  if (url.protocol.toLowerCase() !== `${TUDA_DEEP_LINK_SCHEME}:`) {
+    return { ok: false, reason: "不是 Tuda 链接。" };
   }
   if (url.username || url.password || !url.hostname || !parseVersion(url)) {
     return { ok: false, reason: "链接包含不支持的认证信息、主机或版本。" };
@@ -197,9 +198,9 @@ export function parseIterlayDeepLink(rawUrl: string): ParseIterlayDeepLinkResult
     return { ok: true, value: { kind: "import", source }, canonicalUrl };
   }
 
-  return { ok: false, reason: "不支持的 Iterlay 链接。" };
+  return { ok: false, reason: "不支持的 Tuda 链接。" };
 }
 
-export function extractIterlayDeepLinks(argv: readonly string[]): string[] {
-  return argv.filter((value) => value.toLowerCase().startsWith(`${ITERLAY_DEEP_LINK_SCHEME}://`));
+export function extractTudaDeepLinks(argv: readonly string[]): string[] {
+  return argv.filter((value) => value.toLowerCase().startsWith(`${TUDA_DEEP_LINK_SCHEME}://`));
 }

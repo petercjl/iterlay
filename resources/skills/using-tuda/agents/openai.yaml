@@ -1,0 +1,6 @@
+interface:
+  display_name: "Using Tuda"
+  short_description: "手动调用 Tuda，生成编辑图片视频、管理画板素材并验证交付"
+  default_prompt: "Use $using-tuda to complete my request with Tuda and validate the delivered assets."
+policy:
+  allow_implicit_invocation: false

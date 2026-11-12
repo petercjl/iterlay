@@ -100,8 +100,8 @@ export interface AppSettings {
   assistantAgentModeEnabled?: boolean;
   /** Agent 会话启用的 Pi 内置工具。 */
   piAgentBuiltinTools?: PiAgentBuiltinToolName[];
-  /** Agent 会话启用的 Iterlay MCP 工具；Web 搜索和终结工具始终保留。 */
-  piAgentIterlayTools?: string[];
+  /** Agent 会话启用的 Tuda MCP 工具；Web 搜索和终结工具始终保留。 */
+  piAgentTudaTools?: string[];
   /** 已启用的 Skill 文件或目录路径。 */
   piAgentSkillPaths?: string[];
   /** 已启用的 Pi 扩展文件或目录路径。 */
@@ -142,7 +142,7 @@ export interface AppSettings {
   versionSeparationMode?: VersionSeparationMode;
   /** 画板底部主生成按钮样式，默认 folded。 */
   generateButtonStyle?: GenerateButtonStyle;
-  /** 应用图标，默认使用 Iterlay 品牌标志。 */
+  /** 应用图标，默认使用 Tuda 品牌标志。 */
   appIcon?: AppIconPreference;
   /** 用户上传的伙伴头像历史。 */
   customAppIcons?: CustomAppIcon[];

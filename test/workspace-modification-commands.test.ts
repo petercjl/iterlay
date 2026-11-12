@@ -41,7 +41,7 @@ describe("workspace annotation-request completion events", () => {
 
 describe("workspace annotation-request paid execution", () => {
   it("pins the requested source and coalesces two operation IDs into one paid job and one result append", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-workspace-modifications-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-workspace-modifications-"));
     try {
       const boards = new BoardStore(directory), assets = new AssetStore(directory), history = new HistoryStore(directory);
       const bytes = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aWZkAAAAASUVORK5CYII=", "base64");

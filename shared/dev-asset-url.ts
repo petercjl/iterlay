@@ -1,8 +1,8 @@
 /** Same-origin asset endpoint served only by the local browser development bridge. */
-export const DEV_BROWSER_ASSET_PATH_PREFIX = "/__iterlay_dev/assets/";
+export const DEV_BROWSER_ASSET_PATH_PREFIX = "/__tuda_dev/assets/";
 
-const ASSET_URL_PATTERN = /^iterlay-asset:\/\/local\/([A-Za-z0-9_-]+)$/;
-const DEV_ASSET_PATH_PATTERN = /^\/__iterlay_dev\/assets\/([A-Za-z0-9_-]+)$/;
+const ASSET_URL_PATTERN = /^tuda-asset:\/\/local\/([A-Za-z0-9_-]+)$/;
+const DEV_ASSET_PATH_PATTERN = /^\/__tuda_dev\/assets\/([A-Za-z0-9_-]+)$/;
 
 /** Keep the signed opaque token intact; never expose a filesystem path to the browser. */
 export function toDevBrowserAssetUrl(value: string): string {
@@ -26,7 +26,7 @@ export function fromDevBrowserAssetUrl(value: string, origin?: string): string {
     }
   }
   const match = DEV_ASSET_PATH_PATTERN.exec(assetPath);
-  return match ? `iterlay-asset://local/${match[1]}` : value;
+  return match ? `tuda-asset://local/${match[1]}` : value;
 }
 
 export type DevBrowserAssetUrlDirection = "to-browser" | "to-electron";

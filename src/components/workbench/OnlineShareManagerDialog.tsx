@@ -82,7 +82,7 @@ export function OnlineShareManagerDialog({
         <DialogHeader>
           <DialogTitle>{uiText("在线分享管理")}</DialogTitle>
           <DialogDescription>
-            {uiText("管理由 Manager 网络能力维持的在线连接。退出 Iterlay 时会自动关闭。")}</DialogDescription>
+            {uiText("管理由 Manager 网络能力维持的在线连接。退出 Tuda 时会自动关闭。")}</DialogDescription>
         </DialogHeader>
 
         {loading ? (

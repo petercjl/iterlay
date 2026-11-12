@@ -80,7 +80,7 @@ function makeHarness(options: { wait?: (task: VideoRemoteTask, signal?: AbortSig
     saveVideoUploadBytes: vi.fn(async () => "/managed/video-uploads/upload.mp4"),
     saveAudioUploadBytes: vi.fn(async () => "/managed/audio-uploads/upload.mp3"),
     saveImportedImage: vi.fn(),
-    toAssetUrl: vi.fn((value: string) => `iterlay-asset://${value}`)
+    toAssetUrl: vi.fn((value: string) => `tuda-asset://${value}`)
   };
   const boards = {
     getBoard: vi.fn(async () => ({ nodes: [
@@ -185,13 +185,13 @@ describe("video IPC", () => {
     await expect(importVideo({}, bytes, "video/mp4")).resolves.toEqual({
       path: "/managed/video-uploads/upload.mp4",
       mimeType: "video/mp4",
-      videoUrl: "iterlay-asset:///managed/video-uploads/upload.mp4"
+      videoUrl: "tuda-asset:///managed/video-uploads/upload.mp4"
     });
     expect(harness.assets.saveVideoUploadBytes).toHaveBeenCalledWith(Buffer.from(bytes), "video/mp4");
     await expect(importAudio({}, bytes, "audio/mpeg")).resolves.toEqual({
       path: "/managed/audio-uploads/upload.mp3",
       mimeType: "audio/mpeg",
-      audioUrl: "iterlay-asset:///managed/audio-uploads/upload.mp3"
+      audioUrl: "tuda-asset:///managed/audio-uploads/upload.mp3"
     });
     expect(harness.assets.saveAudioUploadBytes).toHaveBeenCalledWith(Buffer.from(bytes), "audio/mpeg");
     expect(capabilities({})).toMatchObject({ provider: "ark", supportsCancel: false });

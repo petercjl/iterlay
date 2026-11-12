@@ -5,7 +5,7 @@ import type {
   LicenseGrantPayload,
   LicenseState
 } from "../../shared/licensing.js";
-import { DEFAULT_CLOCK_ROLLBACK_TOLERANCE_MS, ITERLAY_PRODUCT_ID } from "../../shared/licensing.js";
+import { DEFAULT_CLOCK_ROLLBACK_TOLERANCE_MS, TUDA_PRODUCT_ID } from "../../shared/licensing.js";
 import { detectClockRollback } from "./clock.js";
 import type { VerifiedGrant } from "./grant.js";
 
@@ -69,7 +69,7 @@ export function evaluateLicenseState(input: LicenseEvaluationInput): LicenseEval
   if (input.lastServerState === "RESTRICTED") {
     return evaluation("RESTRICTED", "restricted_by_server", { ...common, ...timing });
   }
-  if (payload.productId !== (input.expectedProductId ?? ITERLAY_PRODUCT_ID)) {
+  if (payload.productId !== (input.expectedProductId ?? TUDA_PRODUCT_ID)) {
     return evaluation("RESTRICTED", "product_mismatch", { ...common, ...timing });
   }
   if (payload.deviceId !== input.expectedDeviceId) {

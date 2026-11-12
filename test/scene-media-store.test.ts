@@ -11,7 +11,7 @@ afterEach(async () => {
 });
 
 async function createStore(): Promise<SceneMediaStore> {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-scene-media-"));
+  const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-scene-media-"));
   temporaryDirectories.push(directory);
   return new SceneMediaStore(directory);
 }

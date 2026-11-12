@@ -8,7 +8,7 @@ describe("CommentStore", () => {
   let directory: string;
 
   beforeEach(async () => {
-    directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-comments-"));
+    directory = await mkdtemp(path.join(os.tmpdir(), "tuda-comments-"));
   });
 
   afterEach(async () => {

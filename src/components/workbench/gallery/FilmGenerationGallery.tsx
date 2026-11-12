@@ -365,7 +365,7 @@ export const FilmGenerationGallery = memo(function FilmGenerationGallery({
                       <span className="text-[11px] text-white/72">{gallerySourceLabel(item.source)}</span>
                   </span>
                 </span>
-                <span aria-hidden className="gallery-film-stock">ITERLAY 35</span>
+                <span aria-hidden className="gallery-film-stock">TUDA 35</span>
                 <span aria-hidden className="gallery-film-frame-number">{String(index + 1).padStart(2, "0")}</span>
                 <FilmSprockets position="bottom" />
               </button>

@@ -8,7 +8,7 @@ const argument = (name) => {
   const index = process.argv.indexOf(name);
   return index < 0 ? undefined : process.argv[index + 1];
 };
-const appPath = path.resolve(argument("--app-path") ?? path.join(root, "release/mac-arm64/Iterlay.app"));
+const appPath = path.resolve(argument("--app-path") ?? path.join(root, "release/mac-arm64/Tuda.app"));
 const reportPath = path.resolve(argument("--report") ?? path.join(root, "output/package-size/report.json"));
 const isMacApp = appPath.endsWith(".app");
 const resources = path.join(appPath, isMacApp ? "Contents/Resources" : "resources");
@@ -23,7 +23,7 @@ const violations = [];
 try {
   const sandbox = asar.extractFile(asarPath, path.join("dist", "code-sandbox", "index.html")).toString("utf8");
   const script = sandbox.match(/<script\b([^>]*)>/iu);
-  if (!script || /\bsrc\s*=/iu.test(script[1]) || !sandbox.includes("iterlay-code-sandbox")) {
+  if (!script || /\bsrc\s*=/iu.test(script[1]) || !sandbox.includes("tuda-code-sandbox")) {
     violations.push("Canvas sandbox must include its runtime inline for file:// loading");
   }
   if (!entries.includes("/dist/code-sandbox/LICENSES.txt")) violations.push("Missing Canvas runtime licenses");

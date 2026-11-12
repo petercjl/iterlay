@@ -27,7 +27,7 @@ import {
 import type { CopyImageFormat } from "@shared/types";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { iterlayToast } from "@/components/ui/iterlay-toast";
+import { tudaToast } from "@/components/ui/tuda-toast";
 import { copyImageDataUrlToClipboard } from "@/lib/clipboard-images";
 import { EASE_OUT } from "@/lib/motion";
 import { resolveImageToolbarSide } from "../image-toolbar-position";
@@ -136,7 +136,7 @@ export function ImageNodeToolbar({
     setIsCopyingToClipboard(true);
     try {
       await copyImageDataUrlToClipboard(image.dataUrl, copyImageFormat);
-      iterlayToast.copied({ title: translateSourceText("已复制图片"), detail: translateSourceText("可粘贴到其他应用") });
+      tudaToast.copied({ title: translateSourceText("已复制图片"), detail: translateSourceText("可粘贴到其他应用") });
     } catch {
       toast.error(translateSourceText("无法复制图片到剪贴板"));
     } finally {

@@ -113,7 +113,7 @@ import type {
 } from "./mastergo-reconstruction.js";
 import { PI_AGENT_LOG_EVENT_CHANNEL, type PiAgentLogEntry, type PiAgentLogSnapshot } from "./pi-agent-log.js";
 import { UPDATE_STATE_CHANNEL, type UpdateChannel, type UpdateStateSnapshot } from "./app-update.js";
-import { ITERLAY_DEEP_LINK_CHANNEL, ITERLAY_DEEP_LINK_READY_CHANNEL } from "./deep-link.js";
+import { TUDA_DEEP_LINK_CHANNEL, TUDA_DEEP_LINK_READY_CHANNEL } from "./deep-link.js";
 import type { AgentSkillUpgradeDetail } from "./agent-integration.js";
 import type { AssistantSkillDetail, AssistantSkillSummary, PiAgentResourceDetail, PiAgentResourceInventory } from "./types.js";
 import {
@@ -182,10 +182,10 @@ export function createWorkbenchClient(transport: WorkbenchTransport) {
     return transport.on(WINDOW_SAVE_REQUEST, handler);
   },
   activateDeepLinks: () =>
-    transport.invoke(ITERLAY_DEEP_LINK_READY_CHANNEL) as Promise<string[]>,
+    transport.invoke(TUDA_DEEP_LINK_READY_CHANNEL) as Promise<string[]>,
   onDeepLink: (listener: (url: string) => void) => {
     const handler = (url: string): void => listener(url);
-    return transport.on(ITERLAY_DEEP_LINK_CHANNEL, handler);
+    return transport.on(TUDA_DEEP_LINK_CHANNEL, handler);
   },
   getUpdateState: () => transport.invoke("update:getState") as Promise<UpdateStateSnapshot>,
   checkForUpdates: () => transport.invoke("update:check") as Promise<UpdateStateSnapshot>,

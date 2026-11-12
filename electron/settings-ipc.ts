@@ -87,7 +87,7 @@ export function registerSettingsIpc({
       boardAssistantAgentModeEnabled: payload.boardAssistantAgentModeEnabled,
       assistantAgentModeEnabled: payload.assistantAgentModeEnabled,
       piAgentBuiltinTools: payload.piAgentBuiltinTools,
-      piAgentIterlayTools: payload.piAgentIterlayTools,
+      piAgentTudaTools: payload.piAgentTudaTools,
       piAgentSkillPaths: payload.piAgentSkillPaths,
       piAgentExtensionPaths: payload.piAgentExtensionPaths,
       piAgentCustomSkillPaths: payload.piAgentCustomSkillPaths,

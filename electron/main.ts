@@ -10,7 +10,7 @@ import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
 import { removeConnectedBackground } from "../shared/background-removal.js";
-import { extractIterlayDeepLinks, ITERLAY_DEEP_LINK_SCHEME } from "../shared/deep-link.js";
+import { extractTudaDeepLinks, TUDA_DEEP_LINK_SCHEME } from "../shared/deep-link.js";
 import { resolveAppLocale, type ResolvedAppLocale } from "../shared/i18n.js";
 import type { AppIconPreference, CustomAppIcon, ProviderConfig, ProviderGenerateInput } from "../shared/types.js";
 import { VIDEO_SEQUENCE_EVENT_CHANNEL } from "../shared/video-sequence.js";
@@ -64,7 +64,8 @@ import { ThumbHashStore } from "./storage/thumbhash-store.js";
 import { VideoSequenceStore } from "./storage/video-sequence-store.js";
 import { VideoSequenceTemplateStore } from "./storage/video-sequence-template-store.js";
 import { VideoTaskStore } from "./storage/video-task-store.js";
-import { GitHubUpdateApiClient } from "./updater/github-api-client.js";
+import { NpmUpdateApiClient } from "./updater/npm-api-client.js";
+import { BRAND } from "../shared/brand.js";
 import {
   AppUpdateService,
   DirectDownloadDriver,
@@ -77,17 +78,16 @@ import { createVideoSubmitInputNormalizer } from "./video-reference-image.js";
 import type { VideoSequenceTask } from "./video-sequence-types.js";
 import { VideoSequenceScheduler } from "./video/video-sequence-scheduler.js";
 import { resolveWindowFrameOptions, resolveWindowsTitleBarOverlay } from "./window-chrome.js";
-import { migrateLegacyWorkspace } from "./workspace-migration.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const APP_NAME = "Iterlay";
-const APP_ID = "dev.dong.iterlay";
+const APP_NAME = BRAND.name;
+const APP_ID = BRAND.appId;
 const UPDATE_QUIT_FEEDBACK_DELAY_MS = 1_200;
 // performance.now() starts with the Node runtime, before ESM dependencies load.
 // Starting the clock here would hide the cost of the entire static import graph.
 const processStartedAt = 0;
 // A packaged app ignores all browser-development flags.
-const isBrowserDev = !app.isPackaged && process.env.ITERLAY_BROWSER_DEV === "1";
+const isBrowserDev = !app.isPackaged && process.env.TUDA_BROWSER_DEV === "1";
 const backgroundSession = new BackgroundSession(
   !isBrowserDev && process.argv.includes(CLI_BACKGROUND_FLAG),
   () => BrowserWindow.getAllWindows().find((window) => !window.isDestroyed()),
@@ -146,8 +146,8 @@ function normalizeGeneratedPhotoEdit(bytes: Buffer, width: number, height: numbe
 }
 
 if (isBrowserDev) {
-  const userData = process.env.ITERLAY_BROWSER_DEV_USER_DATA;
-  if (!userData || !process.env.ITERLAY_BROWSER_DEV_BRIDGE_CONFIG || !process.env.VITE_DEV_SERVER_URL) {
+  const userData = process.env.TUDA_BROWSER_DEV_USER_DATA;
+  if (!userData || !process.env.TUDA_BROWSER_DEV_BRIDGE_CONFIG || !process.env.VITE_DEV_SERVER_URL) {
     throw new Error("请使用 pnpm dev 启动网页调试，以确保独立的开发工作区。");
   }
   app.setPath("userData", path.resolve(userData));
@@ -166,6 +166,12 @@ if (isBrowserDev) {
   }
 }
 app.setName(APP_NAME);
+if (app.isPackaged) {
+  const userData = path.join(app.getPath("appData"), BRAND.name);
+  app.setPath("userData", userData);
+  app.setPath("sessionData", path.join(userData, "session"));
+  app.setAppLogsPath(path.join(userData, "logs"));
+}
 if (process.platform === "win32") {
   app.setAppUserModelId(APP_ID);
 }
@@ -193,9 +199,9 @@ let guardWindowClose: ((window: BrowserWindow) => void) | undefined;
     console.error("Unable to initialize runtime logs", error);
   }
 }
-const hasSingleInstanceLock = process.env.ITERLAY_PLAYWRIGHT === "1" ? true : app.requestSingleInstanceLock();
+const hasSingleInstanceLock = process.env.TUDA_PLAYWRIGHT === "1" ? true : app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) {
-  console.error(`Iterlay 工作区已被另一个实例占用：${app.getPath("userData")}${isBrowserDev ? "。请先停止该目录的旧开发后端，再运行 pnpm dev。" : ""}`);
+  console.error(`Tuda 工作区已被另一个实例占用：${app.getPath("userData")}${isBrowserDev ? "。请先停止该目录的旧开发后端，再运行 pnpm dev。" : ""}`);
   app.quit();
 } else {
   registerDeepLinkIpc();
@@ -206,9 +212,9 @@ if (!hasSingleInstanceLock) {
   });
   app.on("second-instance", (_event, argv) => {
     if (!isBrowserDev && !argv.includes(CLI_BACKGROUND_FLAG)) backgroundSession.requestForeground();
-    for (const url of extractIterlayDeepLinks(argv)) dispatchDeepLink(url);
+    for (const url of extractTudaDeepLinks(argv)) dispatchDeepLink(url);
   });
-  for (const url of extractIterlayDeepLinks(process.argv)) {
+  for (const url of extractTudaDeepLinks(process.argv)) {
     if (!isBrowserDev) backgroundSession.requestForeground();
     dispatchDeepLink(url);
   }
@@ -226,7 +232,7 @@ function installApplicationMenu(
     try {
       const result = await dialog.showSaveDialog({
         title,
-        defaultPath: path.join(app.getPath("downloads"), `Iterlay-logs-${new Date().toISOString().replace(/[:.]/g, "-")}.zip`),
+        defaultPath: path.join(app.getPath("downloads"), `Tuda-logs-${new Date().toISOString().replace(/[:.]/g, "-")}.zip`),
         filters: [{ name: "ZIP", extensions: ["zip"] }],
         message: locale === "zh-CN"
           ? "导出当前保留的运行和助手日志。日志可能包含提示词、文件路径等隐私信息，请检查后再分享。"
@@ -270,9 +276,9 @@ async function showLoadFailure(
   if (isBrowserDev || backgroundSession.hidden) throw new Error(`后台加载失败：${description}`);
   const detail = description.replace(/[<>&]/g, "");
   const copy = locale === "zh-CN"
-    ? { title: "Iterlay 未能完成加载", description: "本地工作区没有被修改。", reload: "重新加载" }
-    : { title: "Iterlay could not finish loading", description: "Your local workspace was not modified. ", reload: "Reload" };
-  const html = `<!doctype html><html lang="${locale}"><meta charset="utf-8"><title>Iterlay</title><style>body{margin:0;display:grid;min-height:100vh;place-items:center;background:#fafafa;color:#171717;font:14px system-ui,sans-serif;-webkit-app-region:drag}.box{max-width:420px;padding:32px;text-align:center}h1{font-size:17px}p{line-height:1.65;color:#666}button{height:36px;border:0;border-radius:6px;padding:0 16px;background:#171717;color:white;font:inherit;cursor:pointer;-webkit-app-region:no-drag}</style><div class="box"><h1>${copy.title}</h1><p>${copy.description}${detail}</p><button onclick="location.reload()">${copy.reload}</button></div></html>`;
+    ? { title: "Tuda 未能完成加载", description: "本地工作区没有被修改。", reload: "重新加载" }
+    : { title: "Tuda could not finish loading", description: "Your local workspace was not modified. ", reload: "Reload" };
+  const html = `<!doctype html><html lang="${locale}"><meta charset="utf-8"><title>Tuda</title><style>body{margin:0;display:grid;min-height:100vh;place-items:center;background:#fafafa;color:#171717;font:14px system-ui,sans-serif;-webkit-app-region:drag}.box{max-width:420px;padding:32px;text-align:center}h1{font-size:17px}p{line-height:1.65;color:#666}button{height:36px;border:0;border-radius:6px;padding:0 16px;background:#171717;color:white;font:inherit;cursor:pointer;-webkit-app-region:no-drag}</style><div class="box"><h1>${copy.title}</h1><p>${copy.description}${detail}</p><button onclick="location.reload()">${copy.reload}</button></div></html>`;
   await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
   if (!win.isVisible()) win.show();
 }
@@ -287,7 +293,7 @@ function createWindowFrame(
     height: 840,
     minWidth: 980,
     minHeight: 680,
-    title: "Iterlay",
+    title: "Tuda",
     icon: loadAppIcon(appIcon, customAppIcons),
     show: false,
     backgroundColor: startupBackground(theme),
@@ -304,7 +310,7 @@ function createWindowFrame(
   guardWindowClose?.(win);
   win.on("show", () => { if (!isBrowserDev) backgroundSession.didShow(); });
   const openLink = (url: string): void => {
-    if (url.toLowerCase().startsWith("iterlay:")) dispatchDeepLink(url);
+    if (url.toLowerCase().startsWith("tuda:")) dispatchDeepLink(url);
     else if (allowedExternalUrl(url)) void shell.openExternal(url);
   };
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -323,11 +329,11 @@ function createWindowFrame(
   });
   win.webContents.on("did-fail-load", (_event, errorCode, errorDescription, _url, isMainFrame) => {
     if (!isMainFrame || errorCode === -3) return;
-    console.error("Iterlay main document failed to load", errorCode, errorDescription);
+    console.error("Tuda main document failed to load", errorCode, errorDescription);
     void showLoadFailure(win, errorDescription).catch((error) => console.error("加载失败提示未显示", error));
   });
   win.webContents.on("render-process-gone", (_event, details) => {
-    console.error("Iterlay renderer process exited", details.reason, details.exitCode);
+    console.error("Tuda renderer process exited", details.reason, details.exitCode);
   });
 
   return win;
@@ -348,9 +354,9 @@ async function loadApplication(win: BrowserWindow, theme: WindowTheme = "system"
     if (!app.isPackaged && process.env.VITE_DEV_SERVER_URL) {
       const url = new URL(process.env.VITE_DEV_SERVER_URL);
       url.searchParams.set("bootTheme", bootTheme);
-      if (isBrowserDev) url.searchParams.set("__iterlay_backend", "1");
+      if (isBrowserDev) url.searchParams.set("__tuda_backend", "1");
       await win.loadURL(url.toString());
-      if (!isBrowserDev && !backgroundSession.hidden && process.env.ITERLAY_PLAYWRIGHT !== "1") {
+      if (!isBrowserDev && !backgroundSession.hidden && process.env.TUDA_PLAYWRIGHT !== "1") {
         win.webContents.openDevTools({ mode: "detach" });
       }
     } else {
@@ -360,7 +366,7 @@ async function loadApplication(win: BrowserWindow, theme: WindowTheme = "system"
     // macOS mouse back/forward buttons can navigate to it after the workbench is ready.
     win.webContents.navigationHistory.clear();
   } catch (error) {
-    console.error("Iterlay window load failed", error);
+    console.error("Tuda window load failed", error);
     await showLoadFailure(win, error instanceof Error ? error.message : "请重新加载后重试。");
   }
 }
@@ -377,7 +383,7 @@ async function createWindow(
 
 app.whenReady().then(async () => {
   if (!hasSingleInstanceLock) return;
-  if (app.isPackaged) app.setAsDefaultProtocolClient(ITERLAY_DEEP_LINK_SCHEME);
+  if (app.isPackaged) app.setAsDefaultProtocolClient(TUDA_DEEP_LINK_SCHEME);
   guardWindowClose = installWindowLifecycle(
     async () => { await waitForStorageMutations(); await flushHistoryStore?.(); await Promise.all([flushAgentLogs?.(), runtimeLog?.flush()]); },
     isBrowserDev ? () => browserDevBridge?.flush() ?? Promise.resolve() : undefined,
@@ -413,7 +419,7 @@ app.whenReady().then(async () => {
     import("./ipc.js"),
     import("./mastergo-bridge.js"),
     (async () => {
-      if (!isBrowserDev) await migrateLegacyWorkspace(dataDir, app.getPath("appData"));
+      // Tuda uses explicit board import; never auto-adopts another application workspace.
       startupMark("workspace-migrated");
     })()
   ]);
@@ -473,7 +479,7 @@ app.whenReady().then(async () => {
   const thumbHashes = new ThumbHashStore(dataDir);
   const sceneMedia = new SceneMediaStore(dataDir);
   const license = new LicenseService();
-  const manageApiBaseUrl = process.env.ITERLAY_LICENSE_API_URL?.trim() ?? "";
+  const manageApiBaseUrl = process.env.TUDA_LICENSE_API_URL?.trim() ?? "";
   const videoService = new VideoGenerationService(
     defaultVideoProviders(),
     createVideoSubmitInputNormalizer((bytes) => nativeImage.createFromBuffer(bytes))
@@ -590,7 +596,7 @@ app.whenReady().then(async () => {
     currentVersion: app.getVersion(),
     platform: updatePlatform,
     arch: process.arch === "arm64" ? "arm64" : "x64",
-    apiClient: new GitHubUpdateApiClient((input, init) => net.fetch(input instanceof URL ? input.toString() : input, init)),
+    apiClient: new NpmUpdateApiClient((input, init) => net.fetch(input instanceof URL ? input.toString() : input, init)),
     driver: new DirectDownloadDriver({
       downloadDir: path.join(app.getPath("userData"), "updates"),
       platform: updatePlatform,
@@ -1053,7 +1059,7 @@ app.whenReady().then(async () => {
   if (isBrowserDev) {
     const { startDevBrowserBridge } = await import("./dev-browser-bridge.js");
     browserDevBridge = await startDevBrowserBridge(startupWindow, assets,
-      process.env.ITERLAY_BROWSER_DEV_BRIDGE_CONFIG!, new URL(process.env.VITE_DEV_SERVER_URL!).origin);
+      process.env.TUDA_BROWSER_DEV_BRIDGE_CONFIG!, new URL(process.env.VITE_DEV_SERVER_URL!).origin);
     console.info("[browser-dev] 网页真实服务已就绪，桌面编辑器未启动。");
   }
   backgroundSession.markReady();
@@ -1095,7 +1101,7 @@ app.whenReady().then(async () => {
     if (!runtimeLog) app.exit(1);
     return;
   }
-  dialog.showErrorBox("Iterlay 启动失败", error instanceof Error ? error.message : String(error));
+  dialog.showErrorBox("Tuda 启动失败", error instanceof Error ? error.message : String(error));
 });
 
 app.on("window-all-closed", () => {

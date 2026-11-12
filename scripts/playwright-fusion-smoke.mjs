@@ -5,15 +5,15 @@ import { _electron as electron } from "playwright";
 import { OnboardingStore } from "../dist-electron/electron/storage/onboarding-store.js";
 
 const root = process.cwd();
-const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "iterlay-fusion-qa-"));
+const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "tuda-fusion-qa-"));
 const onboarding = new OnboardingStore(path.join(dataDirectory, "workspace"));
-for (const id of ["board", "library", "gallery", "edit"]) onboarding.markSeen(`iterlay.onboarding.${id}.v1`, "completed");
+for (const id of ["board", "library", "gallery", "edit"]) onboarding.markSeen(`tuda.onboarding.${id}.v1`, "completed");
 const output = path.join(root, "output", "playwright", "fusion");
 await mkdir(output, { recursive: true });
 const application = await electron.launch({
   args: [path.join(root, "scripts", "electron-fusion-qa.mjs")],
   cwd: root,
-  env: { ...process.env, ITERLAY_PLAYWRIGHT: "1", ITERLAY_QA_DATA_DIR: dataDirectory, VITE_DEV_SERVER_URL: "http://127.0.0.1:5180" },
+  env: { ...process.env, TUDA_PLAYWRIGHT: "1", TUDA_QA_DATA_DIR: dataDirectory, VITE_DEV_SERVER_URL: "http://127.0.0.1:5180" },
   timeout: 60_000
 });
 application.process().stderr?.on("data", (data) => process.stderr.write(data));
@@ -40,7 +40,7 @@ try {
   page.on("pageerror", (error) => errors.push(error.message));
   const checks = [];
   const fusion = page.locator(".prompt-fusion");
-  if (!process.env.ITERLAY_DRAG_ONLY) {
+  if (!process.env.TUDA_DRAG_ONLY) {
   await page.setViewportSize({ width: 1440, height: 900 });
   for (const [size, expected] of [["small", 460], ["medium", 560], ["large", 660], ["maximum", 760]]) {
     await page.evaluate(async (size) => {

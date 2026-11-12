@@ -80,7 +80,7 @@ describe("typed workspace image tasks", () => {
     await vi.waitFor(async () => expect(await f.commands.call("get_generation_status", { generationId: task.generationId })).toMatchObject({ status: "unknown", error: "provider unavailable" }));
   });
   it("loads completed operation metadata after constructing a new runtime", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "iterlay-mcp-task-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-mcp-task-"));
     try {
       const f = workspaceFixture();
       const api = f.mocks as unknown as WorkspaceApi;
