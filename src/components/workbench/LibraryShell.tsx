@@ -62,6 +62,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Pencil,
+  Plus,
+  Sparkles,
   RadioTower,
   RefreshCw,
   Settings,
@@ -206,6 +208,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
   const [sidebarDeleteTarget, setSidebarDeleteTarget] = useState<BoardSummary | null>(null);
   const [isDeletingSidebarBoard, setIsDeletingSidebarBoard] = useState(false);
   const [boardLibraryLocked, setBoardLibraryLocked] = useState(false);
+  const [currentLibraryFolder, setCurrentLibraryFolder] = useState<string | null>(null);
   const [onlineShareManagerOpen, setOnlineShareManagerOpen] = useState(false);
   const [trashedBoards, setTrashedBoards] = useState<TrashedBoardSummary[]>([]);
   const [trashRetentionDays, setTrashRetentionDays] = useState<BoardTrashRetentionDays>(3);
@@ -571,10 +574,23 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
 
         <button
           type="button"
+          aria-label={uiText("新建画板")}
+          title={uiText("新建画板")}
+          disabled={boardLibraryLocked || Boolean(openingBoardId)}
+          onClick={() => props.onCreateBoard(tab === "boards" ? currentLibraryFolder : null)}
+          className="library-sidebar-new-board mx-3 mb-2 flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg px-3 text-[13px] font-semibold transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 [-webkit-app-region:no-drag]"
+        >
+          <Plus className="h-4 w-4 shrink-0" />
+          <span className="library-sidebar-label">{uiText("新建画板")}</span>
+        </button>
+
+        <button
+          type="button"
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => { event.stopPropagation(); setTab("create"); }}
-          className="library-sidebar-create relative mx-3 mb-2 flex h-9 shrink-0 items-center justify-center gap-2 overflow-hidden rounded-md bg-foreground px-3 text-[13px] font-semibold text-background transition-[background-color,transform] duration-150 hover:bg-foreground/90 active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-[oklch(var(--library-sidebar))] motion-reduce:transition-none [-webkit-app-region:no-drag]"
+          className="library-sidebar-create relative mx-3 mb-2 flex h-9 shrink-0 items-center justify-center gap-2 overflow-hidden rounded-lg bg-teal-50 px-3 text-[13px] font-medium text-teal-700 transition-[background-color,transform] duration-150 hover:bg-teal-100 active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-[oklch(var(--library-sidebar))] motion-reduce:transition-none [-webkit-app-region:no-drag]"
         >
+          <Sparkles className="h-4 w-4 shrink-0" />
           <span>{uiText("创作助手")}</span>
         </button>
 
@@ -773,7 +789,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
 
         <div
           data-tour="library-settings"
-          className="library-sidebar-footer library-sidebar-footer--graphite flex shrink-0 flex-col gap-1 border-t border-border px-2 py-2 [-webkit-app-region:no-drag]"
+          className="library-sidebar-footer library-sidebar-footer--soft flex shrink-0 flex-col gap-1 border-t border-border px-2 py-2 [-webkit-app-region:no-drag]"
         >
           {ONLINE_SHARING_AVAILABLE ? <CompactSidebarTooltip compact={compactSidebar} label={uiText("在线分享管理")}>
             <button
@@ -863,6 +879,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
             ) : tab === "boards" ? (
               <BoardFileManager
                 {...props}
+                onFolderChange={setCurrentLibraryFolder}
                 onDeleteBoard={moveBoardToTrash}
                 onInteractionLockChange={setBoardLibraryLocked}
               />

@@ -39,6 +39,7 @@ import { cn } from "@/lib/utils";
 import { groupActiveBoardGenerations, type ActiveBoardGeneration } from "@/lib/active-board-generation";
 
 export interface BoardLibraryProps {
+  hideCreateAction?: boolean;
   navigation?: ReactNode;
   sidebar?: ReactNode;
   selectedIds?: Set<string>;
@@ -69,6 +70,7 @@ type BoardView = "grid" | "list";
 const SEARCH_SHORTCUT_LABEL = /Mac|iPhone|iPad/i.test(navigator.userAgent) ? "⌘K" : "Ctrl K";
 
 export function BoardLibrary({
+  hideCreateAction = false,
   navigation, sidebar, selectedIds, onSelectBoard, onMoveBoard, onDragBoard, externalBusy = false,
   boards,
   activeBoardGenerations = [],
@@ -462,9 +464,9 @@ export function BoardLibrary({
             )}
             {isImporting ? uiText("导入中") : uiText("导入")}
           </Button>
-            <Button size="sm" className="gap-1.5" disabled={interactionLocked} onClick={onCreateBoard}>
+            {!hideCreateAction && <Button size="sm" className="gap-1.5" disabled={interactionLocked} onClick={onCreateBoard}>
               <Plus className="h-4 w-4" />
-              {uiText("新建画板")}</Button>
+              {uiText("新建画板")}</Button>}
         </div>
       </header>
 

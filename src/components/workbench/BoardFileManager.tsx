@@ -57,6 +57,7 @@ interface Props extends Omit<
   BoardLibraryProps,
   "onCreateBoard" | "onImportBoard" | "onImportBoardFiles"
 > {
+  onFolderChange?: (folderId: string | null) => void;
   onCreateBoard: (folderId?: string | null) => void;
   onImportBoard: (folderId?: string | null) => Promise<void>;
   onImportBoardFiles: (
@@ -70,10 +71,11 @@ const keyOf = (item: LibraryItem) => `${item.kind}:${item.id}`;
 export function BoardFileManager(props: Props) {
   const t = useUiText(),
     space = useEnterpriseStatus();
-  const { onInteractionLockChange } = props;
+  const { onInteractionLockChange, onFolderChange } = props;
   const [library, setLibrary] = useState<BoardLibraryState | null>(null);
   const [error, setError] = useState("");
   const [current, setCurrent] = useState<string | null>(null);
+  useEffect(() => { onFolderChange?.(current); }, [current, onFolderChange]);
   const [selected, setSelected] = useState<LibraryItem[]>([]);
   const [cut, setCut] = useState<LibraryItem[]>([]);
   const [busy, setBusy] = useState(false);
@@ -334,6 +336,7 @@ export function BoardFileManager(props: Props) {
     >
       <BoardLibrary
         {...props}
+        hideCreateAction
         boards={visibleBoards}
         externalBusy={busy || !library || Boolean(error)}
         onInteractionLockChange={onChildLock}
@@ -366,6 +369,16 @@ export function BoardFileManager(props: Props) {
             aria-label={t("文件夹导航")}
             className="hidden w-44 shrink-0 overflow-y-auto border-r bg-background/50 p-2 md:block"
           >
+            <Button
+              size="sm"
+              variant="outline"
+              className="mb-3 w-full justify-start gap-2 border-blue-200/70 bg-background/80 text-blue-700 hover:bg-blue-50 dark:border-blue-900 dark:text-blue-300 dark:hover:bg-blue-950"
+              disabled={locked || readOnly}
+              onClick={() => setNameDialog({ kind: "folder", name: "" })}
+            >
+              <FolderPlus className="h-4 w-4" />
+              {t("新建文件夹")}
+            </Button>
             <button
               type="button"
               disabled={locked || modal}
@@ -435,6 +448,7 @@ export function BoardFileManager(props: Props) {
               <Button
                 size="sm"
                 variant="outline"
+                className="md:hidden"
                 disabled={locked || readOnly}
                 onClick={() => setNameDialog({ kind: "folder", name: "" })}
               >

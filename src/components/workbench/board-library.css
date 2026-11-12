@@ -94,3 +94,9 @@
   border-radius: 8px;
   background: hsl(217 91% 60% / .06);
 }
+
+.board-library .bg-primary {
+  background-color: hsl(216 87% 54%);
+  color: white;
+}
+.board-library .bg-primary:hover { background-color: hsl(216 87% 48%); }
