@@ -74,7 +74,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          TARBALL="candidate/petercjl-tuda-$PACKAGE_VERSION.tgz"
+          TARBALL="$PWD/candidate/petercjl-tuda-$PACKAGE_VERSION.tgz"
           test -f "$TARBALL"
           npm publish "$TARBALL" --access public --provenance --tag "$DIST_TAG"
-          node --input-type=module -e 'const r=await fetch("https://registry.npmjs.org/@petercjl%2ftuda/"+process.env.PACKAGE_VERSION);if(!r.ok)throw Error("Published version unavailable");const p=await r.json();if(p.version!==process.env.PACKAGE_VERSION)throw Error("Version drift");const t=await fetch("https://registry.npmjs.org/-/package/@petercjl%2ftuda/dist-tags").then(r=>r.json());if(t[process.env.DIST_TAG]!==p.version)throw Error("Dist-tag drift")'
+          node --input-type=module <<'JS'
+          let verified = false;
+          for (let attempt = 0; attempt < 90; attempt++) {
+            const packageUrl = "https://registry.npmjs.org/@petercjl%2ftuda/" + process.env.PACKAGE_VERSION;
+            const r = await fetch(packageUrl, {signal: AbortSignal.timeout(8000)}).catch(() => null);
+            if (r?.ok) {
+              const p = await r.json();
+              const t = await fetch("https://registry.npmjs.org/-/package/@petercjl%2ftuda/dist-tags", {signal: AbortSignal.timeout(8000)}).then(r => r.json()).catch(() => ({}));
+              if (p.version === process.env.PACKAGE_VERSION && t[process.env.DIST_TAG] === p.version) { verified = true; break; }
+            }
+            await new Promise(resolve => setTimeout(resolve, 4000));
+          }
+          if (!verified) throw Error("Published version and dist-tag not yet verified; inspect registry before any retry");
+          console.log("Registry version and dist-tag verified");
+          JS
