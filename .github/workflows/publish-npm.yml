@@ -156,9 +156,9 @@ jobs:
           set -euo pipefail
           VERSION=$(node -p 'require("./desktop-package/package.json").version')
           if [[ "$VERSION" == *-* && "$DIST_TAG" != next ]]; then exit 1; fi
-          INSTALLER="$(find candidate -name 'Tuda-*.exe' -type f)"
-          TARBALL="$(find candidate -name '*.tgz' -type f ! -name '*-payload.*')"
-          MANIFEST="$(find candidate -name release-manifest.json -type f)"
+          INSTALLER="$(find "$PWD/candidate" -name 'Tuda-*.exe' -type f)"
+          TARBALL="$(find "$PWD/candidate" -name '*.tgz' -type f ! -name '*-payload.*')"
+          MANIFEST="$(find "$PWD/candidate" -name release-manifest.json -type f)"
           node -e 'const fs=require("fs"),c=require("crypto"),m=JSON.parse(fs.readFileSync(process.argv[1])),b=fs.readFileSync(process.argv[2]);if(c.createHash("sha256").update(b).digest("hex")!==m.installers[0].sha256)throw Error("installer integrity")' "$MANIFEST" "$INSTALLER"
           tar -xzf "$TARBALL" -C candidate
           node -e 'const p=require("./candidate/package/package.json"),m=require(process.argv[1]);if(JSON.stringify(p.tudaRelease)!==JSON.stringify(m))throw Error("manifest drift")' "$(realpath "$MANIFEST")"
@@ -171,7 +171,7 @@ jobs:
             else
               npm publish "$PAYLOAD" --access public --provenance --tag payload
             fi
-          done < <(find candidate -name '*-payload.*.tgz' -type f -print0)
+          done < <(find "$PWD/candidate" -name '*-payload.*.tgz' -type f -print0)
           fi
           node scripts/verify-npm-release.mjs "$MANIFEST"
           EXPECTED_INTEGRITY=$(node -e 'const c=require("crypto"),f=require("fs");console.log("sha512-"+c.createHash("sha512").update(f.readFileSync(process.argv[1])).digest("base64"))' "$TARBALL")
