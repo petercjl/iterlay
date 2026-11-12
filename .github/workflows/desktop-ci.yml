@@ -30,7 +30,7 @@ jobs:
   browser-smoke:
     runs-on: macos-14
     env:
-      ITERLAY_BROWSER_DEV_USER_DATA: ${{ github.workspace }}/tmp/iterlay-ci-user-data
+      TUDA_BROWSER_DEV_USER_DATA: ${{ github.workspace }}/tmp/tuda-ci-user-data
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -47,10 +47,10 @@ jobs:
       - name: Verify the isolated browser workbench
         shell: bash
         run: |
-          pnpm dev > "$RUNNER_TEMP/iterlay-browser-dev.log" 2>&1 &
+          pnpm dev > "$RUNNER_TEMP/tuda-browser-dev.log" 2>&1 &
           launcher_pid=$!
           trap 'kill -INT "$launcher_pid" 2>/dev/null || true' EXIT
-          pnpm exec wait-on --timeout 180000 "$ITERLAY_BROWSER_DEV_USER_DATA/browser-dev-bridge.json" http-get://127.0.0.1:5180
+          pnpm exec wait-on --timeout 180000 "$TUDA_BROWSER_DEV_USER_DATA/browser-dev-bridge.json" http-get://127.0.0.1:5180
           pnpm test:browser:smoke
       - uses: actions/upload-artifact@v4
         if: failure()
@@ -58,7 +58,7 @@ jobs:
           name: browser-smoke-diagnostics
           path: |
             output/playwright
-            ${{ runner.temp }}/iterlay-browser-dev.log
+            ${{ runner.temp }}/tuda-browser-dev.log
   desktop-smoke:
     if: github.event_name == 'workflow_dispatch' && inputs.run_desktop_smoke
     runs-on: macos-14

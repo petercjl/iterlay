@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { access, chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { access, chmod, mkdir, readFile, realpath, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
@@ -23,11 +23,19 @@ const quote = (value: string): string => "'" + value.replace(/'/gu, "'\\''") + "
 export function cliInstallPath(homeDir: string, platform: NodeJS.Platform = process.platform): string {
   return path.join(homeDir, ".local", "bin", platform === "win32" ? "tuda.cmd" : "tuda");
 }
+async function isNpmCli(target: string): Promise<boolean> {
+  try {
+    const entry = await realpath(target);
+    if (path.basename(entry) !== "main.js" || path.basename(path.dirname(entry)) !== "dist") return false;
+    const pkg = JSON.parse(await readFile(path.join(path.dirname(entry), "..", "package.json"), "utf8"));
+    return pkg.name === "@petercjl/tuda" && pkg.bin?.tuda === "dist/main.js";
+  } catch { return false; }
+}
 export async function getCliInstallationStatus(homeDir: string): Promise<CliInstallationStatus> {
   const target = cliInstallPath(homeDir);
   const content = await readFile(target, "utf8").catch(() => "");
   const profile = (await Promise.all([".zshrc", ".bashrc"].map((name) => readFile(path.join(homeDir, name), "utf8").catch(() => "")))).join("\n");
-  return { installed: content.includes("Tuda CLI (managed by Tuda)"), path: target, pathConfigured: (process.env.PATH ?? "").split(path.delimiter).includes(path.dirname(target)) || profile.includes("# >>> Tuda CLI >>>") };
+  return { installed: content.includes("Tuda CLI (managed by Tuda)") || await isNpmCli(target), path: target, pathConfigured: (process.env.PATH ?? "").split(path.delimiter).includes(path.dirname(target)) || profile.includes("# >>> Tuda CLI >>>") };
 }
 export async function installCli(options: CliInstallationOptions): Promise<CliInstallationStatus> {
   const platform = options.platform ?? process.platform;
@@ -36,6 +44,7 @@ export async function installCli(options: CliInstallationOptions): Promise<CliIn
     if (options.executable.includes("/AppTranslocation/") || options.executable.startsWith("/Volumes/")) throw new Error("请先把 Tuda 移到 Applications，再重新打开以安装命令行工具。");
     await access(options.scriptPath);
     const existing = await readFile(target, "utf8").catch((error: NodeJS.ErrnoException) => { if (error.code !== "ENOENT") throw error; return ""; });
+    if (await isNpmCli(target)) return getCliInstallationStatus(options.homeDir);
     if (existing && !existing.includes("Tuda CLI (managed by Tuda)")) throw new Error("同名命令已存在，未覆盖。请检查安装路径。");
     const launcher = platform === "win32"
       ? `@echo off\r\nREM Tuda CLI (managed by Tuda)\r\nset ELECTRON_RUN_AS_NODE=1\r\n${options.userDataPath ? `set TUDA_USER_DATA_PATH=${options.userDataPath}\r\n` : ""}"${options.executable}" "${options.scriptPath}" %*\r\n`
