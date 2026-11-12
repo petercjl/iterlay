@@ -1,3 +1,4 @@
+import { executionContext } from "./execution-space.js";
 import { TemplateStore } from "./storage/template-store.js";
 import { continueWithScreenCapture } from "./application/screen-collaboration.js";
 import { createScreenAccessService } from "./application/screen-access.js";
@@ -282,6 +283,7 @@ interface IpcDependencies {
   falProvider: FalImageProvider;
   bailianProvider: BailianImageProvider;
   arkProvider: ArkImageProvider;
+  toapisProvider?: import("./providers/image-registry.js").ImageProviderAdapter;
   managerApiBaseUrl: string;
 }
 
@@ -313,6 +315,7 @@ export function registerIpc({
   falProvider,
   bailianProvider,
   arkProvider,
+  toapisProvider,
   managerApiBaseUrl
 }: IpcDependencies): () => void {
   const modifications = registerModificationRequestIpc(boards,assets,history);
@@ -375,7 +378,7 @@ export function registerIpc({
   const imageProviders = new ImageProviderRegistry({
     "openai-compatible": provider, openrouter: provider, poe: provider,
     "codex-oauth": codexProvider, fal: falProvider, bailian: bailianProvider, ark: arkProvider
-  });
+  }, toapisProvider);
   const getProviderAdapter = (config: ProviderConfig) => imageProviders.get(config);
 
   const { recordMemory, prepareSceneCollaborationRequest, recordAssistantResult } = createAssistantSessionService({
@@ -461,8 +464,8 @@ export function registerIpc({
       : currentSettings;
     const logTaskId = crypto.randomUUID();
     return {
-      cwd: app.getAppPath(),
-      agentDir: path.join(app.getPath("home"), ".pi", "agent"),
+      cwd: executionContext().workspace ?? app.getAppPath(),
+      agentDir: executionContext().account ? path.join(app.getPath("userData"), "company-agents", executionContext().account!) : path.join(app.getPath("home"), ".pi", "agent"),
       settings: resolvedSettings,
       requiredSkillPaths: skills.paths,
       requiredSkillIds: skills.ids,

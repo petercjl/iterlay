@@ -6,6 +6,8 @@ import { unlink, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import path from "node:path";
 import type { BrowserWindow } from "electron";
+import { executionContext } from "./execution-space.js";
+import { createHash } from "node:crypto";
 
 const BRIDGE_FILE = "local-api.json";
 
@@ -15,12 +17,17 @@ export async function startLocalApi(window: BrowserWindow | (() => BrowserWindow
   const getWindow = typeof window === "function" ? window : () => window;
   const initialWindow = getWindow();
   if (!initialWindow || initialWindow.isDestroyed()) throw new Error("没有可用的 Tuda 窗口。");
-  const runtime = new WorkspaceCommands({
+  const runtimes=new Map<string,WorkspaceCommands>();
+  const runtime = (space?:unknown) => {
+    const context={...executionContext(),...(space===undefined?{}:{space})}, key=JSON.stringify(context);
+    let current=runtimes.get(key);if(current)return current;
+    current=new WorkspaceCommands({
     api: createMainWorkbenchApi(initialWindow),
     flush: async () => { const active = getWindow(); if (active) await flushWindow(active); },
     emit: (event) => { const active = getWindow(); if (active && !active.isDestroyed()) active.webContents.send("workbench:event", event); },
-    taskDirectory: path.join(userDataPath, "workspace", "cli-tasks")
-  });
+    taskDirectory: context.account ? path.join(userDataPath,"company-cli",context.account,createHash("sha256").update(key).digest("hex")) : path.join(userDataPath, "workspace", "cli-tasks")
+  });runtimes.set(key,current);return current;
+  };
   const server = createServer((request, response) => {
     void handleRequest(runtime, token, request, response, showWindow ?? (() => { const active = getWindow(); if (active && !active.isDestroyed()) { active.show(); active.focus(); } }));
   });
@@ -43,7 +50,7 @@ export async function startLocalApi(window: BrowserWindow | (() => BrowserWindow
 export { callLocalApi } from "./local-api-client.js";
 
 async function handleRequest(
-  runtime: WorkspaceCommands,
+  runtime: (space?:unknown) => WorkspaceCommands,
   token: string,
   request: import("node:http").IncomingMessage,
   response: import("node:http").ServerResponse,
@@ -65,7 +72,7 @@ async function handleRequest(
     const requestBody = JSON.parse(Buffer.concat(chunks).toString("utf8")) as { method?: string; args?: Record<string, unknown> };
     if (typeof requestBody.method !== "string" || !requestBody.args || typeof requestBody.args !== "object" || Array.isArray(requestBody.args)) throw new Error("CLI 请求参数无效。");
     if (["open_tuda", "open_iterlay"].includes(requestBody.method)) showWindow();
-    const result = await runtime.call(requestBody.method, requestBody.args);
+    const result = await runtime(requestBody.args.space).call(requestBody.method, requestBody.args);
     response.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ result }));
   } catch (error) {
     response.writeHead(400, { "content-type": "application/json" }).end(JSON.stringify({ error: error instanceof Error ? error.message : "请求失败。" }));

@@ -1,15 +1,17 @@
 # Tuda 企业服务
 
-独立部署的企业身份、画板协同、素材和模型凭证服务。架构及当前支持范围见 [企业空间方案](../docs/tuda-enterprise-space-architecture.md)。
+独立部署的公共画板协同与素材服务。公司身份和模型授权由公网“东轩AI授权”服务负责；桌面通过独立短期存储 token 访问 NAS。架构见 [公司授权与模型能力](../docs/tuda-shared-account-models.md)。
 
 ## 配置
 
 新建部署目录，使用 `compose.yaml`，将源码放在 `source/`。在源码目录之外新建 `config/runtime.env`，按 [environment.example](environment.example) 填写，并设置权限 600。
 
-- 为 Tuda 创建独立的钉钉企业内部应用，开通 `Contact.User.Read`。
-- 登录请求使用 `openid corpid`；回调为 `<TUDA_PUBLIC_URL>/auth/dingtalk/callback`。
-- `DINGTALK_CORP_ID` 指定允许登录的组织；`DINGTALK_ADMIN_UNION_ID` 指定初始化管理员。
+- 设置 `TUDA_COMPANY_ORIGIN` 为公网账号服务的 HTTPS origin、`TUDA_COMPANY_ORGANIZATION_ID` 为授权服务的组织 ID，以及独立 `TUDA_COMPANY_NAS_SERVICE_TOKEN`。三个字段都保存在私有运行配置中。
+- 在云端登记 `tuda-nas` audience，并按员工授权 `boards:read/write`、`assets:read/write`。NAS 每次在线内省，无法验证时拒绝存储操作；桌面仍可使用公司本地文件夹。
+- `DINGTALK_CORP_ID` 保留现有 NAS 数据空间映射。钉钉应用配置与本人信息权限由共用授权服务管理。
 - 数据库密码与 `TUDA_MASTER_KEY` 分别使用独立随机值。主密钥至少 40 个随机字符，恢复时必须保留。
+
+未配置 `TUDA_COMPANY_ORIGIN` 的旧部署保持独立钉钉认证模式，使用自己的 `DINGTALK_CLIENT_ID/SECRET`、`openid corpid`、`Contact.User.Read` 和 `<TUDA_PUBLIC_URL>/auth/dingtalk/callback`。该模式的验收依据见 [历史实现记录](../docs/tuda-enterprise-space-architecture.md)。共用账号模式中的模型调用由桌面与公网服务承担，NAS 存储 token 无权调用旧模型接口。
 - `TUDA_DEFAULT_ROLE` 为新成员默认权限，支持 editor、viewer。
 - 管理员登录桌面后，可在“企业成员与权限”中为每名员工分配图片/对话服务、模型与密钥。图片接口支持 OpenAI-compatible `/images/generations` 与 `/images/edits`，服务地址通常包含 `/v1`。
 - 企业密钥由服务端使用，不需要配置到员工桌面。图片任务提交时冻结员工的服务配置。

@@ -255,6 +255,7 @@
     "@mariozechner/pi-ai": "0.73.1",
     "@mastergo/vibe-mcp": "1.0.26",
     "@modelcontextprotocol/sdk": "1.30.0",
+    "@petercjl/toapiscli": "0.1.1",
     "adm-zip": "^0.6.0",
     "ag-psd": "^28.5.1",
     "fflate": "^0.8.3",

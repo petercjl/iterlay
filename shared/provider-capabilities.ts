@@ -4,6 +4,7 @@ const CUSTOM_PROVIDER_MAX_IMAGE_COUNT = 99;
 
 export function getProviderMaxImageCount(provider?: ProviderConfig): number {
   if (!provider) return CUSTOM_PROVIDER_MAX_IMAGE_COUNT;
+  if (provider.transport === "toapiscli") return 1;
   if (provider.type === "official" || provider.type === "fal") return OFFICIAL_MAX_IMAGE_COUNT;
   if (provider.type === "ark") return 4;
   if (provider.type !== "bailian") return CUSTOM_PROVIDER_MAX_IMAGE_COUNT;
@@ -50,6 +51,7 @@ export function providerSupportsCustomImageSize(
 
 export function providerSupportsTransparentBackground(provider?: ProviderConfig): boolean {
   if (!provider) return false;
+  if (provider.transport === "toapiscli") return false;
   // The legacy built-in official Provider has been removed; it is not the OpenAI API.
   if (provider.type === "official") return false;
   if (provider.type === "codex-oauth") return true;

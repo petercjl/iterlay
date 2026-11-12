@@ -1,6 +1,6 @@
-# Tuda 个人空间与 NAS 企业协同空间
+# Tuda NAS 协同实现记录（独立认证版本）
 
-日期：2026-11-12。本文描述当前实现；验证结果见 [验收记录](tuda-enterprise-acceptance.md)，部署方法见 [企业服务说明](../enterprise/README.md)。
+日期：2026-11-12。本文记录 NAS 独立认证及 worker 模式的实现和验收依据。共用公司登录、桌面 Agent、生图及 NAS/本地存储的现行边界见 [公司授权与模型能力](tuda-shared-account-models.md)。历史验收见 [验收记录](tuda-enterprise-acceptance.md)，部署见 [企业服务说明](../enterprise/README.md)。
 
 ## 产品与职责
 

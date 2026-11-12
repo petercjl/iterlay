@@ -8,6 +8,16 @@ export interface EnterprisePresence extends EnterpriseMember {
   selectedNodeIds?: string[];
 }
 export interface EnterpriseStatus {
+  accountMode?: "shared";
+  storageKind?: "nas" | "local";
+  localFolder?: string;
+  storageUrl?: string;
+  nasPendingWrites?: number;
+  textModels?: number;
+  imageModels?: number;
+  imageConfigured?: boolean;
+  imageReason?: string;
+  configVersion?: string;
   configured: boolean;
   serverUrl: string;
   activeSpace: SpaceKind;

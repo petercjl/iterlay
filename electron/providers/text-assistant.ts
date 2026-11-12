@@ -32,6 +32,7 @@ import { convertPiContextToCompletionMessages, parsePiAgentDecision } from "../a
 import { createPiAgentResourceLoader } from "../pi-agent-resources.js";
 import { Semaphore } from "./concurrency.js";
 import { ProviderError } from "./errors.js";
+import { nativeTextContent, nativeTextRequest, readNativeTextStream } from "./native-text.js";
 
 /**
  * AI 智能辅助（润色扩写、场景大师、修改建议、主体识别）的统一实现。
@@ -768,11 +769,19 @@ export class OpenAICompatibleTextTransport implements TextTransport {
 
   async complete(messages: readonly unknown[], opts: TextCompletionOptions, signal?: AbortSignal): Promise<string> {
     const { url, model } = this.ensureReady();
+    if (this.config.protocol && this.config.protocol !== "openai-chat-completions") {
+      const request = nativeTextRequest(this.config, messages, opts, false);
+      return this.fetchGuarded(request.url, { method: "POST", headers: this.nativeHeaders(), body: JSON.stringify(request.body) }, this.timeoutMs, signal, async response => {
+        if (!response.ok) throw new Error(`文本模型请求失败（HTTP ${response.status}）。`);
+        return nativeTextContent(await response.json(), this.config.protocol === "anthropic-messages");
+      });
+    }
     const response = await this.fetchGuarded(url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         "Content-Type": "application/json"
+        , ...(this.config.managed ? { "X-Company-App-Id": "tuda" } : {})
       },
       body: JSON.stringify({ model, messages, ...completionBodyOptions(opts) })
     }, this.timeoutMs, signal);
@@ -792,12 +801,20 @@ export class OpenAICompatibleTextTransport implements TextTransport {
     signal?: AbortSignal
   ): Promise<string> {
     const { url, model } = this.ensureReady();
+    if (this.config.protocol && this.config.protocol !== "openai-chat-completions") {
+      const request = nativeTextRequest(this.config, messages, opts, true);
+      return this.fetchGuarded(request.url, { method: "POST", headers: this.nativeHeaders(), body: JSON.stringify(request.body) }, this.timeoutMs, signal, async response => {
+        if (!response.ok) throw new Error(`文本模型请求失败（HTTP ${response.status}）。`);
+        return readNativeTextStream(response, this.config.protocol === "anthropic-messages", onRaw, opts.onReasoningSummary);
+      });
+    }
     const response = await this.fetchGuarded(url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         "Content-Type": "application/json",
         Accept: "text/event-stream"
+        , ...(this.config.managed ? { "X-Company-App-Id": "tuda" } : {})
       },
       body: JSON.stringify({ model, messages, ...completionBodyOptions(opts), stream: true })
     }, this.timeoutMs, signal, async (response) => {
@@ -818,6 +835,7 @@ export class OpenAICompatibleTextTransport implements TextTransport {
    * ignore `tools` and return text instead of a tool call.
    */
   async probeFunctionCalling(): Promise<FunctionCallingProbeResult> {
+    if (this.config.protocol && this.config.protocol !== "openai-chat-completions") return "unsupported";
     const { url, model } = this.ensureReady();
     const response = await this.fetchGuarded(url, {
       method: "POST",
@@ -890,6 +908,11 @@ export class OpenAICompatibleTextTransport implements TextTransport {
       throw new ProviderError("UNAUTHORIZED", "请先为文本 Provider 保存 API Key。");
     }
     return { url: chatCompletionsUrl(this.config.baseUrl), model: this.config.model.trim() };
+  }
+
+  private nativeHeaders(): Record<string, string> {
+    return { Authorization: `Bearer ${this.apiKey}`, "Content-Type": "application/json", "anthropic-version": "2023-06-01",
+      ...(this.config.managed ? { "X-Company-App-Id": "tuda" } : {}) };
   }
 
   /** 统一的并发 + 超时 + 取消处理；consume 存在时在同一守卫内消费响应体（流式）。 */

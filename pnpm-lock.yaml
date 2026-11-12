@@ -26,6 +26,9 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: 1.30.0
         version: 1.30.0(zod@3.25.76)
+      '@petercjl/toapiscli':
+        specifier: 0.1.1
+        version: 0.1.1
       adm-zip:
         specifier: ^0.6.0
         version: 0.6.0
@@ -1309,6 +1312,11 @@ packages:
   '@opentelemetry/semantic-conventions@1.43.0':
     resolution: {integrity: sha512-eSYWTm620tTk45EKSedaUL8MFYI8hW164hIXsgIHyxu3VobUB3fFCu5t0hQby6OoWRPsG1KkKUG2M5UadiLiVg==}
     engines: {node: '>=14'}
+
+  '@petercjl/toapiscli@0.1.1':
+    resolution: {integrity: sha512-i57AWkiGw5NexNWgGHuIPqsx9BBn5Jq5NOO6XkGFkaYNctBhxciRcFlmiNPCUTlyLn2+KW+3MltZLjitIoMv8g==}
+    engines: {node: '>=22'}
+    hasBin: true
 
   '@protobufjs/aspromise@1.1.2':
     resolution: {integrity: sha512-j+gKExEuLmKwvz3OgROXtrJ2UG2x8Ch2YZUxahh+s1F2HZ+wAceUNLkvy6zKCPVRkU++ZWQrdxsUeQXmcg4uoQ==}
@@ -7210,6 +7218,8 @@ snapshots:
   '@opentelemetry/api@1.9.0': {}
 
   '@opentelemetry/semantic-conventions@1.43.0': {}
+
+  '@petercjl/toapiscli@0.1.1': {}
 
   '@protobufjs/aspromise@1.1.2': {}
 

@@ -1820,6 +1820,23 @@ export default function App(): React.ReactElement {
     if (!api) return;
     let active = true;
 
+    if(enterpriseStatus?.accountMode === "shared" && enterpriseStatus.authenticated && enterpriseStatus.configVersion){
+      void api.getSettings().then(settings=>{
+        if(!active)return;
+        setProviders(settings.providers);setActiveProviderId(settings.activeProviderId);
+        setTextProviders(settings.textProviders);setActiveTextProviderId(settings.activeTextProviderId);
+        setProviderKeyStatus(settings.providerKeyStatus);
+      }).catch(reportWorkbenchError);
+    }
+    return ()=>{active=false;};
+  },[startupLoading,enterpriseStatus?.accountMode,enterpriseStatus?.authenticated,enterpriseStatus?.configVersion,enterpriseStatus?.imageConfigured,getWorkbenchApi,reportWorkbenchError,setProviders,setActiveProviderId,setTextProviders,setActiveTextProviderId,setProviderKeyStatus]);
+
+  useEffect(() => {
+    if (startupLoading) return;
+    const api = getWorkbenchApi();
+    if (!api) return;
+    let active = true;
+
     const syncRecoveredJobs = (jobs: VideoGenerationJob[]): void => {
       const activeBoardId = activeBoardRef.current?.id;
       if (!activeBoardId) return;

@@ -7,6 +7,7 @@ export interface ServerConfig {
   adminIds: string[]; adminUnionId: string; allowHttpLogin: boolean; defaultRole: "editor" | "viewer";
   imageBaseUrl: string; imageApiKey: string; imageModel: string;
   textBaseUrl: string; textApiKey: string; textModel: string;
+  companyOrigin?: string; companyServiceToken?: string; companyOrganizationId?: string;
 }
 export function readConfig(env = process.env): ServerConfig {
   if (!env.DATABASE_URL) throw new Error("DATABASE_URL is required.");
@@ -25,7 +26,8 @@ export function readConfig(env = process.env): ServerConfig {
     adminUnionId: env.DINGTALK_ADMIN_UNION_ID ?? "", allowHttpLogin: env.TUDA_ALLOW_HTTP_LOGIN === "true",
     defaultRole: env.TUDA_DEFAULT_ROLE === "editor" ? "editor" : "viewer",
     imageBaseUrl: env.TUDA_IMAGE_BASE_URL ?? "", imageApiKey: env.TUDA_IMAGE_API_KEY ?? "", imageModel: env.TUDA_IMAGE_MODEL ?? "",
-    textBaseUrl: env.TUDA_TEXT_BASE_URL ?? "", textApiKey: env.TUDA_TEXT_API_KEY ?? "", textModel: env.TUDA_TEXT_MODEL ?? "" };
+    textBaseUrl: env.TUDA_TEXT_BASE_URL ?? "", textApiKey: env.TUDA_TEXT_API_KEY ?? "", textModel: env.TUDA_TEXT_MODEL ?? "",
+    companyOrigin:env.TUDA_COMPANY_ORIGIN,companyServiceToken:env.TUDA_COMPANY_NAS_SERVICE_TOKEN,companyOrganizationId:env.TUDA_COMPANY_ORGANIZATION_ID };
 }
 
 export class ServiceError extends Error {

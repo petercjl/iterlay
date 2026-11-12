@@ -20,3 +20,8 @@ TUDA_IMAGE_MODEL=
 TUDA_TEXT_BASE_URL=
 TUDA_TEXT_API_KEY=
 TUDA_TEXT_MODEL=
+# Public company authorization; configure all three values to enable storage-only authentication.
+# Keep real deployment values outside source control.
+TUDA_COMPANY_ORIGIN=
+TUDA_COMPANY_ORGANIZATION_ID=
+TUDA_COMPANY_NAS_SERVICE_TOKEN=

@@ -7,6 +7,7 @@ import { Semaphore } from "../providers/concurrency.js";
 import { GenerateImageInput, GenerateResponse, GenerationJob, ImageGenerationCancelResult, ProviderConfig, ProviderGenerateInput } from "../../shared/types.js";
 
 import { paidProviderClientRequestId } from "../paid-media-quote.js";
+import { executionContext } from "../execution-space.js";
 
 import { ManagerProductAnalyticsClient } from "../product-analytics-client.js";
 
@@ -177,7 +178,7 @@ export function createImageGenerationCommand(dependencies: ImageGenerationDepend
 
     try {
       const providerInput: ProviderGenerateInput = {
-        clientRequestId: paidProviderClientRequestId(input),
+        clientRequestId: paidProviderClientRequestId(input) ?? (currentProvider.transport === "toapiscli" ? jobId : undefined),
         workflowMode: input.workflowMode,
         useCase: input.useCase,
         prompt: input.prompt,
@@ -304,11 +305,14 @@ export function createImageGenerationCommand(dependencies: ImageGenerationDepend
     }
   };
   const inFlight = new Map<string, { hash: string; promise: Promise<GenerateResponse> }>();
+  const scopedId=(id:string)=>JSON.stringify([executionContext(),id]);
   const command = async (request: GenerateImageInput): Promise<GenerateResponse> => {
     assertGenerateImageInput(request);
     const input = { ...request, providerId: request.providerId ?? settings.getSettings().activeProviderId };
     if (input.clientTaskId && !/^[a-zA-Z0-9-]{1,100}$/u.test(input.clientTaskId)) throw new Error("任务 ID 无效。");
-    const key = input.idempotencyKey ?? input.clientTaskId;
+    const rawKey = input.idempotencyKey ?? input.clientTaskId;
+    const key = rawKey ? scopedId(rawKey) : undefined;
+    const controlKey=input.clientTaskId?scopedId(input.clientTaskId):undefined;
     const hash = key ? generationRequestHash(input) : "";
     const current = key ? inFlight.get(key) : undefined;
     if (current) {
@@ -316,10 +320,10 @@ export function createImageGenerationCommand(dependencies: ImageGenerationDepend
       return current.promise;
     }
     const control: TaskControl = { abort: new AbortController(), submitted: false };
-    if (input.clientTaskId) controls.set(input.clientTaskId, control);
+    if (controlKey) controls.set(controlKey, control);
     const task = work(input, hash, control);
     void task.finally(() => {
-      if (input.clientTaskId && controls.get(input.clientTaskId) === control) controls.delete(input.clientTaskId);
+      if (controlKey && controls.get(controlKey) === control) controls.delete(controlKey);
     }).catch(() => undefined);
     if (key) {
       inFlight.set(key, { hash, promise: task });
@@ -328,7 +332,7 @@ export function createImageGenerationCommand(dependencies: ImageGenerationDepend
     return task;
   };
   command.cancel = async (clientTaskId: string): Promise<ImageGenerationCancelResult> => {
-    const control = controls.get(clientTaskId);
+    const control = controls.get(scopedId(clientTaskId));
     if (!control) return { status: "not-found", remoteCancelled: false, message: "任务已结束或不在本机等待队列中，请检查历史。" };
     if (control.submitted) return { status: "running", remoteCancelled: false, jobId: control.jobId, message: "任务已提交到 Provider。本机无法确认远端取消或停止计费，请等待结果或到 Provider 控制台检查。" };
     control.abort.abort(Object.assign(new Error("已取消排队任务，尚未发送到 Provider。"), { name: "GenerationCancelledError" }));

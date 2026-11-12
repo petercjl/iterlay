@@ -14,6 +14,7 @@ import type { BoardStore } from "../storage/board-store.js";
 import type { AssetStore } from "../storage/asset-store.js";
 import { buildBoardArchive, parseBoardArchive } from "../board-archive.js";
 import type { BoardData } from "../../shared/types.js";
+import type { CompanyDesktop } from "../company/desktop.js";
 
 export async function createEnterpriseClient(userData: string) {
   const client = new EnterpriseClient(userData,
@@ -26,19 +27,23 @@ export async function createEnterpriseClient(userData: string) {
 }
 
 const providerFields = ["providers", "activeProviderId", "textProviders", "activeTextProviderId", "videoProviders", "activeVideoProviderId", "audioProviders", "activeAudioProviderId", "apiKeyByProviderId", "defaultCliBoardId", "memoryEnabled"];
-export function enterpriseSettings(local: SettingsStore, client: EnterpriseClient): SettingsStore {
+export function enterpriseSettings(local: SettingsStore, client: EnterpriseClient, company?: CompanyDesktop): SettingsStore {
+  const overlay = () => company?.enabled ? company.overlaySettings(local.getSettings()) : client.overlaySettings(local.getSettings());
+  const managed = () => Boolean(company?.enabled && company.account.authenticated);
   return new Proxy(local, { get(target, property) {
-    if (property === "getSettings") return () => executionSpace() === "enterprise" ? client.overlaySettings(target.getSettings()) : target.getSettings();
-    if (property === "getApiKey") return (id?: string) => executionSpace() === "enterprise" ? client.providerToken(id) : target.getApiKey(id);
-    if (property === "getKeyStatus") return () => executionSpace() === "enterprise" ? client.providerKeyStatus() : target.getKeyStatus();
-    if (property === "hasSavedSettings") return () => executionSpace() === "enterprise" || target.hasSavedSettings();
-    if (property === "saveSettings" || property === "updateSettings") return (value: Record<string, unknown>) => {
+    if (property === "getSettings") return () => managed() || executionSpace() === "enterprise" ? overlay() : target.getSettings();
+    if (property === "getApiKey") return (id?: string) => managed() ? company!.token(id) : executionSpace() === "enterprise" ? company?.enabled ? company.token(id) : client.providerToken(id) : target.getApiKey(id);
+    if (property === "getKeyStatus") return () => managed() ? Object.fromEntries([...overlay().providers,...overlay().textProviders].map(p=>[p.id,Boolean(company!.token(p.id))])) : executionSpace() === "enterprise" ? client.providerKeyStatus() : target.getKeyStatus();
+    if (property === "hasSavedSettings") return () => managed() || executionSpace() === "enterprise" || target.hasSavedSettings();
+    if (property === "saveSettings" || property === "updateSettings") return async (value: Record<string, unknown>) => {
       const next = { ...value };
-      if (executionSpace() === "enterprise") {
+      if (managed() || executionSpace() === "enterprise") {
+        if(company?.enabled) await company.selectModels(value);
         const original = target.getSettings() as unknown as Record<string, unknown>;
         for (const key of providerFields) if (key in next) { if (property === "saveSettings") next[key] = original[key]; else delete next[key]; }
       }
-      return property === "saveSettings" ? target.saveSettings(next as never) : target.updateSettings(next as never);
+      const result = await (property === "saveSettings" ? target.saveSettings(next as never) : target.updateSettings(next as never));
+      return managed() || executionSpace() === "enterprise" ? overlay() : result;
     };
     const value = Reflect.get(target, property, target); return typeof value === "function" ? value.bind(target) : value;
   } });
@@ -51,14 +56,17 @@ function remapPaths(value: unknown, mapping: Map<string, string>): unknown {
   return value;
 }
 
-export function registerEnterprise(client: EnterpriseClient, localBoards: BoardStore, assets: AssetStore, settings: SettingsStore) {
-  ipcMain.handle("enterprise:status", () => client.status);
-  ipcMain.handle("enterprise:configure", (_event, url: string) => client.configure(url));
-  ipcMain.handle("enterprise:login", async () => { const login = await client.beginLogin(); await shell.openExternal(login.authorizeUrl); return { expiresAt: login.expiresAt }; });
-  ipcMain.handle("enterprise:loginPoll", () => client.pollLogin());
-  ipcMain.handle("enterprise:logout", () => client.logout());
-  ipcMain.handle("enterprise:selectSpace", (_event, space) => client.selectSpace(space));
-  ipcMain.handle("enterprise:presence", (_event, value) => { client.updatePresence(value); });
+export function registerEnterprise(client: EnterpriseClient, localBoards: BoardStore, assets: AssetStore, settings: SettingsStore, company?: CompanyDesktop) {
+  ipcMain.handle("enterprise:status", () => company?.status ?? client.status);
+  ipcMain.handle("enterprise:configure", (_event, url: string) => company ? company.configure(url) : client.configure(url));
+  ipcMain.handle("enterprise:login", async () => { const login = await (company?.beginLogin() ?? client.beginLogin()); await shell.openExternal(login.authorizeUrl); return { expiresAt: login.expiresAt }; });
+  ipcMain.handle("enterprise:loginPoll", () => company?.pollLogin() ?? client.pollLogin());
+  ipcMain.handle("enterprise:logout", () => company?.logout() ?? client.logout());
+  ipcMain.handle("enterprise:selectSpace", (_event, space) => company?.selectSpace(space) ?? client.selectSpace(space));
+  ipcMain.handle("enterprise:localFolder", () => {if(!company?.enabled) throw new Error("请先配置公司账号服务。");return company.chooseFolder();});
+  ipcMain.handle("enterprise:nasStorage", (_event,url:string) => {if(!company?.enabled)throw new Error("请先配置公司账号服务。");return company.chooseNas(url);});
+  ipcMain.handle("enterprise:refreshModels", async () => {if(!company?.enabled)throw new Error("请先配置公司账号服务。");await company.account.refresh();return company.status;});
+  ipcMain.handle("enterprise:presence", (_event, value) => { if(!company?.enabled||company.usesNas)client.updatePresence(value); });
   ipcMain.handle("enterprise:providerAccounts", (_event, userId: string) => client.providerAccounts(userId));
   ipcMain.handle("enterprise:assignProvider", (_event, value) => client.assignProvider(value));
   ipcMain.handle("enterprise:members", () => client.members());
@@ -81,10 +89,18 @@ export function registerEnterprise(client: EnterpriseClient, localBoards: BoardS
   const routed = new Set(["boards:list", "boards:get", "boards:create", "boards:createComicDramaProject", "boards:save", "boards:rename", "boards:duplicate", "boards:delete", "boards:trash:list", "boards:trash:restore", "boards:trash:delete", "boards:trash:empty", "boards:images:move", "boards:images:resize", "boards:images:arrange", "boards:images:duplicate", "boards:images:setVersion", "boards:images:trash:list", "boards:images:trash:move", "boards:images:trash:restore", "boards:images:trash:delete", "boards:images:trash:empty", "boards:appendNodes", "boards:appendVersions", "boards:canvas:write", "boards:getState", "boards:setLastOpened", "asset:importUpload", "asset:readDataUrl", "asset:thumbnail", "image:generate", "image:cancel", "history:list", "history:scenes", "history:page", "assets:library", "assets:detail", "assets:item", "assets:jobPrompt"]);
   const dispose = setCommandRouter(async (_event, channel, args, next) => {
     if (channel.startsWith("enterprise:")) return next();
+    if(company?.changingSpace && /^(boards:|asset:|image:generate)/.test(channel))throw new Error("正在切换空间，请等待画板重新打开。");
+    if(company?.enabled){
+      if(executionSpace()==="enterprise"){
+        company.assertAccount();
+        if (["settings:configureProvider", "provider:testConnection", "provider:listModels", "textProvider:testConnection", "textProvider:listModels", "videoProvider:testConnection", "videoProvider:listModels"].includes(channel)) throw new Error("公司模型由统一账号服务下发，请刷新模型授权。");
+      }
+      if(!company.usesNas||executionSpace()!=="enterprise"||/^(image|history|assistantConversation|assistant|textProvider):/.test(channel)) return next();
+    }
     const hasEnterpriseAsset = args.some(value => typeof value === "string" && value.startsWith(ENTERPRISE_ASSET_PREFIX));
     const targetBoard = typeof args[0] === "string" ? args[0] : args[0] && typeof args[0] === "object" ? (args[0] as { boardId?: string; id?: string }).boardId ?? (args[0] as { id?: string }).id : undefined;
-    const company = executionSpace() === "enterprise" || hasEnterpriseAsset || client.ownsBoard(targetBoard);
-    if (!company) return next();
+    const companyOperation = executionSpace() === "enterprise" || hasEnterpriseAsset || client.ownsBoard(targetBoard);
+    if (!companyOperation) return next();
     if (routed.has(channel)) return client.command(channel, args);
     if (["settings:configureProvider", "provider:testConnection", "provider:listModels", "textProvider:testConnection", "textProvider:listModels", "videoProvider:testConnection", "videoProvider:listModels"].includes(channel)) throw new Error("企业模型由管理员在 NAS 服务端配置。");
     if (channel === "boards:export") {
@@ -141,5 +157,5 @@ export function registerEnterprise(client: EnterpriseClient, localBoards: BoardS
     if (/^(boards|asset|assets|image|video|audio|history|templates|sceneMedia|comments|modifications|imageDelivery|comicDrama):/.test(channel)) throw new Error("此操作尚未接入企业空间，未写入个人空间。");
     return next();
   });
-  return () => { dispose(); client.stop(); };
+  return () => { dispose(); company?.stop(); client.stop(); };
 }

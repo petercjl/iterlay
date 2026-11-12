@@ -73,8 +73,12 @@ export class WorkspaceCommands {
     };
     switch (method) {
       case "status": {
+        const space = typeof api.enterpriseStatus === "function" ? await api.enterpriseStatus() : undefined;
+        if(space?.activeSpace === "enterprise" && !space.authenticated) return {protocolVersion:1,activeProviderId:"",boardCount:0,authenticated:false};
         const settings = await api.getSettings();
-        return { protocolVersion: 1, activeProviderId: settings.activeProviderId, boardCount: (await api.listBoards()).length };
+        let boardCount:number|undefined;
+        try{boardCount=(await api.listBoards()).length;}catch(error){if(space?.activeSpace!=="enterprise")throw error;}
+        return { protocolVersion: 1, activeProviderId: settings.activeProviderId, boardCount };
       }
       case "get_space": return api.enterpriseStatus();
       case "select_space": return api.selectSpace(choice(a.target, ["personal", "enterprise"] as const, "personal"));

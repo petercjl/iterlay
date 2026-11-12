@@ -8,7 +8,7 @@ import { Database } from "./database.js";
 export const hash = (input: string) => createHash("sha256").update(input).digest("hex");
 export interface Identity { corpId: string; userId: string; unionId: string; name: string }
 export interface DingTalkIdentityProvider { exchange(code: string): Promise<Identity> }
-export interface Principal extends EnterpriseMember { orgId: string; unionId: string }
+export interface Principal extends EnterpriseMember { orgId: string; unionId: string; storageScopes?: string[] }
 
 export class DingTalkProvider implements DingTalkIdentityProvider {
   constructor(private config: ServerConfig, private fetcher: typeof fetch = fetch) {}

@@ -1,3 +1,4 @@
+import { CompanyDesktop } from "./company/desktop.js";
 import { waitForStorageMutations } from "./storage/atomic-json.js";
 import { readImageDimensions } from "./media/image-metadata.js";
 import { ImageTaskQueue } from "./image-worker-client.js";
@@ -428,7 +429,9 @@ app.whenReady().then(async () => {
   startupMark("business-modules-loaded");
   const localSettings = new SettingsStore(dataDir);
   const enterprise = await createEnterpriseClient(app.getPath("userData"));
-  const settings = enterpriseSettings(localSettings, enterprise);
+  const company = new CompanyDesktop(app.getPath("userData"), enterprise);
+  await company.initialize();
+  const settings = enterpriseSettings(localSettings, enterprise, company);
   const appLocale = resolveAppLocale(settings.getSettings().language, app.getLocale());
   const onboarding = new OnboardingStore(dataDir);
   const codexAuth = new CodexOAuthService(dataDir);
@@ -454,34 +457,35 @@ app.whenReady().then(async () => {
     const current = settings.getSettings();
     void createWindow(current.appIcon ?? "default", current.customAppIcons ?? [], current.theme);
   }, appLocale);
-  const history = new HistoryStore(dataDir);
+  const history = company.scopeStore(new HistoryStore(dataDir), root => new HistoryStore(root));
   flushHistoryStore = () => history.flush();
   const historyReady = history.failInterruptedJobs();
-  const videoTasks = new VideoTaskStore(dataDir);
-  const videoSequences = new VideoSequenceStore(dataDir);
-  const videoSequenceTemplates = new VideoSequenceTemplateStore(dataDir);
+  const videoTasks = company.scopeStore(new VideoTaskStore(dataDir), root => new VideoTaskStore(root));
+  const videoSequences = company.scopeStore(new VideoSequenceStore(dataDir), root => new VideoSequenceStore(root));
+  const videoSequenceTemplates = company.scopeStore(new VideoSequenceTemplateStore(dataDir), root => new VideoSequenceTemplateStore(root));
   const dimensionTasks = new ImageTaskQueue();
-  const boards = new BoardStore(dataDir, (imagePath) => readImageDimensions(imagePath, () => dimensionTasks.run(() => {
+  const createBoards = (root: string) => new BoardStore(root, (imagePath) => readImageDimensions(imagePath, () => dimensionTasks.run(() => {
     const image = nativeImage.createFromPath(imagePath);
     if (image.isEmpty()) return null;
     const { width, height } = image.getSize();
     return width > 0 && height > 0 ? { width, height } : null;
   })));
 
-  const boardImageTrash = new BoardImageTrashStore(dataDir);
-  const assets = new AssetStore(dataDir);
-  const comments = new CommentStore(dataDir);
-  const assistantConversations = new AssistantConversationStore(dataDir);
-  const memories = new MemoryStore(dataDir);
+  const boards = company.nasBoards(company.scopeStore(createBoards(dataDir), createBoards));
+  const boardImageTrash = company.scopeStore(new BoardImageTrashStore(dataDir), root => new BoardImageTrashStore(root));
+  const assets = company.nasAssets(company.scopeStore(new AssetStore(dataDir), root => new AssetStore(root)));
+  const comments = company.scopeStore(new CommentStore(dataDir), root => new CommentStore(root));
+  const assistantConversations = company.scopeStore(new AssistantConversationStore(dataDir), root => new AssistantConversationStore(root));
+  const memories = company.scopeStore(new MemoryStore(dataDir), root => new MemoryStore(root));
   const memoryOrganizer = setInterval(() => {
     if (settings.getSettings().memoryEnabled) {
       void memories.organize().catch((error) => console.warn("整理助手记忆失败。", error));
     }
   }, 6 * 60 * 60 * 1_000);
   memoryOrganizer.unref();
-  const assetMeta = new AssetMetaStore(dataDir);
-  const thumbHashes = new ThumbHashStore(dataDir);
-  const sceneMedia = new SceneMediaStore(dataDir);
+  const assetMeta = company.scopeStore(new AssetMetaStore(dataDir), root => new AssetMetaStore(root));
+  const thumbHashes = company.scopeStore(new ThumbHashStore(dataDir), root => new ThumbHashStore(root));
+  const sceneMedia = company.scopeStore(new SceneMediaStore(dataDir), root => new SceneMediaStore(root));
   const license = new LicenseService();
   const manageApiBaseUrl = process.env.TUDA_LICENSE_API_URL?.trim() ?? "";
   const videoService = new VideoGenerationService(
@@ -569,7 +573,9 @@ app.whenReady().then(async () => {
         bytes: reference
       }]
     };
-    const generation = config.type === "codex-oauth"
+    const generation = config.transport === "toapiscli"
+        ? company.toapis.generate(input)
+        : config.type === "codex-oauth"
         ? codexImageProvider.generate(input, config, apiKey)
         : config.type === "fal"
           ? falImageProvider.generate(input, config, apiKey)
@@ -634,6 +640,7 @@ app.whenReady().then(async () => {
   }
 
   // 一次性迁移：老用户也会补装演示画板，但不会改变其当前画板或重复恢复已删除的演示数据。
+  if(company.activeSpace === "personal") {
   const boardsBeforeDemoInstall = await boards.listBoards();
   try {
     const installed = await ensureInitialDemoBoard({
@@ -663,6 +670,7 @@ app.whenReady().then(async () => {
       await history.assignJobsWithoutBoard(initialBoard.id);
       await boards.setLastOpenedBoardId(initialBoard.id);
     }
+  }
   }
   const piAgentLogs = new PiAgentLogStore(app.getPath("logs"));
   await piAgentLogs.start();
@@ -1050,10 +1058,11 @@ app.whenReady().then(async () => {
     falProvider: falImageProvider,
     bailianProvider: bailianImageProvider,
     arkProvider: arkImageProvider,
+    toapisProvider: company.toapis,
     managerApiBaseUrl: manageApiBaseUrl
   });
 
-  const disposeEnterprise = registerEnterprise(enterprise, boards, assets, localSettings);
+  const disposeEnterprise = registerEnterprise(enterprise, boards, assets, localSettings, company);
   startupMark("ipc-ready");
   if (startupWindow.isDestroyed()) {
     await createWindow(appIcon, customAppIcons, settings.getSettings().theme);

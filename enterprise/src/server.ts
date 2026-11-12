@@ -11,6 +11,7 @@ import { JobsService } from "./jobs.js";
 import { createAssetResponse } from "../../electron/asset-response.js";
 import type { BoardDetail, AssetVersion, ReferenceImagePayload } from "../../shared/types.js";
 import type { EnterprisePresence } from "../../shared/enterprise.js";
+import { CompanyStorageAuth, commandStorageScopes, requireStorageScope } from "./company-auth.js";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Heterogeneous legacy IPC wire values; domain operations validate each command.
 async function body(request: IncomingMessage): Promise<Record<string, any>> {
@@ -24,9 +25,11 @@ function json(response: ServerResponse, status: number, data: unknown) {
 }
 const bearer = (request: IncomingMessage) => /^Bearer ([A-Za-z0-9_-]+)$/.exec(request.headers.authorization ?? "")?.[1] ?? "";
 
-export async function createEnterpriseServer(config: ServerConfig, identity?: DingTalkIdentityProvider) {
+export async function createEnterpriseServer(config: ServerConfig, identity?: DingTalkIdentityProvider, companyFetcher?: typeof fetch) {
   const db = new Database(config.databaseUrl); try { await db.initialize(); } catch (error) { await db.close(); throw error; }
   const auth = new AuthService(db, config, identity), assets = new AssetsService(db, config), providers = new ProvidersService(db, config), jobs = new JobsService(db, config, assets, providers);
+  const companyAuth=config.companyOrigin?new CompanyStorageAuth(config,companyFetcher):undefined;
+  const authenticate=(token:string)=>companyAuth?companyAuth.authenticate(token):auth.authenticate(token);
   interface Connection { user: Principal; token: string; clientId: string; presence: EnterprisePresence; ready: boolean; alive: boolean }
   const connections = new Map<WebSocket, Connection>();
   const send = (socket: WebSocket, data: unknown) => { if (socket.readyState === WebSocket.OPEN && socket.bufferedAmount < 32 * 1024 * 1024) socket.send(JSON.stringify(data)); else socket.close(1013, "Slow connection"); };
@@ -62,15 +65,17 @@ export async function createEnterpriseServer(config: ServerConfig, identity?: Di
         response.writeHead(200, { "content-type": "text/html;charset=utf-8", "cache-control": "no-store", "referrer-policy": "no-referrer", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'" });
         response.end("<!doctype html><meta charset=utf-8><title>Tuda 登录成功</title><style>body{font:20px system-ui;padding:80px;color:#0755f5}</style><h1>Tuda · 图塔</h1><p>企业身份验证成功，请返回 Tuda 桌面应用。</p>"); return;
       }
-      const token = bearer(request), user = await auth.authenticate(token);
+      const token = bearer(request), user = await authenticate(token);
       limit(user.orgId + ":" + user.id, 1200);
       if (request.method === "GET" && url.pathname === "/api/me") return json(response, 200, { organizationId: user.orgId, organizationName: config.organizationName, user: { id: user.id, name: user.name, role: user.role }, providers: await providers.metadata(user.orgId, user.id) });
+      if(user.storageScopes&&!url.pathname.startsWith("/api/assets/")&&url.pathname!=="/api/command")fail(403,"STORAGE_OPERATION_DENIED","当前授权仅用于 NAS 画板和素材存储。");
       if (url.pathname === "/api/provider-accounts") {
         if (request.method === "GET") return json(response, 200, await providers.read(user, url.searchParams.get("userId") ?? user.id));
         if (request.method === "PATCH") { const input = await body(request); await providers.assign(user, input as Parameters<ProvidersService["assign"]>[1]); for (const [socket, connection] of connections) if (connection.user.orgId === user.orgId && connection.user.id === input.userId) send(socket, { type: "configuration" }); return json(response, 200, { ok: true }); }
       }
       if (request.method === "POST" && url.pathname === "/api/auth/logout") { await auth.logout(token); return json(response, 200, { ok: true }); }
       if (request.method === "GET" && url.pathname.startsWith("/api/assets/")) {
+        requireStorageScope(user,"assets:read");
         const asset = await assets.locate(user.orgId, url.pathname.slice("/api/assets/".length));
         const headers = new Headers(); if (request.headers.range) headers.set("range", request.headers.range);
         const result = await createAssetResponse(new Request(url, { headers }), () => asset.absolutePath);
@@ -115,6 +120,7 @@ export async function createEnterpriseServer(config: ServerConfig, identity?: Di
         if (typeof input.channel !== "string" || !Array.isArray(input.args) || input.args.length > 16 || !/^[0-9a-f-]{36}$/i.test(input.requestId ?? "")) fail(400, "INVALID_COMMAND", "企业操作参数无效。");
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Heterogeneous legacy IPC wire values; domain operations validate each command.
         const channel = input.channel as string, args = input.args as any[], origin = String(request.headers["x-tuda-client"] ?? "").slice(0, 100);
+        if(user.storageScopes)for(const scope of commandStorageScopes(channel))requireStorageScope(user,scope);
         if (channel === "assets:jobPrompt") {
           const job = await db.pool.query("SELECT input FROM tuda_jobs WHERE org_id=$1 AND id::text=$2", [user.orgId, String(args[0])]);
           const input = job.rows[0]?.input;
@@ -174,11 +180,13 @@ export async function createEnterpriseServer(config: ServerConfig, identity?: Di
         const current = connections.get(socket);
         if (!current) {
           if (message.type !== "authenticate" || typeof message.token !== "string" || !/^[0-9a-f-]{36}$/i.test(message.clientId ?? "")) fail(401, "SESSION_REQUIRED", "需要登录。");
-          const user = await auth.authenticate(message.token), connectionId = randomUUID();
+          const user = await authenticate(message.token), connectionId = randomUUID();
+          requireStorageScope(user,"boards:read");
           connections.set(socket, { user, token: message.token, clientId: message.clientId, ready: true, alive: true, presence: { id: user.id, name: user.name, role: user.role, connectionId } });
           clearTimeout(deadline); send(socket, { type: "ready", connectionId }); presence(user.orgId); return;
         }
-        const user = await auth.authenticate(current.token);
+        const user = await authenticate(current.token);
+        requireStorageScope(user,"boards:read");
         limit("ws:" + current.clientId, 600);
         current.user = user;
         if (message.type === "presence") {
@@ -199,7 +207,7 @@ export async function createEnterpriseServer(config: ServerConfig, identity?: Di
     socket.on("error", () => socket.close());
   });
   const heartbeat = setInterval(() => {
-    for (const [socket, current] of connections) void auth.authenticate(current.token).then(user => { if (!current.alive) { socket.terminate(); return; } current.alive = false; current.user = user; socket.ping(); }).catch(() => socket.close(4001, "Session expired"));
+    for (const [socket, current] of connections) void authenticate(current.token).then(user => { requireStorageScope(user,"boards:read");if (!current.alive) { socket.terminate(); return; } current.alive = false; current.user = user; socket.ping(); }).catch(() => socket.close(4001, "Session expired"));
   }, 30_000); heartbeat.unref();
   let closing = false;
   let listener: import("pg").PoolClient | undefined;

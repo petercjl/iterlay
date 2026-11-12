@@ -7,6 +7,8 @@ export type FalSizeMode = "image_size" | "aspect_ratio" | "aspect_ratio_and_reso
 export type FalReferenceInput = "image_urls" | "image_url";
 
 export interface ProviderConfig {
+  /** App-managed transport; never inferred from a model name or URL. */
+  transport?: "toapiscli";
   id: string;
   name: string;
   type: ProviderType;
@@ -54,6 +56,8 @@ export type TextProviderType = "official" | "codex-oauth" | "openai-compatible";
  * 与图片 Provider 独立切换；Codex 账号类型可与图片 Provider 共享同一份 OAuth 凭据。
  */
 export interface TextProviderConfig {
+  protocol?: import("../company-account.js").CompanyTextProtocol;
+  managed?: boolean;
   id: string;
   name: string;
   type: TextProviderType;

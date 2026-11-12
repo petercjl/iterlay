@@ -39,6 +39,8 @@ export class EnterpriseClient extends EventEmitter {
   private lastBoardId?: string;
   private histories = new Map<string, { doc: Y.Doc; undo: Y.UndoManager }>();
   private metadata?: { providers: { image: boolean; imageModel: string; text: boolean; textModel: string } };
+  private storageRefresh?: () => Promise<EnterpriseSession>;
+  private renewingStorage?: Promise<void>;
   constructor(readonly userData: string, private flush: () => Promise<void>, private notifyBoard: (boardId: string) => void) { super(); }
   get activeSpace() { return this.config.activeSpace; }
   get authenticated() { return Boolean(this.session && Date.parse(this.session.expiresAt) > Date.now()); }
@@ -122,6 +124,10 @@ export class EnterpriseClient extends EventEmitter {
     await this.save(); this.error = undefined; this.changed(); return this.status;
   }
   private async fetchJson<T>(route: string, options: { method?: string; body?: unknown; authenticated?: boolean } = {}): Promise<T> {
+    if(options.authenticated !== false && this.storageRefresh && (!this.session || Date.parse(this.session.expiresAt)<Date.now()+30_000)) {
+      this.renewingStorage ??= this.storageRefresh().then(session=>{this.session=session;}).finally(()=>{this.renewingStorage=undefined;});
+      await this.renewingStorage;
+    }
     if (!this.config.serverUrl) throw new Error("请先配置企业服务地址。");
     if (options.authenticated !== false && !this.authenticated) throw new Error("SESSION_REQUIRED: 请先登录企业空间。");
     const response = await fetch(this.config.serverUrl + route, { method: options.method ?? "GET", headers: { "content-type": "application/json", "x-tuda-client": this.clientId,
@@ -316,6 +322,14 @@ export class EnterpriseClient extends EventEmitter {
   }
   private disconnect() { clearTimeout(this.reconnect); const socket = this.socket; this.socket = undefined; socket?.close(); this.connected = false; this.peers = []; }
   stop() { this.stopped = true; this.disconnect(); }
+  /** Storage-only grant: held in memory and never serialized as a legacy login. */
+  async useStorageSession(serverUrl:string, refresh:()=>Promise<EnterpriseSession>) {
+    const session=await refresh();
+    if(this.pendingCount && (this.config.serverUrl!==serverUrl || this.session?.organizationId!==session.organizationId || this.session?.user.id!==session.user.id)) throw new Error("请先完成当前 NAS 空间的待同步修改。");
+    this.disconnect();this.documents.clear();this.versions.clear();this.boardIds.clear();this.clearHistory();
+    this.config={version:1,serverUrl:this.validateUrl(serverUrl),activeSpace:"enterprise"};this.session=session;this.storageRefresh=refresh;this.stopped=false;
+    await this.refreshIdentity();await this.replayPending();this.connect();this.changed();
+  }
   async assetResponse(request: Request): Promise<Response> {
     const id = new URL(request.url).pathname.slice(1);
     if (!uuid.test(id) || !this.authenticated) return new Response("Not found", { status: 404 });

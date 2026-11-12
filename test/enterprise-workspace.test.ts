@@ -12,6 +12,16 @@ it("discovers space status without exposing session tokens and explicitly select
   expect(listWorkspaceTools().some(tool => tool.name === "get_space")).toBe(true);
 });
 
+it("keeps CLI diagnostics available when enterprise authorization expires",async()=>{
+  const f=workspaceFixture();setSelectedSpaceResolver(()=>"enterprise");
+  try{
+    f.mocks.enterpriseStatus.mockResolvedValue({activeSpace:"enterprise",authenticated:false,pendingWrites:1});
+    expect(await f.commands.call("status",{})).toMatchObject({protocolVersion:1,authenticated:false});
+    expect(await f.commands.call("get_space",{})).toMatchObject({pendingWrites:1,authenticated:false});
+    expect(f.mocks.listBoards).not.toHaveBeenCalled();
+  }finally{setSelectedSpaceResolver(()=>"personal");}
+});
+
 it("pins an explicit operation space across awaits without changing the selected desktop space", async () => {
   setSelectedSpaceResolver(() => "personal");
   const f = workspaceFixture();

@@ -16,6 +16,7 @@ export function SpaceControl({ compact = false }: { compact?: boolean }) {
   const status = useEnterpriseStatus();
   const [open, setOpen] = useState(false);
   const [serverUrl, setServerUrl] = useState("");
+  const [nasUrl,setNasUrl]=useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [loginExpires, setLoginExpires] = useState("");
@@ -24,6 +25,7 @@ export function SpaceControl({ compact = false }: { compact?: boolean }) {
   const [copyId, setCopyId] = useState("");
   const polling = useRef(false);
   useEffect(() => { if (status?.serverUrl) setServerUrl(status.serverUrl); }, [status?.serverUrl]);
+  useEffect(()=>{if(status?.storageUrl)setNasUrl(status.storageUrl);},[status?.storageUrl]);
   useEffect(() => { if (status?.activeSpace === "enterprise" && !status.authenticated) setOpen(true); }, [status?.activeSpace, status?.authenticated]);
   const run = async (work: () => Promise<unknown>) => {
     setBusy(true); setError("");
@@ -55,19 +57,19 @@ export function SpaceControl({ compact = false }: { compact?: boolean }) {
     </button>
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-h-[85vh] overflow-auto sm:max-w-lg" data-enterprise-dialog>
-        <DialogHeader><DialogTitle>{uiText("个人与企业空间")}</DialogTitle><DialogDescription>{uiText("个人内容保存在本机，企业内容由公司 NAS 管理。")}</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>{uiText("个人与企业空间")}</DialogTitle><DialogDescription>{uiText("公司钉钉登录后自动获取模型授权；公司画板可保存在 NAS 或指定的本地文件夹。")}</DialogDescription></DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           <Button variant={company ? "outline" : "default"} disabled={busy || !company} onClick={() => void run(() => getImageWorkbenchApi().selectSpace("personal"))}><UserRound className="mr-2 h-4 w-4" />{uiText("个人空间")}</Button>
           <Button variant={company ? "default" : "outline"} disabled={busy || company || !status.authenticated} onClick={() => void run(() => getImageWorkbenchApi().selectSpace("enterprise"))}><Building2 className="mr-2 h-4 w-4" />{uiText("企业空间")}</Button>
         </div>
         <div className="space-y-2 border-t pt-4">
-          <label htmlFor="enterprise-server-url" className="text-sm font-medium">{uiText("企业服务地址")}</label>
+          <label htmlFor="enterprise-server-url" className="text-sm font-medium">{uiText("公司账号服务地址")}</label>
           <div className="flex gap-2"><Input id="enterprise-server-url" value={serverUrl} onChange={event => setServerUrl(event.target.value)} placeholder="https://tuda.example.com" autoComplete="off" />
             <Button variant="outline" disabled={busy || !serverUrl.trim()} onClick={() => void run(() => getImageWorkbenchApi().configureEnterprise(serverUrl.trim()))}>{uiText("连接")}</Button></div>
         </div>
         {status.authenticated ? <div className="rounded-lg bg-muted/50 p-3 text-sm">
           <p className="font-medium">{status.organizationName}</p><p className="mt-1 text-muted-foreground">{status.user?.name} · {status.user?.role === "admin" ? uiText("管理员") : status.user?.role === "editor" ? uiText("可编辑") : uiText("只读")}</p>
-          <p className="mt-2 text-xs">{status.pendingWrites ? `${status.pendingWrites} 项修改等待服务端保存` : company ? status.connected ? uiText("实时协同已连接") : uiText("连接中断，未确认的修改将保留在本机") : uiText("切换企业空间后可查看团队画板")}</p>
+          <p className="mt-2 text-xs">{status.pendingWrites ? `${status.pendingWrites} 项修改等待服务端保存` : company ? status.storageKind === "local" ? uiText("正在使用公司账号的本地空间") : status.connected ? uiText("实时协同已连接") : uiText("连接中断，未确认的修改将保留在本机") : uiText("切换企业空间后可查看团队画板")}</p>
         </div> : <div className="space-y-3 rounded-lg bg-muted/50 p-3 text-sm">
           <p>{uiText("使用公司钉钉账号登录。验证成功后默认进入企业空间。")}</p>
           <Button className="w-full" disabled={busy || !status.configured || Boolean(loginExpires)} onClick={() => void run(async () => {
@@ -77,15 +79,26 @@ export function SpaceControl({ compact = false }: { compact?: boolean }) {
         </div>}
         {(error || status.error) && <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error || status.error}</p>}
         {status.authenticated && <>
-          <p className="text-xs text-muted-foreground">{uiText("管理员可在成员设置中分配模型服务。查看成员可以浏览画板；编辑成员可修改内容和提交任务。")}</p>
+          {status.accountMode === "shared" ? <div className="space-y-3 rounded-lg border p-3 text-sm">
+            <p>{uiText("文本模型")}：{status.textModels ?? 0} · {uiText("生图模型")}：{status.imageModels ?? 0}</p>
+            {!status.imageModels && <p className="text-xs text-muted-foreground">{uiText("生图授权需要管理员核实并绑定本人 ToAPIs Key，文本模型可独立使用。")}</p>}
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => void run(() => getImageWorkbenchApi().refreshCompanyModels())}>{uiText("刷新模型授权")}</Button>
+            <p className="break-all text-xs">{uiText("公司本地文件夹")}：{status.localFolder || uiText("尚未选择")}</p>
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => void run(() => getImageWorkbenchApi().chooseCompanyLocalFolder())}>{uiText("选择公司本地文件夹")}</Button>
+            <label htmlFor="company-nas-url" className="block text-xs font-medium">{uiText("公司 NAS 存储地址")}</label>
+            <div className="flex gap-2"><Input id="company-nas-url" value={nasUrl} onChange={event=>setNasUrl(event.target.value)} placeholder="https://nas.example.com"/><Button size="sm" variant="outline" disabled={busy||!nasUrl.trim()} onClick={()=>void run(()=>getImageWorkbenchApi().chooseCompanyNas(nasUrl.trim()))}>{uiText("使用 NAS")}</Button></div>
+            <p className="text-xs text-muted-foreground">{status.storageKind === "nas" ? uiText("当前使用 NAS 公共空间，可切换到本地文件夹继续工作。") : uiText("当前使用本地空间。切换存储后分别保存画板，不会自动合并。")}</p>
+            {status.storageKind === "local" && Boolean(status.nasPendingWrites) && <p className="text-xs text-amber-600">{uiText("原 NAS 空间的待同步修改仍保留在本机，返回该 NAS 空间后继续同步。")}</p>}
+            <p className="text-xs text-muted-foreground">{uiText("此文件夹按公司与员工隔离保存画板和图片；模型凭据保存在应用的私有配置中。")}</p>
+          </div> : <p className="text-xs text-muted-foreground">{uiText("管理员可在成员设置中分配模型服务。查看成员可以浏览画板；编辑成员可修改内容和提交任务。")}</p>}
           {status.pendingWrites > 0 && <Button disabled={busy} variant="outline" onClick={() => void run(() => getImageWorkbenchApi().retryEnterpriseSync())}>{uiText("重试同步")}</Button>}
-          {status.activeSpace === "personal" && <details className="rounded-lg border p-3" onToggle={event => {
+          {status.accountMode !== "shared" && status.activeSpace === "personal" && <details className="rounded-lg border p-3" onToggle={event => {
             if (event.currentTarget.open) void getImageWorkbenchApi().listBoards().then(setBoards).catch(() => undefined);
           }}><summary className="cursor-pointer text-sm">{uiText("复制个人画板到企业空间")}</summary><div className="mt-3 flex gap-2">
             <select aria-label={uiText("选择要复制的个人画板")} className="min-w-0 flex-1 rounded border bg-background px-2 text-sm" value={copyId} onChange={event => setCopyId(event.target.value)}><option value="">{uiText("选择画板")}</option>{boards.map(board => <option key={board.id} value={board.id}>{board.name}</option>)}</select>
             <Button size="sm" disabled={!copyId || busy} onClick={() => void run(async () => { const value = await getImageWorkbenchApi().copyBoardToEnterprise(copyId); toast.success(`已复制「${value.name}」到企业空间`); })}>{uiText("复制")}</Button>
           </div><p className="mt-2 text-xs text-muted-foreground">{uiText("保留本机原画板，复制画板及关联素材。")}</p></details>}
-          {status.user?.role === "admin" && <details className="rounded-lg border p-3" onToggle={event => { if (event.currentTarget.open) void run(async () => setMembers(await getImageWorkbenchApi().enterpriseMembers())); }}>
+          {status.accountMode !== "shared" && status.user?.role === "admin" && <details className="rounded-lg border p-3" onToggle={event => { if (event.currentTarget.open) void run(async () => setMembers(await getImageWorkbenchApi().enterpriseMembers())); }}>
             <summary className="cursor-pointer text-sm">{uiText("企业成员与权限")}</summary>
             <div className="mt-3 space-y-3">{members?.map(member => <div key={member.id} className="space-y-1 border-b pb-2 last:border-0"><div className="flex items-center gap-2 text-sm"><span className="min-w-0 flex-1 truncate">{member.name}</span>
               <select aria-label={`${member.name}的权限`} className="rounded border bg-background px-2 py-1" value={member.role} disabled={busy} onChange={event => void run(async () => { await getImageWorkbenchApi().updateEnterpriseMember({ id: member.id, role: event.target.value as EnterpriseRole, active: member.active }); setMembers(await getImageWorkbenchApi().enterpriseMembers()); })}><option value="viewer">{uiText("只读")}</option><option value="editor">{uiText("编辑")}</option><option value="admin">{uiText("管理")}</option></select>

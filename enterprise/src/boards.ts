@@ -128,7 +128,7 @@ export class BoardTransaction implements BoardPersistenceAdapter {
 const reads = new Set(["boards:list", "boards:get", "boards:trash:list", "boards:images:trash:list", "boards:getState"]);
 export const boardChannels = new Set([...reads, "boards:create", "boards:createComicDramaProject", "boards:save", "boards:rename", "boards:duplicate", "boards:delete",
   "boards:trash:restore", "boards:trash:delete", "boards:trash:empty", "boards:images:move", "boards:images:resize", "boards:images:arrange", "boards:images:duplicate", "boards:images:setVersion",
-  "boards:images:trash:move", "boards:images:trash:restore", "boards:images:trash:delete", "boards:images:trash:empty", "boards:appendNodes", "boards:appendVersions", "boards:canvas:write", "boards:setLastOpened"]);
+  "boards:images:trash:move", "boards:images:trash:restore", "boards:images:trash:delete", "boards:images:trash:empty", "boards:appendNodes", "boards:appendVersions", "boards:canvas:write", "boards:finishGeneration", "boards:setLastOpened"]);
 
 export class BoardsService {
   constructor(readonly db: Database, readonly broadcast: (orgId: string, events: BoardEvent[]) => void) {}
@@ -186,6 +186,7 @@ export class BoardsService {
       case "boards:images:duplicate": return { boardId: a, copies: (await store.duplicateImageNodes(a, b, c ?? 24)).map(copy => ({ sourceNodeId: copy.sourceNodeId, nodeId: copy.node.id, x: copy.node.x, y: copy.node.y })) };
       case "boards:images:setVersion": { const result = await store.setImageNodeVersion(a, b, c); return { boardId: a, nodeId: b, previousVersionIndex: result.previousVersionIndex, versionIndex: result.versionIndex, versionCount: result.versionCount, imagePath: result.node.imagePath }; }
       case "boards:canvas:write": return store.writeCanvasNode(a);
+      case "boards:finishGeneration": return {ok:await store.finishGenerationNode(a,b,c)};
       case "boards:appendNodes": { const current = await store.getBoard(a); await store.appendNodes(a, b.filter((node: BoardData["nodes"][number]) => !current?.nodes.some(existing => existing.id === node.id || ("imagePath" in node && "imagePath" in existing && node.source === "generated" && existing.imagePath === node.imagePath && existing.jobId === node.jobId)))); return { ok: true }; }
       case "boards:appendVersions": { const current = await store.getBoard(a), node = current?.nodes.find(node => node.id === b); const versions = node && "imagePath" in node ? node.versions ?? [{ imagePath: node.imagePath, jobId: node.jobId }] : []; await store.appendVersions(a, b, c.filter((version: { imagePath: string; jobId: string }) => !versions.some(existing => existing.imagePath === version.imagePath && existing.jobId === version.jobId))); return { ok: true }; }
       case "boards:images:trash:move": {

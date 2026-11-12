@@ -22,6 +22,6 @@ export async function registerAssetProtocol(assets: AssetStore, enterprise?: (re
   if (protocol.isProtocolHandled(ASSET_PROTOCOL)) return;
   protocol.handle(ASSET_PROTOCOL, (request) => {
     if (new URL(request.url).hostname === "enterprise") return enterprise ? enterprise(request) : new Response("Not found", { status: 404 });
-    return createAssetResponse(request, (url) => assets.resolveAssetUrl(url));
+    return createAssetResponse(request, (url) => { try {return assets.resolveAssetUrl(url);}catch{return null;} });
   });
 }
