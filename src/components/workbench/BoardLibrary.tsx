@@ -1,7 +1,7 @@
 import { translateSourceText } from "@/i18n/ui-text";
 import { useI18n, useUiText } from "@/i18n";
 import { useBoardLibraryWindow } from "@/features/boards/use-board-library-window";
-import { useEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode, type DragEvent as ReactDragEvent } from "react";
 import {
   ArrowDownUp,
   ArrowDownAZ,
@@ -38,7 +38,14 @@ import "./board-library.css";
 import { cn } from "@/lib/utils";
 import { groupActiveBoardGenerations, type ActiveBoardGeneration } from "@/lib/active-board-generation";
 
-interface BoardLibraryProps {
+export interface BoardLibraryProps {
+  navigation?: ReactNode;
+  sidebar?: ReactNode;
+  selectedIds?: Set<string>;
+  onSelectBoard?: (id: string, additive: boolean) => void;
+  onMoveBoard?: (board: BoardSummary) => void;
+  onDragBoard?: (id: string, event: ReactDragEvent<HTMLElement>) => void;
+  externalBusy?: boolean;
   boards: BoardSummary[];
   activeBoardGenerations?: ActiveBoardGeneration[];
   activeBoardId?: string;
@@ -62,6 +69,7 @@ type BoardView = "grid" | "list";
 const SEARCH_SHORTCUT_LABEL = /Mac|iPhone|iPad/i.test(navigator.userAgent) ? "⌘K" : "Ctrl K";
 
 export function BoardLibrary({
+  navigation, sidebar, selectedIds, onSelectBoard, onMoveBoard, onDragBoard, externalBusy = false,
   boards,
   activeBoardGenerations = [],
   activeBoardId,
@@ -96,7 +104,7 @@ export function BoardLibrary({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const boardRowRefs = useRef(new Map<string, HTMLButtonElement>());
   const isImporting = importingCount > 0;
-  const taskLocked = isImporting
+  const taskLocked = externalBusy || isImporting
     || isDeleting
     || deleteTarget !== null
     || renamingId !== null
@@ -189,7 +197,8 @@ export function BoardLibrary({
     setRenamingId(board.id);
   }
 
-  function openBoardFromElement(board: BoardSummary, event: { currentTarget: HTMLElement }): void {
+  function openBoardFromElement(board: BoardSummary, event: { currentTarget: HTMLElement; metaKey?: boolean; ctrlKey?: boolean; shiftKey?: boolean }, open = false): void {
+    if (onSelectBoard && !open) { onSelectBoard(board.id, Boolean(event.metaKey || event.ctrlKey || event.shiftKey)); return; }
     const rowPreview = event.currentTarget
       .closest("[data-board-row]")
       ?.querySelector<HTMLElement>("[data-board-card]");
@@ -303,6 +312,7 @@ export function BoardLibrary({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          {onMoveBoard && <DropdownMenuItem onSelect={() => onMoveBoard(board)}>{uiText("移动到…")}</DropdownMenuItem>}
           <DropdownMenuItem onSelect={() => startRename(board)}>
             <Pencil className="h-4 w-4" />
             {uiText("重命名")}</DropdownMenuItem>
@@ -335,9 +345,13 @@ export function BoardLibrary({
         key={board.id}
         data-board-row
         data-board-card-item
+        draggable={Boolean(onDragBoard) && !interactionLocked}
+        onDragStart={event => onDragBoard?.(board.id, event)}
+        data-selected={selectedIds?.has(board.id)}
         data-tour={isActive ? "library-current-board" : undefined}
-        className="group min-w-0"
+        className="group relative min-w-0"
       >
+        {onSelectBoard && <input type="checkbox" aria-label={uiText("选择画板 {{ui:0}}", [board.name])} checked={selectedIds?.has(board.id) ?? false} disabled={interactionLocked} onChange={() => onSelectBoard(board.id, true)} className="absolute right-2 top-2 z-20 h-4 w-4 accent-blue-600" />}
         <button
           ref={(element) => {
             if (element) boardRowRefs.current.set(board.id, element);
@@ -351,6 +365,8 @@ export function BoardLibrary({
           onPointerEnter={() => onPrefetchBoard(board.id)}
           onFocus={() => onPrefetchBoard(board.id)}
           onClick={(event) => openBoardFromElement(board, event)}
+          onDoubleClick={onSelectBoard ? event => openBoardFromElement(board, event, true) : undefined}
+          onKeyDown={event => { if (onSelectBoard && event.key === "Enter") { event.preventDefault(); openBoardFromElement(board, event, true); } if (event.key === "F2") { event.preventDefault(); startRename(board); } }}
           className={cn(
             "relative block aspect-[4/3] w-full cursor-pointer overflow-hidden rounded-lg bg-muted ring-1 ring-inset ring-foreground/10 transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait motion-reduce:transform-none motion-reduce:transition-none",
             isActive && "ring-2 ring-blue-600 ring-offset-2 ring-offset-background dark:ring-blue-400"
@@ -453,7 +469,9 @@ export function BoardLibrary({
       </header>
 
       <div inert={isFileDragActive || isImporting ? true : undefined} className="min-h-0 flex flex-1 overflow-hidden">
+          {sidebar}
           <section className="flex min-w-0 flex-1 flex-col bg-muted/20" aria-labelledby="all-boards-heading">
+            {navigation}
             <h2 id="all-boards-heading" className="sr-only">{normalizedQuery ? uiText("搜索结果") : uiText("所有画板")}</h2>
               <div data-board-controls className="flex shrink-0 items-center justify-between gap-4">
                 <LibraryFilterTabs
@@ -646,6 +664,9 @@ export function BoardLibrary({
                   <article
                     key={board.id}
                     data-board-row
+                    draggable={Boolean(onDragBoard) && !interactionLocked}
+                    onDragStart={event => onDragBoard?.(board.id, event)}
+                    data-selected={selectedIds?.has(board.id)}
                     data-tour={isActive ? "library-current-board" : undefined}
                     className={cn(
                       "group relative mb-1 grid min-h-[58px] min-w-0 grid-cols-[minmax(0,1fr)_4.5rem] items-center rounded-lg transition-colors duration-150 motion-reduce:transition-none",
@@ -654,6 +675,7 @@ export function BoardLibrary({
                         : "hover:bg-accent/70 focus-within:bg-accent/70"
                     )}
                   >
+                    {onSelectBoard && <input type="checkbox" aria-label={uiText("选择画板 {{ui:0}}", [board.name])} checked={selectedIds?.has(board.id) ?? false} disabled={interactionLocked} onChange={() => onSelectBoard(board.id, true)} className="absolute right-[4.5rem] top-5 z-20 h-4 w-4 accent-blue-600" />}
                     {isRenaming ? (
                       <div className="grid h-full min-w-0 grid-cols-1 items-center px-2 min-[900px]:grid-cols-[minmax(14rem,1fr)_4rem_7rem_6rem]">
                         {rowContent}
@@ -673,6 +695,8 @@ export function BoardLibrary({
                           onPointerEnter={() => onPrefetchBoard(board.id)}
                           onFocus={() => onPrefetchBoard(board.id)}
                           onClick={(event) => openBoardFromElement(board, event)}
+          onDoubleClick={onSelectBoard ? event => openBoardFromElement(board, event, true) : undefined}
+          onKeyDown={event => { if (onSelectBoard && event.key === "Enter") { event.preventDefault(); openBoardFromElement(board, event, true); } if (event.key === "F2") { event.preventDefault(); startRename(board); } }}
                           className="absolute inset-y-0 left-0 right-[4.5rem] cursor-pointer rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:cursor-wait"
                         />
                         <div className="pointer-events-none grid h-full min-w-0 grid-cols-1 items-center px-2 text-left min-[900px]:grid-cols-[minmax(14rem,1fr)_4rem_7rem_6rem]">

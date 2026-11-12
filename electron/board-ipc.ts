@@ -1,5 +1,5 @@
 import type { CanvasNodeWriteInput } from "../shared/contracts/board.js";
-import { ipcMain } from "electron";
+import { BrowserWindow, ipcMain } from "electron";
 import {
   isBoardImageNode,
   isBoardVideoGenerationNode,
@@ -46,6 +46,12 @@ export function registerBoardIpc({
   trackBoardOpened,
   trackBoardCreated
 }: BoardIpcDependencies): void {
+  ipcMain.handle("boards:library:get", () => boards.getBoardLibrary());
+  ipcMain.handle("boards:library:update", async (_event, input) => {
+    const result = await boards.updateBoardLibrary(input);
+    for (const window of BrowserWindow.getAllWindows()) if (!window.isDestroyed()) window.webContents.send("workbench:event", { type: "library-updated" });
+    return result;
+  });
   ipcMain.handle("boards:list", async () => {
     await purgeExpiredBoardTrash();
     return boards.listSummaries();

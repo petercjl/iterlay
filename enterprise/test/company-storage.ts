@@ -105,6 +105,17 @@ try {
   ]);
   const read = await call("storage-viewer", "boards:get", [board.id]);
   assert.equal(read.nodes[0].imagePath, asset.path);
+  const initialLibrary = await call("storage-viewer", "boards:library:get", []);
+  assert.equal(initialLibrary.revision, 0);
+  const folderResponse = await call("storage-editor", "boards:library:update", [{ expectedRevision: 0, action: { type: "createFolder", name: "团队项目", id: "team-project", parentId: null } }]);
+  assert.equal(folderResponse.folders[0].name, "团队项目");
+  await call("storage-viewer", "boards:library:update", [{ expectedRevision: 1, action: { type: "renameFolder", id: "team-project", name: "拒绝" } }], 403);
+  await call("storage-editor", "boards:library:update", [{ expectedRevision: 0, action: { type: "renameFolder", id: "team-project", name: "旧版本" } }], 409);
+  await call("storage-editor", "boards:library:update", [{ expectedRevision: 1, action: { type: "move", items: [{ kind: "board", id: board.id }], parentId: "team-project" } }]);
+  const sharedLibrary = await call("storage-viewer", "boards:library:get", []);
+  assert.equal(sharedLibrary.boardFolders[board.id], "team-project");
+  assert.equal((await call("storage-viewer", "boards:get", [board.id])).nodes[0].imagePath, asset.path);
+  await call("storage-editor", "boards:library:update", [{ expectedRevision: 2, action: { type: "deleteEmptyFolder", id: "team-project" } }], 400);
   await call("storage-viewer", "boards:create", ["blocked"], 403);
   await call("storage-viewer", "boards:setLastOpened", [board.id]);
   await call("storage-editor", "image:generate", [{}], 403);
@@ -124,6 +135,8 @@ try {
       modelTokenRejected: true,
       modelExecutionRejected: true,
       readWriteScopes: true,
+      sharedFolders: true,
+      staleFolderUpdatesRejected: true,
       existingNasOrganization: config.organizationId,
       assetBytesPreserved: true,
     }),

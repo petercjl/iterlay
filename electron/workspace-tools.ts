@@ -41,6 +41,15 @@ export function listWorkspaceTools(): JsonObject[] {
           extractionScenario: { type: "string", enum: ["design-language", "layout-skeleton", "series-template", "replica"] },
           fields: { type: "array", items: { type: "object", required: ["id", "label", "value"], properties: { id: stringField("Field ID"), label: stringField("Label"), value: stringField("Rule") } } }
         }, name === "create_template" ? ["name", "prompt"] : ["templateId"])),
+        tool("get_board_library", "Read shared folder tree, board locations and directory revision in the selected space."),
+        tool("manage_board_library", "Create/rename folders, move boards or folders, or delete an empty folder. Requires the latest expectedRevision from get_board_library. Null parentId means root; moves retain contents and asset paths.", {
+          expectedRevision: { type: "integer", minimum: 0 },
+          action: { type: "object", properties: {
+            type: { type: "string", enum: ["createFolder", "renameFolder", "move", "deleteEmptyFolder"] },
+            name: stringField("Folder name"), id: stringField("Existing folder ID"), parentId: { type: ["string", "null"] },
+            items: { type: "array", minItems: 1, maxItems: 1000, items: { type: "object", properties: { kind: { type: "string", enum: ["board", "folder"] }, id: stringField("Item ID") }, required: ["kind", "id"] } }
+          }, required: ["type"], additionalProperties: false }
+        }, ["expectedRevision", "action"]),
         tool("list_boards", "List Tuda boards."),
         tool("resolve_generation_board", "Resolve the configured CLI default board, or reuse/create CLI 创作 when unset. An explicit boardId takes priority. Missing configured boards fail before generation.", { boardId: stringField("Optional target board ID") }),
         tool("get_active_board", "Read the board currently active in the Tuda workspace, if any."),

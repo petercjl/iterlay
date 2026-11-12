@@ -87,3 +87,10 @@
   .board-sort-menu[data-state="closed"] { animation-direction: reverse; }
   @keyframes board-sort-fade { from { opacity: 0; } to { opacity: 1; } }
 }
+/* Selection is independent of the board currently open in the canvas. */
+[data-board-file-manager] [data-board-row][data-selected="true"] {
+  outline: 2px solid hsl(217 91% 60% / .75);
+  outline-offset: 3px;
+  border-radius: 8px;
+  background: hsl(217 91% 60% / .06);
+}

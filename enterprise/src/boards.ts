@@ -1,3 +1,4 @@
+import { BoardLibraryError } from "../../shared/board-library.js";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import * as Y from "yjs";
@@ -11,7 +12,7 @@ import { fail } from "./config.js";
 import { Database } from "./database.js";
 import { hash, type Principal } from "./auth.js";
 
-export interface BoardEvent { type: "board"; boardId: string; revision?: number; state?: string; epoch?: string; update?: string; removed?: boolean; origin?: string }
+export interface BoardEvent { type: "board" | "library"; boardId: string; revision?: number; state?: string; epoch?: string; update?: string; removed?: boolean; origin?: string }
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const assetId = (value: string) => {
   const id = value.startsWith(ENTERPRISE_ASSET_PREFIX) ? value.slice(ENTERPRISE_ASSET_PREFIX.length) : "";
@@ -125,8 +126,8 @@ export class BoardTransaction implements BoardPersistenceAdapter {
   }
 }
 
-const reads = new Set(["boards:list", "boards:get", "boards:trash:list", "boards:images:trash:list", "boards:getState"]);
-export const boardChannels = new Set([...reads, "boards:create", "boards:createComicDramaProject", "boards:save", "boards:rename", "boards:duplicate", "boards:delete",
+const reads = new Set(["boards:library:get", "boards:list", "boards:get", "boards:trash:list", "boards:images:trash:list", "boards:getState"]);
+export const boardChannels = new Set([...reads, "boards:library:update", "boards:create", "boards:createComicDramaProject", "boards:save", "boards:rename", "boards:duplicate", "boards:delete",
   "boards:trash:restore", "boards:trash:delete", "boards:trash:empty", "boards:images:move", "boards:images:resize", "boards:images:arrange", "boards:images:duplicate", "boards:images:setVersion",
   "boards:images:trash:move", "boards:images:trash:restore", "boards:images:trash:delete", "boards:images:trash:empty", "boards:appendNodes", "boards:appendVersions", "boards:canvas:write", "boards:finishGeneration", "boards:setLastOpened"]);
 
@@ -163,6 +164,8 @@ export class BoardsService {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Heterogeneous legacy IPC wire values; domain operations validate each command.
     const [a, b, c, d] = args as any[];
     switch (channel) {
+      case "boards:library:get": return store.getBoardLibrary();
+      case "boards:library:update": { let value; try { value = await store.updateBoardLibrary(a); } catch (error) { if (error instanceof BoardLibraryError) fail(error.status, error.status === 409 ? "LIBRARY_CONFLICT" : "INVALID_LIBRARY_OPERATION", error.message); throw error; } tx.events.push({ type: "library", boardId: "__library__", revision: value.revision }); return value; }
       case "boards:list": return store.listSummaries();
       case "boards:get": { const value = await tx.envelope(String(a)); let viewport; try { viewport = JSON.parse(await tx.read(`/enterprise/viewports/${user.id}/${String(a)}.json`)); } catch { /* Initial view. */ } return value ? { ...this.detail(value.board), viewport, enterpriseState: value.state, enterpriseEpoch: value.epoch } : null; }
       case "boards:create": return store.createBoard(typeof a === "string" ? a : undefined);

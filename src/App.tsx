@@ -2063,11 +2063,19 @@ export default function App(): React.ReactElement {
 
   // ---------- 画板：库页操作 ----------
 
-  async function createBoardAndOpen(): Promise<void> {
+  async function placeBoardsInFolder(ids: string[], folderId?: string | null): Promise<void> {
+    const api = getWorkbenchApi();
+    if (!api || !folderId || !ids.length) return;
+    const state = await api.getBoardLibrary();
+    await api.updateBoardLibrary({ expectedRevision: state.revision, action: { type: "move", items: ids.map(id => ({ kind: "board" as const, id })), parentId: folderId } });
+  }
+
+  async function createBoardAndOpen(folderId?: string | null): Promise<void> {
     const api = getWorkbenchApi();
     if (!api) return;
     try {
       const board = await api.createBoard();
+      await placeBoardsInFolder([board.id], folderId);
       await refreshBoards();
       await openBoard(board.id, undefined, { resetPromptDraft: true });
       toast.success(translateSourceText("已创建「{{ui:0}}」", [board.name]));
@@ -2353,6 +2361,7 @@ export default function App(): React.ReactElement {
     if (!api) return;
     try {
       const copy = await api.duplicateBoard(id);
+      if (copy) { const library = await api.getBoardLibrary(); await placeBoardsInFolder([copy.id], library.boardFolders[id]); }
       await refreshBoards();
       if (copy) toast.success(translateSourceText("已创建「{{ui:0}}」", [copy.name]));
     } catch (error) {
@@ -2439,12 +2448,13 @@ export default function App(): React.ReactElement {
     });
   }
 
-  async function importBoardFromDialog(): Promise<void> {
+  async function importBoardFromDialog(folderId?: string | null): Promise<void> {
     const api = getWorkbenchApi();
     if (!api) return;
     try {
       const summary = await api.importBoard();
       if (!summary) return;
+      await placeBoardsInFolder([summary.id], folderId);
       await refreshBoards();
       await refreshHistory();
       announceImportedBoard(summary);
@@ -2454,13 +2464,14 @@ export default function App(): React.ReactElement {
     }
   }
 
-  async function importBoardFiles(files: File[]): Promise<void> {
+  async function importBoardFiles(files: File[], folderId?: string | null): Promise<void> {
     const api = getWorkbenchApi();
     if (!api) return;
     const imported: BoardSummary[] = [];
     for (const file of files) {
       try {
         const summary = await api.importBoardData(await file.arrayBuffer());
+        await placeBoardsInFolder([summary.id], folderId);
         imported.push(summary);
       } catch (error) {
         const message = error instanceof Error ? error.message : "导入失败。";
@@ -5976,7 +5987,7 @@ export default function App(): React.ReactElement {
                   })();
                 }}
                 onPrefetchBoard={prefetchBoard}
-                onCreateBoard={() => void createBoardAndOpen()}
+                onCreateBoard={(folderId) => void createBoardAndOpen(folderId)}
                 onCreateFromChat={createFromChat}
                 onRenameBoard={(id, name) => void renameBoardById(id, name)}
                 onDuplicateBoard={(id) => void duplicateBoardById(id)}

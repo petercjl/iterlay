@@ -1,5 +1,7 @@
 /** Stable channels shared by the preload adapter and local MCP transport. */
 export const WORKBENCH_COMMANDS = {
+  getBoardLibrary: "boards:library:get",
+  updateBoardLibrary: "boards:library:update",
   enterpriseStatus: "enterprise:status",
   selectSpace: "enterprise:selectSpace",
   listTemplates: "templates:list",

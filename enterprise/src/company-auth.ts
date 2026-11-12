@@ -108,6 +108,7 @@ export function commandStorageScopes(channel: string): string[] {
         "boards:list",
         "boards:get",
         "boards:getState",
+        "boards:library:get",
         "boards:setLastOpened",
         "boards:trash:list",
         "boards:images:trash:list",

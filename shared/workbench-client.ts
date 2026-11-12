@@ -140,8 +140,12 @@ export const VIDEO_SEQUENCE_MUTATIONS = [
   "updateDefaults", "updateSegment", "selectSegmentVersion"
 ] as const;
 
+import type { BoardLibraryState, BoardLibraryMutation } from "./board-library.js";
+
 export function createWorkbenchClient(transport: WorkbenchTransport) {
   return {
+    getBoardLibrary: () => transport.invoke(WORKBENCH_COMMANDS.getBoardLibrary) as Promise<BoardLibraryState>,
+    updateBoardLibrary: (input: BoardLibraryMutation) => transport.invoke(WORKBENCH_COMMANDS.updateBoardLibrary, input) as Promise<BoardLibraryState>,
     enterpriseStatus: () => transport.invoke("enterprise:status") as Promise<import("./enterprise.js").EnterpriseStatus>,
     chooseCompanyLocalFolder: (reuseExisting?:boolean) => transport.invoke("enterprise:localFolder",reuseExisting) as Promise<import("./enterprise.js").EnterpriseStatus>,
     chooseCompanyNas: (url:string) => transport.invoke("enterprise:nasStorage",url) as Promise<import("./enterprise.js").EnterpriseStatus>,

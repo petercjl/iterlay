@@ -299,6 +299,7 @@ export class EnterpriseClient extends EventEmitter {
       try {
         const message = JSON.parse(bytes.toString());
         if (message.type === "ready") { this.connectionId = message.connectionId; this.connected = true; this.error = undefined; this.changed(); void this.replayPending().catch(error => { this.error = error.message; this.changed(); }); this.updatePresence({}); }
+        if (message.type === "library") this.emit("library-changed");
         if (message.type === "configuration") { this.eventQueue = this.eventQueue.then(async () => { await this.flush(); await this.refreshIdentity(); this.changed(); if (this.activeSpace === "enterprise") this.emit("space-changed"); }).catch(error => { this.error = error.message; this.changed(); }); }
         if (message.type === "presence") { this.peers = message.peers; this.changed(); }
         if (message.type === "board") {

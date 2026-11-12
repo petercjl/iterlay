@@ -11,7 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useUpdateCenter } from "@/components/update/update-context";
 import { AssetLibrary } from "@/components/workbench/AssetLibrary";
 import { BoardGenerationStatus } from "@/components/workbench/BoardGenerationStatus";
-import { BoardLibrary } from "@/components/workbench/BoardLibrary";
+import { BoardFileManager } from "@/components/workbench/BoardFileManager";
 import { BoardTrash } from "@/components/workbench/BoardTrash";
 import { CreationAssistantPage, type CreationAssistantGenerationPlan, type CreationAssistantResult } from "@/components/workbench/CreationAssistantPage";
 import { InspirationSources } from "@/components/workbench/InspirationSources";
@@ -85,7 +85,7 @@ interface LibraryShellProps {
   onOpenBoard: (id: string, origin?: BoardEnterOrigin) => void;
   onOpenCreationConversation?: (conversationId: string, boardId: string) => void;
   onPrefetchBoard: (id: string) => void;
-  onCreateBoard: () => void;
+  onCreateBoard: (folderId?: string | null) => void;
   onCreateFromChat: (plan: CreationAssistantGenerationPlan) => Promise<CreationAssistantResult>;
   onInterpretCreateChat: (request: CollaborateSceneRequest, stream?: import("./CreationAssistantPage").CreationAssistantStreamOptions) => Promise<CollaborateSceneResult>;
   onRenameBoard: (id: string, name: string) => void;
@@ -93,8 +93,8 @@ interface LibraryShellProps {
   onDeleteBoard: (id: string) => Promise<void>;
   onBoardRestored: (id: string) => Promise<BoardSummary[]>;
   onExportBoard: (id: string) => void;
-  onImportBoard: () => Promise<void>;
-  onImportBoardFiles: (files: File[]) => Promise<void>;
+  onImportBoard: (folderId?: string | null) => Promise<void>;
+  onImportBoardFiles: (files: File[], folderId?: string | null) => Promise<void>;
   // 素材库 / 评论透传
   comments: AssetComment[];
   onAddComment: (imagePath: string, text: string) => void;
@@ -861,7 +861,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
                 onOpenSettings={props.onOpenSettings}
               />
             ) : tab === "boards" ? (
-              <BoardLibrary
+              <BoardFileManager
                 {...props}
                 onDeleteBoard={moveBoardToTrash}
                 onInteractionLockChange={setBoardLibraryLocked}

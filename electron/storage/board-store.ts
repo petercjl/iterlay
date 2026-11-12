@@ -1,3 +1,4 @@
+import { emptyBoardLibrary, mutateBoardLibrary, type BoardLibraryState, type BoardLibraryMutation } from "../../shared/board-library.js";
 import type { BoardCanvasNode, CanvasNodeWriteInput } from "../../shared/contracts/board.js";
 import { comicBoardSnapshot } from "../domain/comic-board-snapshot.js";
 import {
@@ -139,6 +140,23 @@ export class BoardStore {
   private listFiles(directory: string): Promise<string[]> { return this.persistence ? this.persistence.list(directory) : readdir(directory); }
   private writeJson(file: string, value: unknown): Promise<void> { return this.persistence ? this.persistence.write(file, value) : writeJsonAtomic(file, value); }
   private removeFile(file: string): Promise<void> { return this.persistence ? this.persistence.remove(file) : rm(file, { force: true }); }
+
+  private get libraryFile() { return path.join(this.boardsDir, "..", "library", "index.json"); }
+  private async readLibrary(): Promise<BoardLibraryState> {
+    try {
+      const value = JSON.parse(await this.readText(this.libraryFile));
+      if (value.version !== 1 || !Number.isSafeInteger(value.revision) || !Array.isArray(value.folders) || !value.boardFolders || typeof value.boardFolders !== "object") throw new Error("画板目录格式无效。");
+      return value;
+    } catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return emptyBoardLibrary(); throw error; }
+  }
+  async getBoardLibrary(): Promise<BoardLibraryState> { await this.mutations.idle(); return this.readLibrary(); }
+  async updateBoardLibrary(input: BoardLibraryMutation): Promise<BoardLibraryState> {
+    return this.mutations.run(async () => {
+      const ids = new Set((await this.readBoards()).filter(board => !board.parentBoardId).map(board => board.id));
+      const next = mutateBoardLibrary(await this.readLibrary(), input, ids, randomUUID());
+      await this.writeJson(this.libraryFile, next); return next;
+    });
+  }
 
   async listBoards(): Promise<BoardData[]> {
     await this.mutations.idle();

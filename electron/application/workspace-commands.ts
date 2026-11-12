@@ -132,6 +132,8 @@ export class WorkspaceCommands {
         const result = method === "create_template" ? await api.createTemplate(input) : await api.updateTemplate(string(a.templateId), input, a.expectedPrompt === undefined ? undefined : string(a.expectedPrompt));
         emit({ type: "templates-updated" }); return result;
       }
+      case "get_board_library": return api.getBoardLibrary();
+      case "manage_board_library": { const result = await api.updateBoardLibrary(a as unknown as import("../../shared/board-library.js").BoardLibraryMutation); emit({ type: "library-updated" }); return result; }
       case "list_boards": return api.listBoards();
       case "resolve_generation_board": return { boardId: await this.resolveGenerationBoard(boardId, a.preserveView === true) };
       case "get_active_board": {

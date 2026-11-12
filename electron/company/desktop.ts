@@ -474,6 +474,8 @@ export class CompanyDesktop {
       getBoard: "boards:get",
       getBoardWithVerifiedImageDimensions: "boards:get",
       listSummaries: "boards:list",
+      getBoardLibrary: "boards:library:get",
+      updateBoardLibrary: "boards:library:update",
       createBoard: "boards:create",
       saveBoard: "boards:save",
       renameBoard: "boards:rename",
