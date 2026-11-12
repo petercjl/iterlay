@@ -26,6 +26,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm setup:subprojects
+      - run: pnpm build:cli
       - run: pnpm check:all
   browser-smoke:
     runs-on: macos-14

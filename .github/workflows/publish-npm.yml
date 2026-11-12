@@ -29,7 +29,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: npm ci --prefix cli
+      - run: pnpm setup:subprojects
+      - run: pnpm build:cli
       - run: pnpm exec install-electron
       - name: Verify the requested committed version
         env:
