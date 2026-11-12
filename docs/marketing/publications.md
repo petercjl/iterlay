@@ -316,3 +316,15 @@ X、小红书、Hacker News、Linux.do、开源中国、少数派暂未找到已
 - 发布源码：`28b932438480fa944cf0abf6f24e0bcb2ac37ecb`；[GitHub Actions OIDC发布及三平台包级校验](https://github.com/petercjl/iterlay/actions/runs/43204912103)。该运行的发布后等待超时，实际公开版本、next标签与安装由本机独立核验；[只读CI复核](https://github.com/petercjl/iterlay/actions/runs/43207075389)已通过。
 - 状态：公开版本与next标签已核验；真实npm精确安装、CLI版本、29工具离线发现和生成能力拒绝通过。包176100字节，SHA-256 `7f874c4f67689b1b0686154aa384fd69e6ce82086e183a1c62ff45bbf12de0d2`，与CI制品相同。未随本次npm发布新的Windows或Mac桌面安装器。
 - 详细证据：[验收记录](../tuda-board-plugin-acceptance.md)。指标未采集。
+
+
+### NPM-002 · Tuda连接插件0.1.1稳定版
+
+- 入口：[npm精确版本](https://www.npmjs.com/package/@petercjl/tuda/v/0.1.1)。包名 `@petercjl/tuda`，稳定渠道 `latest`；原有 `next` 仍为0.1.0。
+- 内容：连接级授权隔离与短期授权续期，复用宿主授权并保留独立Tuda桌面账号。独立CLI与配套Skill同版本发布。
+- 日期：2026-11-12（Asia/Shanghai）。源码提交：`bfa486ee42956a122435d455e5118d99b4377d95`。
+- 发布：[GitHub Actions OIDC](https://github.com/petercjl/iterlay/actions/runs/43239164329)，Windows、macOS、Linux插件包级检查全部通过，上传成功；首次发布后校验遇到包文件CDN尚未可见，后续补充有界下载重试并执行[只读复核](https://github.com/petercjl/iterlay/actions/runs/43241403783)，未重复上传或升版。
+- 公开核验：registry中的精确版本与latest标签、完整性、真实npm精确安装、CLI版本与隔离Skill安装状态均已通过。22个文件，176296字节；SHA-256 `839ea7ab33b9fa7b79378b38f6b56f891384789821346cbc432b502e7d6c8457`。
+- npm SRI：`sha512-mllszhOCcNs7DLH3H0vimtTfFKziFf6laH6ZwyJA/p1IZ+7PByFbF1Ma85uHpgS0vZBIXSAdFbGIXcemMmLsMA==`。
+- 范围：本次仅发布连接插件；Tuda桌面和codex-own主产品独立发布。宿主消费渠道和自动更新接入由宿主维护。
+- 指标未采集。
