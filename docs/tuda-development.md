@@ -8,7 +8,7 @@
 
 ## 本地开发
 
-使用 Node.js 22.12+、pnpm 10。macOS 运行 `pnpm electron:dev`，完整编译使用 `pnpm build`。桌面开发数据为 `tmp/desktop-dev/user-data/`，可通过 `TUDA_DESKTOP_DEV_USER_DATA` 选择其他目录。网页诊断使用独立的 `tmp/browser-dev/user-data/`。
+使用 Node.js 22.12+、pnpm 10。macOS 运行 `pnpm electron:dev`，其启动器在 `tmp/desktop-runtime/` 创建独立的 `Tuda.app` 开发运行时，设置系统名称、开发 Bundle ID 与图标，供菜单栏、Dock 和桌面测试共同使用；Electron 依赖目录保持独立。此运行时随 Electron 或品牌资产变化自动生成。完整编译使用 `pnpm build`。桌面开发数据为 `tmp/desktop-dev/user-data/`，可通过 `TUDA_DESKTOP_DEV_USER_DATA` 选择其他目录。网页诊断使用独立的 `tmp/browser-dev/user-data/`。
 
 正式应用显式选择当前用户的 Tuda 应用数据目录，CLI 与应用使用同一个目录规则。原版工作区通过画板包显式导入，不自动接管原版目录或凭证。旧 `.itb` / `.irb` 和模板文件保留导入兼容；Tuda 导出的格式标识独立命名。
 

@@ -14,7 +14,7 @@
     "dev:web": "node scripts/dev-browser.mjs",
     "dev:ui": "vite --host 127.0.0.1 --port 5180 --strictPort",
     "clean:electron": "node -e \"require('node:fs').rmSync('dist-electron',{recursive:true,force:true})\"",
-    "electron:dev": "pnpm clean:electron && tsc -p electron/tsconfig.json && pnpm preload:build && concurrently -k -n vite,tsc,preload,electron -c cyan,yellow,magenta,green \"vite --host 127.0.0.1 --port 5180 --strictPort\" \"tsc -p electron/tsconfig.json --watch --preserveWatchOutput\" \"node scripts/build-preload.mjs --watch\" \"wait-on http-get://127.0.0.1:5180 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5180 nodemon --watch dist-electron --ext js,cjs --delay 800ms --exec 'electron .'\"",
+    "electron:dev": "pnpm clean:electron && tsc -p electron/tsconfig.json && pnpm preload:build && concurrently -k -n vite,tsc,preload,electron -c cyan,yellow,magenta,green \"vite --host 127.0.0.1 --port 5180 --strictPort\" \"tsc -p electron/tsconfig.json --watch --preserveWatchOutput\" \"node scripts/build-preload.mjs --watch\" \"wait-on http-get://127.0.0.1:5180 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5180 nodemon --watch dist-electron --ext js,cjs --delay 800ms --exec 'node scripts/run-desktop-electron.mjs .'\"",
     "prebuild": "pnpm native:build",
     "build": "pnpm build:renderer && pnpm build:electron && pnpm build:cli",
     "test": "vitest run",
