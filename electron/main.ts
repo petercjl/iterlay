@@ -4,6 +4,7 @@ import { ImageTaskQueue } from "./image-worker-client.js";
 import { allowedExternalUrl, installRendererSecurity, isTrustedRendererUrl } from "./renderer-security.js";
 import { installWindowLifecycle } from "./window-lifecycle.js";
 import { BackgroundSession, CLI_BACKGROUND_FLAG } from "./background-session.js";
+import { resolveDesktopDevelopmentUserData } from "./dev-workspace.js";
 import { app, BrowserWindow, dialog, Menu, nativeImage, nativeTheme, net, shell } from "electron";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
@@ -154,10 +155,15 @@ if (isBrowserDev) {
   app.setAppLogsPath(path.join(path.resolve(userData), "logs"));
   process.on("SIGTERM", () => app.quit());
   process.on("SIGINT", () => app.quit());
-} else if (process.env.ITERLAY_PLAYWRIGHT === "1" && process.env.ITERLAY_E2E_USER_DATA) {
-  app.setPath("userData", path.resolve(process.env.ITERLAY_E2E_USER_DATA));
-  app.setPath("sessionData", path.join(path.resolve(process.env.ITERLAY_E2E_USER_DATA), "session"));
-  app.setAppLogsPath(path.join(path.resolve(process.env.ITERLAY_E2E_USER_DATA), "logs"));
+} else {
+  const userData = resolveDesktopDevelopmentUserData({
+    isPackaged: app.isPackaged, isBrowserDev, appPath: app.getAppPath(), env: process.env
+  });
+  if (userData) {
+    app.setPath("userData", userData);
+    app.setPath("sessionData", path.join(userData, "session"));
+    app.setAppLogsPath(path.join(userData, "logs"));
+  }
 }
 app.setName(APP_NAME);
 if (process.platform === "win32") {

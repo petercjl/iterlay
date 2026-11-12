@@ -11,8 +11,14 @@ Requirements:
 
 ```bash
 pnpm install
-pnpm dev
+pnpm electron:dev
 ```
+
+This fork uses the visible Electron desktop application for routine development on macOS. `pnpm electron:dev` builds the native helpers and Electron services, starts Vite, and opens the desktop window. Desktop development data lives in `tmp/desktop-dev/user-data/`, separately from installed application data and browser development. Set `ITERLAY_DESKTOP_DEV_USER_DATA` to select a different development directory. Packaged applications use the current operating-system user's application-data directory.
+
+### Browser diagnostics
+
+Run `pnpm dev` when browser-specific diagnostics are needed.
 
 Open **http://127.0.0.1:5180** in your browser. `pnpm dev` (or `pnpm dev:web`) starts Vite and a hidden Electron service process, so the browser uses real boards, settings, generation tasks, and native media services. Renderer changes use Vite hot reload; changes to Electron services rebuild and restart the backend. Stop everything with Ctrl+C.
 
@@ -20,7 +26,7 @@ Backend restarts and shutdown wait for pending board saves. If the workspace sta
 
 Browser development stores its data separately in `tmp/browser-dev/user-data/`; existing app data stays separate. Set `ITERLAY_BROWSER_DEV_USER_DATA` to choose another development directory. The authenticated bridge listens on loopback and starts only in this development mode. Packaged apps keep using Electron IPC.
 
-Use the browser for routine debugging and verification. Run `pnpm electron:dev` for visible desktop app testing only when explicitly requested, including native window and application lifecycle behavior. `pnpm dev:ui` retains the standalone Vite server for isolated UI previews without backend services.
+Validate desktop behavior in the visible desktop application, including native windows, local persistence and the application lifecycle. `pnpm dev:ui` retains the standalone Vite server for isolated UI previews without backend services.
 
 Run the project checks:
 
@@ -41,6 +47,8 @@ pnpm check:all
 - `docs/` — Product notes and maintainer documentation.
 
 ## Local packaging
+
+For this fork, macOS is the development platform and Windows is the customer release platform. Build and validate official Windows installers on Windows. The npm distribution and desktop update integration are tracked separately until implemented and verified. The upstream packaging commands below remain available for engineering reference.
 
 ```bash
 pnpm build
