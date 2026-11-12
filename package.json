@@ -23,10 +23,10 @@
     "test:browser:smoke": "node scripts/playwright-browser-smoke.mjs",
     "test:browser:assistant": "node scripts/playwright-browser-refactor-assistant.mjs",
     "test:browser:restart": "node scripts/playwright-browser-restart.mjs",
-    "test:electron:smoke": "pnpm build:electron && ITERLAY_E2E_ELECTRON=\"$(bash scripts/prepare-playwright-electron.sh)\" node scripts/playwright-electron-smoke.mjs",
+    "test:electron:smoke": "pnpm build:electron && TUDA_E2E_ELECTRON=\"$(bash scripts/prepare-playwright-electron.sh)\" node scripts/playwright-electron-smoke.mjs",
     "pretest:electron:photo-layers": "pnpm build",
-    "test:electron:photo-layers": "ITERLAY_E2E_ELECTRON=\"$(bash scripts/prepare-playwright-electron.sh)\" node scripts/playwright-electron-photo-layers.mjs",
-    "test:electron:generate-photo-fixtures": "ITERLAY_E2E_ELECTRON=\"$(bash scripts/prepare-playwright-electron.sh)\" node scripts/playwright-electron-generate-photo-fixtures.mjs",
+    "test:electron:photo-layers": "TUDA_E2E_ELECTRON=\"$(bash scripts/prepare-playwright-electron.sh)\" node scripts/playwright-electron-photo-layers.mjs",
+    "test:electron:generate-photo-fixtures": "TUDA_E2E_ELECTRON=\"$(bash scripts/prepare-playwright-electron.sh)\" node scripts/playwright-electron-generate-photo-fixtures.mjs",
     "lint": "eslint . --ext .ts,.tsx",
     "package": "electron-builder --dir && node scripts/verify-package-size.mjs",
     "release": "node scripts/release-windows.mjs",
@@ -190,7 +190,13 @@
           "dist/main.js",
           "guard/**",
           "package.json",
-          "skills/**"
+          "skills/**",
+          "capabilities.json",
+          "release-manifest.json",
+          "INSTALL.md",
+          "UPDATE.md",
+          "LICENSE",
+          "THIRD_PARTY_NOTICES.md"
         ]
       },
       {
