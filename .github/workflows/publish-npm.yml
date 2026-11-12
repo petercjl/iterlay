@@ -21,6 +21,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 40
     steps:
+      - run: git config --global core.autocrlf false
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
@@ -34,16 +35,47 @@ jobs:
         env:
           RELEASE_VERSION: ${{ inputs.release }}
         run: node -e "const p=require('./package.json'),c=require('./desktop-package/package.json');if(process.env.RELEASE_VERSION!==p.version||c.version!==p.version)throw Error('Commit matching application and desktop package versions, then request that exact version.')"
+      - run: pnpm plugins:build
       - run: pnpm brand:check
-      - run: pnpm test
+      - run: pnpm typecheck
+      - run: pnpm exec vitest run --maxWorkers=4 --minWorkers=1
       - run: pnpm release --arch x64
         env:
           TUDA_COMPANY_DEFAULTS_JSON: ${{ secrets.TUDA_COMPANY_DEFAULTS_JSON }}
-      - run: node scripts/playwright-electron-smoke.mjs
+      - name: Prepare expected deployment defaults
+        shell: pwsh
+        env:
+          TUDA_COMPANY_DEFAULTS_JSON: ${{ secrets.TUDA_COMPANY_DEFAULTS_JSON }}
+        run: |
+          $prepared = node scripts/prepare-company-defaults.mjs --staging-root "$env:RUNNER_TEMP/tuda-expected-defaults" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "TUDA_E2E_COMPANY_DEFAULTS_FILE=$($prepared.file)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Install the actual Windows release
+        shell: pwsh
+        env:
+          PACKAGE_VERSION: ${{ inputs.release }}
+        run: |
+          $target = Join-Path $env:RUNNER_TEMP 'Tuda-installed'
+          if (Test-Path $target) { throw 'Install target exists' }
+          $installer = Join-Path $PWD "release/Tuda-$env:PACKAGE_VERSION-x64.exe"
+          $process = Start-Process $installer -ArgumentList @('/S', '/CURRENTUSER', "/D=$target") -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw 'Installer failed' }
+          "TUDA_E2E_ELECTRON=$target/Tuda.exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          'TUDA_E2E_PACKAGED=1' | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Verify installed Pi runtime, defaults and workspace persistence
+        run: node scripts/playwright-electron-smoke.mjs
+      - name: Verify standalone company connection defaults
+        env:
+          TUDA_E2E_STANDALONE: '1'
+        run: node scripts/playwright-electron-smoke.mjs
       - run: node scripts/prepare-release-manifest.mjs --arch x64
-      - run: pnpm build:cli
       - run: node desktop-package/validate.mjs
       - run: npm pack ./desktop-package --pack-destination release
+      - name: Stage desktop manifest beside installer
+        shell: pwsh
+        run: |
+          if (Test-Path release/release-manifest.json) { throw 'Manifest target exists' }
+          Copy-Item desktop-package/release-manifest.json release/release-manifest.json
       - uses: actions/upload-artifact@v4
         with:
           name: tuda-verified-release
@@ -51,14 +83,20 @@ jobs:
             release/*.exe
             release/*.tgz
             release/npm-payloads-*/*.tgz
-            desktop-package/release-manifest.json
+            release/release-manifest.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tuda-windows-evidence
+          path: |
             output/package-size/*.json
+            output/playwright/tuda-smoke-*/**
   publish:
     needs: verify
     runs-on: ubuntu-latest
-    environment: npm-release
+    timeout-minutes: 35
     permissions:
-      contents: write
+      contents: read
       id-token: write
     steps:
       - uses: actions/checkout@v4
@@ -96,4 +134,5 @@ jobs:
           done < <(find candidate -name '*-payload.*.tgz' -type f -print0)
           node scripts/verify-npm-release.mjs "$MANIFEST"
           npm publish "$TARBALL" --access public --provenance --tag "$DIST_TAG"
-          npm view "@petercjl/tuda-desktop@$VERSION" version
+          EXPECTED_INTEGRITY=$(node -e 'const c=require("crypto"),f=require("fs");console.log("sha512-"+c.createHash("sha512").update(f.readFileSync(process.argv[1])).digest("base64"))' "$TARBALL")
+          node scripts/verify-desktop-publication.mjs "$VERSION" "$DIST_TAG" "$EXPECTED_INTEGRITY"
