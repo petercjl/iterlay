@@ -106,6 +106,9 @@ async function handleRequest(
     if (typeof requestBody.method !== "string" || !requestBody.args || typeof requestBody.args !== "object" || Array.isArray(requestBody.args)) throw new Error("CLI 请求参数无效。");
     // All external calls are passive unless the caller selects an explicit view tool.
     const viewRequested = ["open_tuda", "open_iterlay", "open_board", "fit_board_view", "focus_nodes"].includes(requestBody.method);
+    if (viewRequested && request.url === "/board-plugin/call" && requestBody.args.userRequestedView !== true) {
+      throw new Error("EXPLICIT_VIEW_INTENT_REQUIRED: Opening or focusing Tuda requires an explicit user request to view it. Importing, editing, verifying layout and reconnecting must stay silent. Only when the user explicitly asks to view, pass userRequestedView=true.");
+    }
     const invoke = async () => inExecutionContext({ ...executionContext(), silent: !viewRequested }, async () => {
       const result = await runtime(requestBody.args!.space).call(requestBody.method!, {
         ...requestBody.args!, preserveView: !viewRequested

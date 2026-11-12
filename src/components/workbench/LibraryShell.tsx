@@ -78,6 +78,8 @@ interface LibraryShellProps {
   textProviders?: import("@shared/types").TextProviderConfig[];
   activeTextProviderId?: string;
   onSelectTextProvider?: (id: string) => void;
+  onChooseBoardCover?: (id: string) => void;
+  onBoardCoverSaved?: (summary: BoardSummary) => Promise<void>;
   boards: BoardSummary[];
   activeBoardGenerations?: ActiveBoardGeneration[];
   activeBoardId?: string;

@@ -79,6 +79,17 @@ it("defaults external calls to silent context and passive events, showing only e
    mocks.saveAssetsAsZip.mockImplementation(async () => { expect(executionContext().silent).toBe(true); return { ok: true, path: "/downloads/test.zip" }; });
    expect((await call("export_assets", { paths: ["test"] })).body.result.ok).toBe(true);
    expect(show).not.toHaveBeenCalled();
+   const pluginCall = (method: string, args: Record<string, unknown>) => fetch(`http://127.0.0.1:${info.port}/board-plugin/call`, { method: "POST", headers: { authorization: `Bearer ${info.token}`, "content-type": "application/json" }, body: JSON.stringify({ method, args }) });
+   for (const method of ["open_tuda", "open_board", "fit_board_view", "focus_nodes"]) {
+     const response = await pluginCall(method, { boardId: "silent-board", nodeIds: ["image"] });
+     expect(response.status).toBe(400);
+     expect((await response.json()).error).toContain("EXPLICIT_VIEW_INTENT_REQUIRED");
+   }
+   expect(show).not.toHaveBeenCalled();
+   const shown = await pluginCall("open_tuda", { userRequestedView: true });
+   expect(shown.status).toBe(200);
+   expect(show).toHaveBeenCalledOnce();
+   show.mockClear();
    mocks.flush.mockClear();
    await call("move_image", { boardId: "background", nodeId: "image", x: 10, y: 20 });
    expect(mocks.flush).not.toHaveBeenCalled();

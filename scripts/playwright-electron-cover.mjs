@@ -15,7 +15,7 @@ const paths = ["lamp-studio.jpg", "aura-cover.jpg"].map(name => path.join(worksp
 for (let i = 0; i < paths.length; i++) await writeFile(paths[i], await readFile(path.join(root, "demo-assets", path.basename(paths[i]))), { flag: "wx" });
 const bad = path.join(workspace, "outputs", "unreadable.png");
 await writeFile(bad, "unreadable fixture", { flag: "wx" });
-const node = (id, imagePath, x = 0) => ({ id, type: "image", imagePath, jobId: id, source: "uploaded", x, y: 0, width: 800, height: 600, displayWidth: 240 });
+const node = (id, imagePath, x = 0) => ({ id, type: "image", imagePath, jobId: id, source: "upload", x, y: 0, width: 800, height: 600, displayWidth: 240 });
 const legacyId = "cover-legacy";
 const legacy = { schemaVersion: 3, revision: 0, id: legacyId, name: "封面验收 · 历史画板", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), nodes: [node("unreadable", bad), node("first", paths[0], 300), node("second", paths[1], 600)] };
 await writeFile(path.join(workspace, "boards", `${legacyId}.json`), JSON.stringify(legacy), { flag: "wx" });
@@ -41,7 +41,7 @@ async function waitCover(nodeId, imagePath) {
   }, { id: legacyId, nodeId, imagePath }, { timeout: 30000 });
 }
 async function cardMenu() {
-  await page.getByRole("button", { name: `画板 ${legacy.name} 操作`, exact: true }).click();
+  await page.locator(`[data-board-library-id="${legacyId}"]`).getByRole("button", { name: `画板 ${legacy.name} 操作`, exact: true }).click();
   await page.getByRole("menuitem", { name: "更换封面", exact: true }).click();
   await page.getByRole("dialog").waitFor();
   await page.getByRole("button", { name: "选择图片 3", exact: true }).waitFor();
@@ -49,13 +49,14 @@ async function cardMenu() {
 try {
   await start();
   // Historical boards are repaired on the library page; an unreadable first image falls through.
+  await page.locator(`[data-board-library-id="${legacyId}"] [data-board-card] img`).waitFor();
   await waitCover("", paths[0]);
   await page.screenshot({ path: path.join(output, "01-automatic-repair.png") });
   // A CLI/API append gets a cover before the board has ever been opened in the canvas.
   const cli = await page.evaluate(async imagePath => {
     const api = window.imageWorkbench;
     const b = await api.createBoard("封面验收 · CLI追加");
-    await api.appendBoardNodes(b.id, [{ id: "cli-image", imagePath, jobId: "cli-image", source: "uploaded", width: 800, height: 600 }]);
+    await api.appendBoardNodes(b.id, [{ id: "cli-image", imagePath, jobId: "cli-image", source: "upload", width: 800, height: 600 }]);
     return api.getBoard(b.id);
   }, paths[1]);
   assert.equal(cli.thumbnailImagePath, paths[1]); assert.ok(cli.thumbnailDataUrl);

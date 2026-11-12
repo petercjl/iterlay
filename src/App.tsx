@@ -6079,6 +6079,7 @@ export default function App(): React.ReactElement {
           {libraryOpen ? (
             <Suspense key="library" fallback={null}>
               <LibraryShell
+                onChooseBoardCover={id => void chooseBoardCover(id)} onBoardCoverSaved={acceptBoardCover}
                 textProviders={textProviders}
                 activeTextProviderId={activeTextProviderId}
                 onSelectTextProvider={(id) => void selectAgentTextProvider(id)}

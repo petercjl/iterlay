@@ -16,7 +16,16 @@ function tool(name: string, description: string, properties: Record<string, unkn
 }
 export function boardPluginTools() {
   return [
-    ...listWorkspaceTools().filter(t => existing.has(String(t.name))),
+    ...listWorkspaceTools().filter(t => existing.has(String(t.name))).map(t => {
+      if (!["open_tuda", "open_board", "fit_board_view", "focus_nodes"].includes(String(t.name))) return t;
+      const schema = t.inputSchema as { properties: Record<string, unknown>; required?: string[] };
+      return { ...t, name: t.name,
+        description: String(t.description) + " Foreground-only operation: call ONLY when the user explicitly asks to open/view/focus Tuda. Never use for imports, automatic visual QA, reconnecting, or task completion. Ordinary board tools work silently without opening a board.",
+        inputSchema: { ...schema, properties: { ...schema.properties,
+          userRequestedView: { type: "boolean", const: true, description: "Set true only for an explicit user request to display Tuda. Never infer permission from an import/edit task." }
+        }, required: [...(schema.required ?? []), "userRequestedView"] }
+      };
+    }),
     tool("create_board", "Create an empty Tuda board. Does not generate media.", { name: str }, ["name"]),
     tool("rename_board", "Rename an existing board.", { boardId: str, name: str }, ["boardId", "name"]),
     tool("trash_board", "Move a board to the recoverable trash. Follow the user's deletion authorization.", { boardId: str }, ["boardId"]),
