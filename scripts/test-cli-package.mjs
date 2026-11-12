@@ -4,6 +4,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 const project = path.resolve(import.meta.dirname, "..");
+const expectedVersion = JSON.parse(await readFile(path.join(project, "cli/package.json"), "utf8")).version;
 const work = await mkdtemp(path.join(os.tmpdir(), "tuda-package-"));
 const npmScript = process.platform === "win32" ? path.join(path.dirname(process.execPath), "node_modules/npm/bin/npm-cli.js") : null;
 const npm = (args) => execFileSync(npmScript ? process.execPath : "npm", npmScript ? [npmScript, ...args] : args, { cwd: project, encoding: "utf8", env: { ...process.env, TUDA_NO_UPDATE_CHECK: "1" } });
@@ -20,7 +21,7 @@ try {
   const bootstrap = path.join(work, "bootstrap");
   npm(["install", "--prefix", bootstrap, "--ignore-scripts", "--no-audit", "--no-fund", path.join(work, pack[0].filename)]);
   const entry = path.join(bootstrap, "node_modules/@petercjl/tuda/dist/main.js");
-  assert.equal(execute(entry, ["version"]).version, "0.1.0");
+  assert.equal(execute(entry, ["version"]).version, expectedVersion);
   execute(entry, ["skill", "install"], false);
   const a = path.join(work, "host-a/using-tuda"), b = path.join(work, "host-b/using-tuda");
   execute(entry, ["skill", "install", "--target", a, "--agent", "arbitrary-agent"]);
@@ -40,7 +41,7 @@ try {
   await rm(bootstrap, { recursive: true, force: true });
   await rm(path.dirname(a), { recursive: true, force: true });
   const ownEntry = path.join(b, ".runtime/dist/main.js");
-  assert.equal(execute(ownEntry, ["version"]).version, "0.1.0");
+  assert.equal(execute(ownEntry, ["version"]).version, expectedVersion);
   assert.equal(execute(ownEntry, ["doctor"]).runtimeReady, true);
   const result = { ok: true, packedInstall: true, explicitTarget: true, arbitraryHost: true, noOp: true, sameVersionRepair: true, localEditsPreserved: true, unmanagedPreserved: true, physicalHostIsolation: true };
   console.log(JSON.stringify(result, null, 2));

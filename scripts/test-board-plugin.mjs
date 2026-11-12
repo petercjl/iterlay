@@ -18,7 +18,7 @@ const backend = createServer(async (req, res) => {
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
   const body = JSON.parse(Buffer.concat(chunks).toString());
-  calls.push({ route: req.url, body });
+  calls.push({ route: req.url, body, session: req.headers["x-tuda-plugin-session"] });
   res.setHeader("content-type", "application/json");
   res.end(JSON.stringify({ result: { protocolVersion: 1, accepted: true } }));
 });
@@ -57,15 +57,23 @@ try {
   assert.equal(calls.filter(c => c.route === "/board-plugin/auth").length, 1);
   await client.callTool({ name: "list_boards", arguments: {} });
   assert.equal(calls.filter(c => c.route === "/board-plugin/auth").length, 1, "do not replay one-time grants");
+  const secret = calls.find(c => c.route === "/board-plugin/auth").session;
+  assert.match(secret, /^[a-f0-9]{64}$/);
+  assert(calls.filter(c => c.route.startsWith("/board-plugin/")).every(c => c.session === secret));
+  await writeFile(path.join(directory, "not-issued-yet.json"), JSON.stringify({ ...grant, code: "e".repeat(43) }), { mode: 0o600 });
+  assert(!(await client.callTool({ name: "list_boards", arguments: {} })).isError);
+  assert.equal(calls.filter(c => c.route === "/board-plugin/auth").length, 2, "renewed grants are exchanged within the same desktop instance");
   token = "u".repeat(43);
   await writeFile(path.join(directory, "local-api.json"), JSON.stringify({ port: backend.address().port, token }), { mode: 0o600 });
   const stale = await client.callTool({ name: "list_boards", arguments: {} });
   assert(stale.isError && JSON.stringify(stale).includes("AUTH_HANDOFF_STALE_INSTANCE"));
   await writeFile(path.join(directory, "not-issued-yet.json"), JSON.stringify({ ...grant, code: "d".repeat(43), instanceId: instanceId() }), { mode: 0o600 });
   assert(!(await client.callTool({ name: "list_boards", arguments: {} })).isError);
-  assert.equal(calls.filter(c => c.route === "/board-plugin/auth").length, 2, "new desktop instance requires a fresh handoff");
+  assert.equal(calls.filter(c => c.route === "/board-plugin/auth").length, 3, "new desktop instance requires a fresh handoff");
   assert(!JSON.stringify(result).includes(grant.code));
   assert(!diagnostics.includes(grant.verifier));
+  assert(!JSON.stringify(result).includes(secret));
+  assert(!diagnostics.includes(secret));
   console.log(JSON.stringify({ ok: true, tools: tools.length, discoveryOffline: true, generationDenied: true, fixedSpace: true, delayedPrivateAuth: true, localImageImport: true }));
 } finally {
   await client.close();

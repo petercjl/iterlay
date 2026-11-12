@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "name": "@petercjl/tuda",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "kind": "cli-skill",
   "skills": [
     "using-tuda"
@@ -438,6 +438,15 @@
       "activation": "next-connection",
       "compatibility": "same-minor-for-0.x-same-major-for-1.x",
       "failure": "keep-active"
+    },
+    "sharedDesktopSession": {
+      "contract": 1,
+      "authScope": "connection",
+      "preservesDesktopSession": true,
+      "transport": "private-file-pkce-with-connection-secret",
+      "sessionPersistence": "memory-only",
+      "space": "enterprise",
+      "source": "codex-own"
     }
   }
 }

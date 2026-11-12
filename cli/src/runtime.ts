@@ -15,8 +15,8 @@ export async function desktopInstance(userDataPath: string): Promise<string> {
 }
 export async function prepareDesktop(options: RuntimeOptions) {
   const call = await connect(options);
-  const state = await call("status") as { protocolVersion?: number };
-  return { ready: true, instanceId: await desktopInstance(options.userDataPath), protocolVersion: state.protocolVersion };
+  const state = await call("status") as { protocolVersion?: number; desktopVersion?: string; boardPlugin?: unknown };
+  return { ready: true, instanceId: await desktopInstance(options.userDataPath), protocolVersion: state.protocolVersion, desktopVersion: state.desktopVersion, boardPlugin: state.boardPlugin };
 }
 export async function connect(options: RuntimeOptions): Promise<(method: string, args?: Record<string, unknown>) => Promise<unknown>> {
   const startupTimeoutMs = options.startupTimeoutMs ?? Number(process.env.TUDA_STARTUP_TIMEOUT_MS ?? 30000);

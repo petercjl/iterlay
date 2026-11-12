@@ -2,7 +2,7 @@
 name: using-tuda
 description: Use Tuda for image and video creation, editing, boards and assets only when the user explicitly invokes /using-tuda or $using-tuda. Do not select this skill automatically.
 metadata:
-  version: "0.1.0"
+  version: "0.1.1"
 ---
 
 # Using Tuda
