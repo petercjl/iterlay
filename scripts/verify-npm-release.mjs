@@ -9,13 +9,13 @@ for (const installer of release.installers) {
   for (const part of installer.npmPayloads) {
     if (part.url !== `https://registry.npmjs.org/@petercjl/tuda-desktop/-/tuda-desktop-0.0.0-payload.${part.sha256}.tgz`) throw Error("Unexpected payload origin");
     let response;
-    for (let attempt = 0; attempt < 60; attempt++) {
+    for (let attempt = 0; attempt < 240; attempt++) {
       response = await fetch(part.url, { signal: AbortSignal.timeout(30_000), headers: { "cache-control": "no-cache" } }).catch(() => undefined);
       if (response?.ok) break;
       const status = response?.status;
       await response?.body?.cancel();
       if (status && status !== 404 && status !== 429 && status < 500) throw Error(`Payload unavailable: ${status}; inspect this exact release before retrying`);
-      console.log(`Waiting for npm payload visibility (${attempt + 1}/60)`);
+      console.log(`Waiting for npm payload visibility (${attempt + 1}/240)`);
       await new Promise((resolve) => setTimeout(resolve, 4_000));
     }
     if (!response?.ok) throw Error("npm payload propagation pending; preserve the exact version and inspect publication before retrying");

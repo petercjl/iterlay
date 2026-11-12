@@ -11,6 +11,10 @@ on:
         type: choice
         options: [next, latest]
         default: next
+      resume_run:
+        description: Reuse an exact verified desktop run after accepted payload uploads
+        type: string
+        default: ''
 permissions:
   contents: read
 concurrency:
@@ -18,6 +22,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   verify:
+    if: ${{ !inputs.resume_run }}
     runs-on: windows-latest
     timeout-minutes: 40
     steps:
@@ -94,14 +99,43 @@ jobs:
             output/package-size/*.json
             output/playwright/tuda-smoke-*/**
   publish:
+    if: ${{ always() && (inputs.resume_run || needs.verify.result == 'success') }}
     needs: verify
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 60
     permissions:
       contents: read
       id-token: write
+      actions: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify native artifact recovery provenance
+        if: inputs.resume_run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESUME_RUN: ${{ inputs.resume_run }}
+          RELEASE_VERSION: ${{ inputs.release }}
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import {execFileSync} from 'node:child_process';
+          const id=process.env.RESUME_RUN; assert.match(id,/^[0-9]+$/);
+          const api=p=>JSON.parse(execFileSync('gh',['api',p],{encoding:'utf8'}));
+          const base='repos/'+process.env.GITHUB_REPOSITORY+'/actions/runs/'+id;
+          const run=api(base);
+          assert.equal(run.path,'.github/workflows/publish-npm.yml');
+          assert.equal(run.head_repository.full_name,process.env.GITHUB_REPOSITORY);
+          assert.equal(api(base+'/jobs').jobs.find(j=>j.name==='verify')?.conclusion,'success');
+          assert(api(base+'/artifacts').artifacts.some(a=>a.name==='tuda-verified-release'&&!a.expired));
+          const changed=execFileSync('git',['diff','--name-only',run.head_sha,'HEAD'],{encoding:'utf8'}).trim().split('\n').filter(Boolean);
+          const allowed=new Set(['.github/workflows/publish-npm.yml','scripts/verify-npm-release.mjs','scripts/verify-desktop-publication.mjs','docs/marketing/publications.md','docs/tuda-windows-release.md']);
+          assert(changed.every(p=>allowed.has(p)),'Native build inputs changed; run complete Windows verification');
+          const original=JSON.parse(execFileSync('git',['show',run.head_sha+':desktop-package/package.json'],{encoding:'utf8'}));
+          assert.equal(original.version,process.env.RELEASE_VERSION);
+          console.log(JSON.stringify({ok:true,nativeSource:run.head_sha,nativeRun:run.id,publicationSource:process.env.GITHUB_SHA,changedPublicationInputs:changed}));
+          JS
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -111,10 +145,13 @@ jobs:
         with:
           name: tuda-verified-release
           path: candidate
+          run-id: ${{ inputs.resume_run || github.run_id }}
+          github-token: ${{ github.token }}
       - name: Verify archive, publish npm payloads and manager through OIDC
         env:
           GH_TOKEN: ${{ github.token }}
           DIST_TAG: ${{ inputs.tag }}
+          RESUME_RUN: ${{ inputs.resume_run }}
         run: |
           set -euo pipefail
           VERSION=$(node -p 'require("./desktop-package/package.json").version')
@@ -125,6 +162,7 @@ jobs:
           node -e 'const fs=require("fs"),c=require("crypto"),m=JSON.parse(fs.readFileSync(process.argv[1])),b=fs.readFileSync(process.argv[2]);if(c.createHash("sha256").update(b).digest("hex")!==m.installers[0].sha256)throw Error("installer integrity")' "$MANIFEST" "$INSTALLER"
           tar -xzf "$TARBALL" -C candidate
           node -e 'const p=require("./candidate/package/package.json"),m=require(process.argv[1]);if(JSON.stringify(p.tudaRelease)!==JSON.stringify(m))throw Error("manifest drift")' "$(realpath "$MANIFEST")"
+          if [[ -z "$RESUME_RUN" ]]; then
           while IFS= read -r -d '' PAYLOAD; do
             PAYLOAD_VERSION=$(tar -xOf "$PAYLOAD" package/package.json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).version))')
             if npm view "@petercjl/tuda-desktop@$PAYLOAD_VERSION" version >/dev/null 2>&1; then
@@ -134,7 +172,12 @@ jobs:
               npm publish "$PAYLOAD" --access public --provenance --tag payload
             fi
           done < <(find candidate -name '*-payload.*.tgz' -type f -print0)
+          fi
           node scripts/verify-npm-release.mjs "$MANIFEST"
-          npm publish "$TARBALL" --access public --provenance --tag "$DIST_TAG"
           EXPECTED_INTEGRITY=$(node -e 'const c=require("crypto"),f=require("fs");console.log("sha512-"+c.createHash("sha512").update(f.readFileSync(process.argv[1])).digest("base64"))' "$TARBALL")
+          if npm view "@petercjl/tuda-desktop@$VERSION" dist.integrity --json > candidate/manager-integrity.json 2>/dev/null; then
+            EXPECTED_INTEGRITY="$EXPECTED_INTEGRITY" node -e 'const f=require("fs");if(JSON.parse(f.readFileSync("candidate/manager-integrity.json"))!==process.env.EXPECTED_INTEGRITY)throw Error("Existing stable archive differs")'
+          else
+            npm publish "$TARBALL" --access public --provenance --tag "$DIST_TAG"
+          fi
           node scripts/verify-desktop-publication.mjs "$VERSION" "$DIST_TAG" "$EXPECTED_INTEGRITY"
