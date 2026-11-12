@@ -23,7 +23,7 @@ Tuda 独立品牌、选定蓝绿 T 标志、应用 ID、数据目录、协议、
 | 本机安装 | 本地候选 tarball 安装于用户级 npm prefix；仅同步 Codex 的 `using-tuda`。目标版本一致、current=true；目标自带运行时 doctor 通过，当前会话已实际读取 Skill |
 | 网站 | 13 项测试、类型、构建及 SEO 链接检查通过；42 页、784 条链接。官网部署未执行 |
 | macOS Dev | 已实际启动 Tuda 原生桌面，CLI 可连接独立开发工作区；已检查画板库、画布、设置、Coding Agent、更新入口 |
-| Windows 构建 | Windows x64 的 NSIS 安装器构建、包体检查、tarball CLI 消费与桌面生命周期测试均通过；[验证运行 43150738514](https://github.com/petercjl/iterlay/actions/runs/43150738514)。WebP 修复的最新构建结果继续单列核验 |
+| Windows 构建 | Windows x64 的 NSIS 安装器构建、包体检查、tarball CLI 消费、WebP 缩略图与桌面生命周期测试均通过；[最终应用源码验证运行 43151101759](https://github.com/petercjl/iterlay/actions/runs/43151101759)，对应提交 `0579d4a`。随后提交仅更新验收文档与正式发布工作流的精确版本输入 |
 
 Mac 桌面截图位于 `output/playwright/`：`tuda-library-verified.png`、`tuda-settings-verified.png`、`tuda-system-verified.png`、`tuda-update-verified.png`。完整桌面 smoke 截图为 `tuda-smoke-z9XIKW/electron-smoke.png`。这些文件是本机忽略的验证产物。
 
@@ -45,7 +45,7 @@ Mac 桌面截图位于 `output/playwright/`：`tuda-library-verified.png`、`tud
 
 npm 包 `@petercjl/tuda` 承载版本、CLI、Skill 和更新清单；Windows 安装器由自己的不可变 `tuda-v<version>` GitHub Release 承载。客户端验证版本、平台架构、HTTPS、文件大小、SHA-256，再调用 Windows 安装驱动。客户桌面更新无需安装 Node.js。
 
-正式发布工作流使用 GitHub 托管 runner、Windows 构建与 OIDC npm Trusted Publishing。发布前仍需新包一次性初始化和 Trusted Publisher 配置。当前 registry 查询为 404，**没有执行 npm 正式发布**。本机已安装的是源码产生的候选 tarball。
+正式发布工作流使用 GitHub 托管 runner、Windows 构建与 OIDC npm Trusted Publishing。`npm-release-kit doctor --root . --package-dir cli --workflow publish-npm.yml --json` 八项检查通过；这不代表 npm 账号侧已配置 Trusted Publisher。发布前仍需新包一次性初始化和 Trusted Publisher 配置。当前 registry 查询为 404，**没有执行 npm 正式发布**。本机已安装的是源码产生的候选 tarball。
 
 Windows 安装器目前未配置代码签名证书；安装提示与企业环境策略需要真机验收。默认按用户安装并保留卸载后的应用数据。
 
