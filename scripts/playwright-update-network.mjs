@@ -1,16 +1,14 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
-import os from "node:os";
+import { mkdtemp } from "node:fs/promises";
 import path from "node:path";
 import { _electron as electron } from "playwright";
-if (process.platform !== "win32" || !process.env.TUDA_E2E_ELECTRON) throw Error("Verify the installed Windows release");
+if (process.platform !== "win32" || !process.env.TUDA_E2E_ELECTRON || process.env.GITHUB_ACTIONS !== "true") throw Error("Verify the standalone installed release in an isolated Windows CI runner");
 const root=process.cwd(), output=await mkdtemp(path.join(root,"output/playwright/tuda-smoke-update-"));
-const userData=await mkdtemp(path.join(os.tmpdir(),"tuda-update-ui-"));
-await mkdir(path.join(userData,"workspace"));
-await writeFile(path.join(userData,"workspace/settings.json"),JSON.stringify({language:"zh-CN",theme:"light"}),{flag:"wx"});
+const env={...process.env,TUDA_PLAYWRIGHT:"1"};
+delete env.TUDA_EMBEDDED_HOST; delete env.TUDA_USER_DATA_PATH;
 let app;
 try {
-  app=await electron.launch({executablePath:process.env.TUDA_E2E_ELECTRON,args:[],cwd:root,env:{...process.env,TUDA_PLAYWRIGHT:"1",TUDA_EMBEDDED_HOST:"update-verification",TUDA_USER_DATA_PATH:userData},timeout:60_000});
+  app=await electron.launch({executablePath:process.env.TUDA_E2E_ELECTRON,args:[],cwd:root,env,timeout:60_000});
   const page=await app.firstWindow();
   await page.waitForURL(/dist\/index\.html/u,{timeout:60_000});
   await page.locator("#library-sidebar").waitFor();
