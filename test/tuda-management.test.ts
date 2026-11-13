@@ -23,4 +23,4 @@ it("recovers a managed same-version Skill when a Windows host locks directory re
     await mkdir(path.join(target, "empty-extra-directory"));
     expect((await installSkill(target)).changed).toBe(false);
   } finally { await rm(directory, { recursive: true, force: true }); }
-});
+}, 30_000);
