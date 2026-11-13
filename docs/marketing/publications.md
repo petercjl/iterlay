@@ -353,3 +353,16 @@ X、小红书、Hacker News、Linux.do、开源中国、少数派暂未找到已
 - NAS 首装文件：工具共享中的 `tuda/Tuda-0.1.3-x64.exe`，同目录提供 SHA256 与安装说明；复制后回读校验与公开 npm 一致。
 - 历史执行：首次分块上传获 npm 接收后等待 CDN 可见超时；保留原生验收制品恢复发布。正式包上传后的 npm 客户端元数据短暂滞后，由只读复核完成验证。恢复期间未重建安装器、未重复上传已接收分块、未重复升版。
 - 范围：未执行真实员工钉钉登录或付费模型生成；宿主安装与更新由宿主自身机制管理。指标未采集。
+
+
+### DESKTOP-NPM-002 · Tuda Windows 0.1.4 更新网络兼容版
+
+- 入口：[npm 精确版本](https://www.npmjs.com/package/@petercjl/tuda-desktop/v/0.1.4)。独立桌面包 `@petercjl/tuda-desktop`，渠道 `latest`；发布日期 2026-11-13（Asia/Shanghai）。插件 `@petercjl/tuda` 保持独立版本。
+- 内容：版本检查与安装器分块下载优先官方 npm，连接失败、HTTP 不可用或传输停滞时自动回退国内 npm 镜像。两个阶段统一采用 Electron 系统网络与代理设置；镜像请求不携带账号凭据。下载逐块及完整安装器 SHA-256 校验通过后才进入安装。失败界面提供网络／代理说明和重试入口。
+- 源码：`814d2a27cde99fad4a0a0dd8e56c2099e7fc5574`；核心网络修复 `f6536ded8fbb98378ce0bf6513abb6f4d45512ee`。
+- 发布与 Windows 验收：[GitHub Actions OIDC](https://github.com/petercjl/iterlay/actions/runs/43346754689) 全部成功。2435 项测试通过、7 项跳过；真实安装、Pi 导入、默认地址、本地保存恢复、普通桌面更新失败提示及镜像版本检查均通过，截图已目视核验。
+- 公开核验：官方 latest 与镜像 latest 都为0.1.4；公开 npm 精确安装、清单校验和归档 SRI 一致。peter-new 在官方连接超时的真实网络下，通过镜像完成更新信息及三个分块下载，重建122090961字节安装器，SHA-256与已验收制品一致。另以现有0.1.3公开制品验证了已连接但传输停滞后的镜像重试。测试在独立目录执行，未激活安装器。
+- 制品：npm 归档4个文件、1622字节，SHA-256 `68f84fbfbc72cd1776fb6bdd45680a7c2b6ff02053084172620ebd6249afeffc`；SRI `sha512-bi7wqg8TjFIf0JVwIr/vghMpwNflAhvshM/+k+qN6kvf8REcxtK8nbem6BcEj/+LjFdg7ZA2pEsQrhjRa9hrGA==`。Windows 安装器 SHA-256 `aca1695fb1e59efbdf2277d38606f456dbf8082132139b1bce2c6dba1e2969ca`。
+- 升级说明：0.1.3 首次升级时需使用能覆盖应用下载流量的代理；0.1.4 起版本检查和下载统一读取系统网络设置并提供镜像回退。用户自行通过应用内更新升级，NAS首装0.1.3保留。
+- 历史执行：首轮 Windows 文件复制／锁恢复测试超过默认5秒，按文件系统集成测试设置时限后重新验收；新增界面验收改为普通桌面模式后通过。npm首个分块在元数据可见后仍需等待下载CDN可用，流程在全部文件可下载并校验后才发布稳定清单；未重复上传或升版。
+- 指标未采集。
