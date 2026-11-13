@@ -1,7 +1,7 @@
 import { translateSourceText } from "@/i18n/ui-text";
 import { useUiText } from "@/i18n";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ArrowRight, CheckCircle2, Download, ExternalLink, Loader2, Rocket, ShieldAlert } from "lucide-react";
+import { ArrowRight, CheckCircle2, Download, Loader2, Rocket, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import "streamdown/styles.css";
 import type { InstalledUpdateRelease, UpdateChannel, UpdateProgress, UpdateStateSnapshot } from "@shared/app-update";
@@ -20,7 +20,6 @@ import { cn } from "@/lib/utils";
 import { UpdateContext, type UpdateContextValue } from "./update-context";
 
 const activePhases = new Set<UpdateStateSnapshot["phase"]>(["available", "downloading", "ready", "installing"]);
-const githubReleasesUrl = "https://github.com/petercjl/iterlay/releases";
 const ReleaseNotesMarkdown = lazy(async () => {
   const { Streamdown } = await import("streamdown");
   return { default: Streamdown };
@@ -251,7 +250,7 @@ export function UpdateManager({ children }: UpdateManagerProps): React.ReactElem
                 <DialogTitle>{forced ? uiText("需要更新后继续使用") : phase === "error" ? (manifest ? uiText("更新未完成") : uiText("检查更新失败")) : checking ? uiText("正在检查更新") : uiText("发现新版本")}</DialogTitle>
                 <DialogDescription className="mt-1">
                   {phase === "error"
-                    ? uiText("你可以重试，或前往 GitHub Releases 页面，下载适合你设备的安装包并手动安装。")
+                    ? uiText("请检查网络或代理连接，然后重新获取更新。应用会自动尝试备用更新通道。")
                     : forced
                     ? uiText("此版本已停止支持。必须完成更新，才能继续使用 Tuda。")
                     : uiText("建议尽快更新，以获得最新功能与问题修复。")}
@@ -345,14 +344,7 @@ export function UpdateManager({ children }: UpdateManagerProps): React.ReactElem
                 {checking || phase === "checking" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
                 {uiText("重新获取更新")}</Button>
             ) : null}
-            {phase === "error" ? (
-              <Button asChild>
-                <a href={githubReleasesUrl} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4" aria-hidden="true" />
-                  {uiText("前往 GitHub Releases 下载")}
-                </a>
-              </Button>
-            ) : null}
+
           </DialogFooter>
         </DialogContent>
       </Dialog>

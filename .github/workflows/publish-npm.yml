@@ -79,6 +79,8 @@ jobs:
         env:
           TUDA_E2E_STANDALONE: '1'
         run: node scripts/playwright-electron-smoke.mjs
+      - name: Verify installed update failover and error dialog
+        run: node scripts/playwright-update-network.mjs
       - run: node scripts/prepare-release-manifest.mjs --arch x64
       - run: node desktop-package/validate.mjs
       - run: npm pack ./desktop-package --pack-destination release

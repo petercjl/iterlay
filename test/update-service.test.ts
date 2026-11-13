@@ -67,6 +67,13 @@ function createService(options: {
 }
 
 describe("AppUpdateService.check", () => {
+  it("explains network timeouts in the update dialog", async () => {
+    const { service, apiClient } = createService();
+    apiClient.fetchLatest.mockRejectedValueOnce(new DOMException("The operation was aborted due to timeout", "TimeoutError"));
+    const snapshot = await service.check("manual");
+    expect(snapshot.phase).toBe("error");
+    expect(snapshot.error).toBe("更新请求超时，请检查网络后重试。");
+  });
   it("exposes an available update and passes the client identity to the backend", async () => {
     const { service, apiClient } = createService({ latest: manifest() });
     const snapshot = await service.check("auto");

@@ -628,6 +628,7 @@ app.whenReady().then(async () => {
     arch: process.arch === "arm64" ? "arm64" : "x64",
     apiClient: new NpmUpdateApiClient((input, init) => net.fetch(input instanceof URL ? input.toString() : input, init)),
     driver: new DirectDownloadDriver({
+      fetcher: (input, init) => net.fetch(input instanceof URL ? input.toString() : input, init),
       downloadDir: path.join(app.getPath("userData"), "updates"),
       platform: updatePlatform,
       deviceIdProvider: () => license.getDeviceId(),

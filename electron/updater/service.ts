@@ -258,6 +258,7 @@ export class AppUpdateService {
 }
 
 function toErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) return "更新请求超时，请检查网络后重试。";
   if (error instanceof Error && error.message.trim()) return error.message;
   if (typeof error === "string" && error.trim()) return error;
   return fallback;
