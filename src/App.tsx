@@ -1,3 +1,5 @@
+import { useImageDimensions } from "@/features/boards/use-image-dimensions";
+import { GlobalAccountMenu } from "@/components/enterprise/GlobalAccountMenu";
 import { flushSync } from "react-dom";
 import { useEnterpriseStatus } from "@/components/enterprise/use-enterprise";
 import { BRAND } from "@shared/brand";
@@ -15,6 +17,7 @@ import type { EmptyCanvasMode } from "@/components/canvas/EmptyCanvasStart";
 import { placeGenerationReferenceImages,type GenerationReferencePlacementTarget } from "@/components/canvas/generation-reference-paste";
 import {
 getPendingEditCount,
+canViewImageDetails,
 IMAGE_NODE_WIDTH,
 imageKey,
 type GeneratedImage,
@@ -551,6 +554,7 @@ export default function App(): React.ReactElement {
   const [favoriteSceneIds, setFavoriteSceneIds] = useState<string[]>(readFavoriteSceneIds);
   const [videoHistory, setVideoHistory] = useState<VideoGenerationJob[]>([]);
   const [images, setImages] = useState<GeneratedImage[]>([]);
+  useImageDimensions(images, setImages, loadImageSize);
   const [externalCanvasLayoutRevision, setExternalCanvasLayoutRevision] = useState(0);
   const pendingExternalBoardSync = useRef(new Set<Promise<void>>());
   const [workflowNodes, setWorkflowNodes] = useState<CanvasPersistedNode[]>([]);
@@ -666,6 +670,19 @@ export default function App(): React.ReactElement {
   const [comments, setComments] = useState<AssetComment[]>([]);
   const [commentOpen, setCommentOpen] = useState(false);
   const [imageDetailsTargetId, setImageDetailsTargetId] = useState<string | null>(null);
+  const imageDetailsDismissedTarget = useRef<string | null>(null);
+  useEffect(() => {
+    // One outside pointer gesture closes details; a later gesture may open another image.
+    const capture = (event: PointerEvent) => {
+      imageDetailsDismissedTarget.current = imageDetailsTargetId;
+      if (imageDetailsTargetId && event.target instanceof Element
+        && !event.target.closest("[data-image-details]")) {
+        setImageDetailsTargetId(null);
+      }
+    };
+    document.addEventListener("pointerdown", capture, true);
+    return () => document.removeEventListener("pointerdown", capture, true);
+  }, [imageDetailsTargetId]);
   const [assistantConversationRequest, setAssistantConversationRequest] = useState<{
     conversationId: string;
     nonce: number;
@@ -828,7 +845,7 @@ export default function App(): React.ReactElement {
   const [imageDeliveryBoard,setImageDeliveryBoard] = useState<BoardData|null>(null);
   const [initialImageDeliveryRecipe,setInitialImageDeliveryRecipe] = useState<ImageDeliveryRecipe|null>(null);
   const imageDetailsTarget = imageDetailsTargetId
-    ? (images.find((image) => image.id === imageDetailsTargetId) ?? null)
+    ? (images.find((image) => image.id === imageDetailsTargetId && canViewImageDetails(image)) ?? null)
     : null;
   const promptDockEditTarget = useMemo(
     () => editTarget ? { dataUrl: editTarget.dataUrl, path: editTarget.path } : null,
@@ -3527,6 +3544,7 @@ export default function App(): React.ReactElement {
 
   const applySuggestedEdit = useCallback((prompt: string): void => {
     setInput((current) => ({ ...current, prompt, sceneId: undefined }));
+    setPromptFocusNonce(current => current + 1);
   }, []);
 
   const updateInput = useCallback((patch: Partial<GenerateImageInput>): void => {
@@ -4534,7 +4552,7 @@ export default function App(): React.ReactElement {
           nonce: (current?.nonce ?? 0) + 1
         }));
         if (link.prompt) changePrompt(link.prompt);
-        if (link.view === "details") {
+        if (link.view === "details" && canViewImageDetails(target)) {
           setHistoryOpen(false);
           setCommentOpen(false);
           setImageDetailsTargetId(target.id);
@@ -5378,17 +5396,20 @@ export default function App(): React.ReactElement {
     setQuickImageShareImages(shareImages);
   }, []);
   const viewCanvasImageDetails = useCallback((image: GeneratedImage): void => {
-    setHistoryOpen(false);
-    setCommentOpen(false);
+    const dismissed = imageDetailsDismissedTarget.current;
+    imageDetailsDismissedTarget.current = null;
+    if (!canViewImageDetails(image)) {
+      setImageDetailsTargetId(null);
+      return;
+    }
+    if (dismissed) return;
     setImageDetailsTargetId(image.id);
   }, []);
   const exitCanvas = useStableCallback((): void => {
     if (!commentMode && !pendingComment) openLibrary();
   });
   const licenseLoading = hasImageWorkbenchApi() && !licenseStatus;
-  const rightRailCanvasInset = imageDetailsTarget
-    ? 376
-    : commentOpen ? 336 : historyOpen ? 320 : 0;
+  const rightRailCanvasInset = commentOpen ? 336 : historyOpen ? 320 : 0;
   const effectiveRightRailCanvasInset = reserveCanvasSpaceForRightRail ? rightRailCanvasInset : 0;
 
   const { activeVideoSequence, setActiveVideoSequence, videoSequenceTemplates, saveActiveVideoSequenceTemplate, applyActiveVideoSequenceTemplate,
@@ -5607,6 +5628,7 @@ export default function App(): React.ReactElement {
   if (activeBoard?.kind === "comic-drama" && comicDramaSnapshot) {
     return (
       <div className="workspace-surface relative h-screen w-screen overflow-hidden text-foreground">
+      {!libraryOpen && !galleryOpen && !settingsOpen && <GlobalAccountMenu compact floating />}
         <Suspense fallback={<StartupLoading />}>
           <CanvasRoot>
             <ComicDramaWorkspace
@@ -5633,6 +5655,7 @@ export default function App(): React.ReactElement {
   }
   return (
     <div className="workspace-surface relative h-screen w-screen overflow-hidden text-foreground">
+      {!libraryOpen && !galleryOpen && !settingsOpen && <GlobalAccountMenu compact floating />}
       <Suspense fallback={<StartupLoading />}>
       <CanvasRoot>
         {/* 进入全屏画廊时让画板退到背景；只动透明度，避免缩放 React Flow 触发额外栅格化。 */}
@@ -5953,7 +5976,7 @@ export default function App(): React.ReactElement {
           comicDramaSnapshot={comicDramaSnapshot}
           comicDramaSelectedNodeIds={selectedCanvasNodeIds}
           onApplyComicDramaPlan={applyComicDramaPlan}
-          rightRailOpen={commentOpen || Boolean(imageDetailsTarget)}
+          rightRailOpen={commentOpen}
           autoCollapse={promptDockAutoCollapse}
           boardSmartSuggestionsEnabled={boardSmartSuggestionsEnabled}
            assistantEnabled={boardAssistantEnabled}
@@ -6001,7 +6024,7 @@ export default function App(): React.ReactElement {
           onPasteImages={(files) => void handlePastePromptImages(files)}
           onAddCanvasReference={(image) => void addImageReference(image)}
           onRemoveReference={removeReference}
-          onGenerate={(rect, prompt) => void generate(rect, { prompt })}
+          onGenerate={(rect, prompt) => void generate(rect, { prompt }, { createDerivedEditNode: true, placementAnchorId: editTarget?.id })}
           onGeneratePrompts={handleGenerateAssistantPrompts}
           onOpenAssistantConversation={(conversationId, targetBoardId) => {
             void (async () => {

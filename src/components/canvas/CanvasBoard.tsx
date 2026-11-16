@@ -65,7 +65,7 @@ import { useCanvasConnectionEdgeActions } from "./use-canvas-connection-edge-act
 import { useCanvasDropController, type CanvasDropPayload } from "./use-canvas-drop-controller";
 import { projectCanvasNodes, type CanvasNodeProjectionBindings, type CanvasWorkflowNode } from "./canvas-node-projection";
 import { resolveGenerationNodeInput } from "./canvas-workflow";
-import { resolveGeneratedImageVersion } from "./image-node-model";
+import { canViewImageDetails, resolveGeneratedImageVersion } from "./image-node-model";
 import type { GenerationNodeData } from "./GenerationNode";
 import type { GenerationReferencePlacementTarget } from "./generation-reference-paste";
 import type { VideoNodeData } from "./VideoNode";
@@ -746,7 +746,13 @@ export function CanvasBoard({
   // 评论模式下点击图片：同时记录屏幕坐标和图片内归一化坐标。
   const handleNodeClick = useCallback(
     (event: React.MouseEvent, node: Node): void => {
-      if (!commentMode || !onCommentImage || !isImageCanvasNode(node)) return;
+      if (!isImageCanvasNode(node)) return;
+      if (!commentMode) {
+        const image = (node.data as unknown as ImageNodeData).image;
+        if (canViewImageDetails(image) && !(event.target as Element).closest("button, input, textarea, select")) onViewImageDetails?.(image);
+        return;
+      }
+      if (!onCommentImage) return;
       const image = (node.data as unknown as ImageNodeData).image;
       if (image.pending) return;
       const imageNode = (event.target as Element).closest<HTMLElement>("[data-image-node]");
@@ -757,7 +763,7 @@ export function CanvasBoard({
         y: Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height))
       });
     },
-    [commentMode, onCommentImage]
+    [commentMode, onCommentImage, onViewImageDetails]
   );
 
   const handleNodeDoubleClick = useCallback(

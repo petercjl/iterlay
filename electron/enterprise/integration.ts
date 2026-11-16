@@ -1,3 +1,4 @@
+import { companyLoginCommandAllowed } from "../company/login-policy.js";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -20,7 +21,6 @@ export async function createEnterpriseClient(userData: string) {
   const client = new EnterpriseClient(userData,
     async () => { for (const window of BrowserWindow.getAllWindows()) if (!window.isDestroyed() && /^(https?:|file:)/.test(window.webContents.getURL())) await flushWindow(window); },
     boardId => { for (const window of BrowserWindow.getAllWindows()) if (!window.isDestroyed()) window.webContents.send("workbench:event", { type: "board-updated", boardId, preserveView: true, collaboration: true }); });
-  client.on("state", value => { for (const window of BrowserWindow.getAllWindows()) if (!window.isDestroyed()) window.webContents.send("enterprise:state", value); });
   client.on("library-changed", () => { for (const window of BrowserWindow.getAllWindows()) if (!window.isDestroyed()) window.webContents.send("workbench:event", { type: "library-updated" }); });
   client.on("space-changed", () => { setTimeout(() => { for (const window of BrowserWindow.getAllWindows()) if (!window.isDestroyed()) window.webContents.reload(); }, 200); });
   setSelectedSpaceResolver(() => client.activeSpace);
@@ -58,9 +58,24 @@ function remapPaths(value: unknown, mapping: Map<string, string>): unknown {
 }
 
 export function registerEnterprise(client: EnterpriseClient, localBoards: BoardStore, assets: AssetStore, settings: SettingsStore, company?: CompanyDesktop) {
+  // CompanyDesktop publishes the composed identity + NAS state. Raw NAS events
+  // must not replace the company session consumed by the global login gate.
+  const publishLegacyState = (value: import("../../shared/enterprise.js").EnterpriseStatus) => {
+    if (company?.enabled) return;
+    for (const window of BrowserWindow.getAllWindows())
+      if (!window.isDestroyed()) window.webContents.send("enterprise:state", value);
+  };
+  client.on("state", publishLegacyState);
+  ipcMain.handle("enterprise:profile", (_event, nickname: unknown) => { if (!company?.enabled) throw new Error("请先登录公司账号。"); return company.updateProfile(nickname); });
   ipcMain.handle("enterprise:status", () => company?.status ?? client.status);
   ipcMain.handle("enterprise:configure", (_event, url: string) => company ? company.configure(url) : client.configure(url));
-  ipcMain.handle("enterprise:login", async () => { const login = await (company?.beginLogin() ?? client.beginLogin()); await shell.openExternal(login.authorizeUrl); return { expiresAt: login.expiresAt }; });
+  ipcMain.handle("enterprise:login", async (_event, options?: {refreshProfile?: boolean; username?: string; password?: string}) => {
+    if (options?.username !== undefined || options?.password !== undefined) {
+      if (!company || typeof options.username !== "string" || typeof options.password !== "string" || options.username.length > 64 || options.password.length > 128) throw new Error("账号或密码格式无效。");
+      await company.passwordLogin(options.username, options.password); return { expiresAt: new Date().toISOString() };
+    }
+    const login = await (company?.beginLogin(options?.refreshProfile === true) ?? client.beginLogin()); await shell.openExternal(login.authorizeUrl); return { expiresAt: login.expiresAt };
+  });
   ipcMain.handle("enterprise:loginPoll", () => company?.pollLogin() ?? client.pollLogin());
   ipcMain.handle("enterprise:logout", () => company?.logout() ?? client.logout());
   ipcMain.handle("enterprise:selectSpace", (_event, space) => company?.selectSpace(space) ?? client.selectSpace(space));
@@ -87,8 +102,10 @@ export function registerEnterprise(client: EnterpriseClient, localBoards: BoardS
     return client.command("boards:save", [{ ...remapPaths(board, mapping) as BoardData, id: created.id, expectedRevision: 0 }]);
   };
   ipcMain.handle("enterprise:copyBoard", (_event, id: string) => copy(id));
-  const routed = new Set(["boards:library:get", "boards:library:update", "boards:list", "boards:get", "boards:create", "boards:createComicDramaProject", "boards:save", "boards:rename", "boards:duplicate", "boards:delete", "boards:trash:list", "boards:trash:restore", "boards:trash:delete", "boards:trash:empty", "boards:images:move", "boards:images:resize", "boards:images:arrange", "boards:images:duplicate", "boards:images:setVersion", "boards:images:trash:list", "boards:images:trash:move", "boards:images:trash:restore", "boards:images:trash:delete", "boards:images:trash:empty", "boards:appendNodes", "boards:appendVersions", "boards:canvas:write", "boards:getState", "boards:setLastOpened", "asset:importUpload", "asset:readDataUrl", "asset:thumbnail", "image:generate", "image:cancel", "history:list", "history:scenes", "history:page", "assets:library", "assets:detail", "assets:item", "assets:jobPrompt"]);
+  const routed = new Set(["boards:library:get", "boards:library:update", "boards:list", "boards:get", "boards:create", "boards:createComicDramaProject", "boards:save", "boards:rename", "boards:duplicate", "boards:delete", "boards:trash:list", "boards:trash:restore", "boards:trash:delete", "boards:trash:empty", "boards:images:move", "boards:images:resize", "boards:images:arrange", "boards:images:duplicate", "boards:images:setVersion", "boards:images:trash:list", "boards:images:trash:move", "boards:images:trash:restore", "boards:images:trash:delete", "boards:images:trash:empty", "boards:appendNodes", "boards:appendVersions", "boards:canvas:write", "boards:getState", "boards:setLastOpened", "asset:importUpload", "asset:readDataUrl", "asset:thumbnail", "image:generate", "image:cancel", "history:list", "history:scenes", "history:page", "assets:library", "assets:detail", "assets:jobPrompt"]);
   const dispose = setCommandRouter(async (_event, channel, args, next) => {
+    if (company && !companyLoginCommandAllowed(channel, company.enabled && company.account.authenticated))
+      throw new Error("COMPANY_LOGIN_REQUIRED: 请先使用公司钉钉账号登录 Tuda。");
     if (channel.startsWith("enterprise:")) return next();
     if(company?.changingSpace && /^(boards:|asset:|image:generate)/.test(channel))throw new Error("正在切换空间，请等待画板重新打开。");
     if(company?.enabled){
@@ -99,7 +116,7 @@ export function registerEnterprise(client: EnterpriseClient, localBoards: BoardS
       if(!company.usesNas||executionSpace()!=="enterprise"||/^(image|history|assistantConversation|assistant|textProvider):/.test(channel)) return next();
       // Auxiliary reads/recovery use account-scoped stores and the authorized
       // NAS board adapter. Unsupported operations stay behind the guard below.
-      if (["comicDrama:getBoardSnapshot", "video:list", "video:recover", "comments:list", "sceneMedia:list", "templates:list", "templates:get"].includes(channel)) return next();
+      if (["comicDrama:getBoardSnapshot", "video:list", "video:recover", "comments:list", "sceneMedia:list", "templates:list", "templates:get", "assets:detail", "assets:jobPrompt"].includes(channel)) return next();
     }
     const hasEnterpriseAsset = args.some(value => typeof value === "string" && value.startsWith(ENTERPRISE_ASSET_PREFIX));
     const targetBoard = typeof args[0] === "string" ? args[0] : args[0] && typeof args[0] === "object" ? (args[0] as { boardId?: string; id?: string }).boardId ?? (args[0] as { id?: string }).id : undefined;
@@ -162,5 +179,5 @@ export function registerEnterprise(client: EnterpriseClient, localBoards: BoardS
     if (/^(boards|asset|assets|image|video|audio|history|templates|sceneMedia|comments|modifications|imageDelivery|comicDrama):/.test(channel)) throw new Error("此操作尚未接入企业空间，未写入个人空间。");
     return next();
   });
-  return () => { dispose(); company?.stop(); client.stop(); };
+  return () => { client.off("state", publishLegacyState); dispose(); company?.stop(); client.stop(); };
 }

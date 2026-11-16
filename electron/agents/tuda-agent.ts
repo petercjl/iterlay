@@ -12,6 +12,7 @@ import { createAssistantUiExtension } from "../assistant-ui-extension.js";
 import { sanitizeAssistantToolDetails } from "../../shared/assistant-display.js";
 import { ProviderError } from "../providers/errors.js";
 import { Type } from "typebox";
+import { createNpmPackageTools } from "./npm-tools.js";
 
 export function tudaSessionDirectory(agentDir: string, conversationId: string): string {
   return path.join(agentDir, "sessions", createHash("sha256").update(conversationId).digest("hex"));
@@ -73,7 +74,8 @@ export class TudaAgentService {
           return { content: [{ type: "text", text: JSON.stringify(results) }], details: { resultCount: results.length } };
         }
       };
-      const tools = [...bindTudaAgentMediaTools(input.tools.filter((tool) => enabled.has(tool.name)), resources.settings.providers ?? []), webSearch];
+      const packageTools = request.assistantSurface === "comic-drama" ? [] : createNpmPackageTools(resources.agentDir);
+      const tools = [...bindTudaAgentMediaTools(input.tools.filter((tool) => enabled.has(tool.name)), resources.settings.providers ?? []), webSearch, ...packageTools];
       const extensionNames = loader.getExtensions().extensions.flatMap((extension) => [...extension.tools.keys()]);
       const manager = SessionManager.continueRecent(resources.cwd, directory);
       const initialHistory = manager.getEntries().some((entry) => entry.type === "message");
@@ -126,9 +128,18 @@ export class TudaAgentService {
             currentFields: request.currentFields, memoryContext: request.memoryContext,
             targetBoardId: request.memoryQuery?.boardId, workflowMode: request.workflowMode,
             generationSettings: request.generationSettings,
+            imageGeneration: {
+              adapter: "toapiscli", authorized: (resources.settings.providers ?? []).some(provider => provider.transport === "toapiscli"), tools: ["generate_image", "edit_image", "get_generation_status"],
+              authorizedModels: [...new Set((resources.settings.providers ?? []).filter(provider => provider.transport === "toapiscli").flatMap(provider => provider.models?.length ? provider.models : [provider.model]))],
+              guidance: "Tuda 已内置 ToAPIs 并管理员工凭据。使用上述授权模型与内置工具；更多能力查询 list_providers。未指定模型时向用户询问；员工授权与 Key 由主进程管理，使用 Tuda 的 generate_image、edit_image、get_generation_status 执行，不能通过 Shell 查找或读取凭据。没有授权模型时，说明员工未配置生图 Key，文本对话仍可使用。"
+            },
             editTargetPath: request.memoryQuery?.assetPath,
             references: request.referenceImages.map((image) => ({ name: image.name, path: image.imagePath, sourceNodeId: image.sourceNodeId })),
-            skillDirectory: path.join(resources.agentDir, "skills")
+            skillDirectory: path.join(resources.agentDir, "skills"),
+            npmTools: request.assistantSurface === "comic-drama" ? undefined : {
+              directory: path.join(resources.agentDir, "npm-tools"),
+              guidance: "用户要求安装 npm 包时，使用 manage_npm_package 安装，run_npm_package 验证并执行。你具备这些工具，即使没有 bash 权限也可完成 npm 操作，无需让用户打开终端。包提供 Skill 时先核对包的真实帮助与当前文档，安装到本轮 skillDirectory；新 Skill 下一轮自动加载，也可使用 /reload。媒体仍使用 Tuda 内置授权工具。"
+            }
           }) });
         if (signal?.aborted) throw new ProviderError("REQUEST_CANCELLED", "已停止执行。");
         resources.recordLog?.({ event: "agent_start", summary: "Tuda Pi Agent 开始执行" });

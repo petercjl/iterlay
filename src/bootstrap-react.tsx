@@ -1,3 +1,4 @@
+import { CompanyLoginGate } from "./components/enterprise/CompanyLoginGate";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { LicenseGate } from "./components/licensing/LicenseGate";
@@ -28,9 +29,11 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <I18nProvider>
         <RootErrorBoundary>
           <LicenseGate>
+            <CompanyLoginGate>
             <React.Suspense fallback={<StartupLoading />}>
               <Workspace />
             </React.Suspense>
+            </CompanyLoginGate>
           </LicenseGate>
         </RootErrorBoundary>
     </I18nProvider>

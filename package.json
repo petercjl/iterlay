@@ -1,6 +1,6 @@
 {
   "name": "tuda-desktop",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "type": "module",
   "engines": {
@@ -30,6 +30,8 @@
     "lint": "eslint . --ext .ts,.tsx",
     "package": "electron-builder --dir && node scripts/verify-package-size.mjs",
     "release": "node scripts/release-windows.mjs",
+    "release:mac": "node scripts/release-mac.mjs",
+    "desktop:version": "node scripts/set-desktop-version.mjs",
     "media-tools:build": "node scripts/prepare-ffmpeg.mjs",
     "media-tools:verify": "node scripts/verify-packaged-ffmpeg.mjs",
     "package:verify": "node scripts/verify-package-size.mjs",
@@ -156,7 +158,8 @@
       "!node_modules/**/*.d.mts",
       "!node_modules/**/*.{ts,tsx}",
       "!node_modules/**/{docs,examples,test,tests}{,/**}",
-      "!node_modules/**/{README,CHANGELOG,HISTORY}*"
+      "!node_modules/**/{README,CHANGELOG,HISTORY}*",
+      "!node_modules/**/@google/genai/dist/web{,/**}"
     ],
     "directories": {
       "output": "release"
@@ -273,6 +276,7 @@
     "ag-psd": "^28.5.1",
     "fflate": "^0.8.3",
     "node-html-parser": "7.1.0",
+    "npm": "11.21.2",
     "pg": "^8.23.1",
     "tar": "7.5.23",
     "thumbhash": "^0.1.1",

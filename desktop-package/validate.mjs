@@ -6,11 +6,14 @@ const read = async name => JSON.parse(await readFile(new URL(name, import.meta.u
 const p = await read("package.json"), m = await read("release-manifest.json");
 assert.equal(p.name, "@petercjl/tuda-desktop");
 assert.equal(p.version, m.applicationVersion);
-assert.deepEqual(p.tudaRelease, m, "Prepare the verified Windows release before packing");
+assert.deepEqual(p.tudaRelease, m, "Prepare the verified platform releases before packing");
 assert(m.installers.length > 0);
+const targets=new Set();
 for (const item of m.installers) {
   assert.equal(item.version, p.version);
-  assert.equal(item.platform, "win32");
+  assert(["win32","darwin"].includes(item.platform));
+  assert(["x64","arm64"].includes(item.arch));
+  const target=`${item.platform}/${item.arch}`;assert(!targets.has(target),"Duplicate platform artifact");targets.add(target);
   assert.match(item.sha256, /^[a-f0-9]{64}$/);
   assert(item.npmPayloads.length > 0);
   assert.equal(item.fileSize, item.npmPayloads.reduce((n, part) => n + part.fileSize, 0));

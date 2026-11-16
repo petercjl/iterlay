@@ -37,6 +37,11 @@ tuda templates create --name <name> --prompt <rules>
 tuda templates update <id> --prompt <rules>
 模板字段：--description --category --mode --use-case；--input <JSON文件>
 图片生成/编辑：--template <id> --prompt <本次内容>
+tuda debug chats list|create|get|send|events|result|wait|cancel|respond [id]
+  create --name <名称> [--board <id>]
+  send <id> --prompt <内容> [--provider <文本模型ID>] [--request-id <id>] [--async]
+  respond <id> --input '<包含 interactionId、action、values 的 JSON>'
+tuda debug network [--conversation <id>]  实际模型请求元数据（不包含凭证）
 tuda tools list                      完整操作目录及 JSON schema
 tuda guard descriptor                离线输出 Guard 命令描述（不会安装或启用 Guard）
 tuda call <operation> --input '<JSON>'  调用任意工作台操作
@@ -54,7 +59,7 @@ type Flags = Record<string, string[]>;
 function parse(argv: string[]): { words: string[]; flags: Flags } {
   const words: string[] = [], flags: Flags = {};
   const bools = new Set(["json", "async", "no-launch", "overwrite", "help", "version", "default", "api-key-stdin", "clear-api-key"]);
-  const values = new Set(["template", "description", "category", "mode", "use-case", "expected-prompt", "agent", "home", "kind", "provider", "model", "prompt", "input", "out", "path", "board", "name", "size", "quality", "style", "background", "n", "reference", "ratio", "duration", "resolution", "timeout", "startup-timeout", "request-id", "app-path", "user-data-path", "type", "base-url", "voice", "speech-endpoint", "connection-provider", "saved-model", "api-key-env", "rows", "columns", "margin", "gap", "crops", "node"]);
+  const values = new Set(["conversation", "template", "description", "category", "mode", "use-case", "expected-prompt", "agent", "home", "kind", "provider", "model", "prompt", "input", "out", "path", "board", "name", "size", "quality", "style", "background", "n", "reference", "ratio", "duration", "resolution", "timeout", "startup-timeout", "request-id", "app-path", "user-data-path", "type", "base-url", "voice", "speech-endpoint", "connection-provider", "saved-model", "api-key-env", "rows", "columns", "margin", "gap", "crops", "node"]);
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (!arg.startsWith("--")) { words.push(arg); continue; }
@@ -134,6 +139,29 @@ async function main(): Promise<void> {
   }
   if (group === "tools" && action === "list") { output(listWorkspaceTools()); return; }
   const call = await connect({ ...(get("startup-timeout") === undefined ? {} : { startupTimeoutMs: Number(get("startup-timeout")) * 1000 }), userDataPath, appRoot: get("app-path"), noLaunch: Boolean(flags["no-launch"]) || Boolean(process.env.TUDA_USER_DATA_PATH) || Boolean(get("user-data-path")) });
+  if (group === "debug") {
+    if (action === "network") { output(await call("debug_network", {conversationId:get("conversation")})); return; }
+    if (action !== "chats" || !["list","create","get","send","events","result","wait","cancel","respond"].includes(id)) throw new Error("请使用 debug chats list|create|get|send|events|result|wait|cancel|respond 或 debug network。");
+    const conversationId=words[3];
+    if (!["list","create"].includes(id) && !conversationId) throw new Error("缺少对话 ID。");
+    const args: Record<string,unknown> = {conversationId};
+    if (id === "create") Object.assign(args,{name:get("name"),boardId:get("board")});
+    if (id === "send") {
+      if (!get("prompt")) throw new Error("send 需要 --prompt。");
+      Object.assign(args,{prompt:get("prompt"),providerId:get("provider"),requestId:get("request-id") ?? randomUUID()});
+    }
+    if (id === "respond") { const input=record(JSON.parse(get("input") ?? "{}")); Object.assign(args,{interactionId:input.interactionId,action:input.action,values:input.values}); }
+    let result=await call(`debug_chats_${id === "wait" ? "result" : id}`,args);
+    if (id === "wait" || (id === "send" && !flags.async)) {
+      const deadline=Date.now()+timeout*1000;
+      while (["running"].includes(String(record(result).status))) {
+        if (Date.now() >= deadline) throw new Error(`等待超时；请求仍在执行，请用 debug chats result ${conversationId} 读取，避免重复发送。`);
+        await new Promise(resolve=>setTimeout(resolve,500));
+        result=await call("debug_chats_result",{conversationId});
+      }
+    }
+    output(result); return;
+  }
   if (group === "status" || group === "doctor") { output(await call("status")); return; }
   if (group === "providers" && action === "list") { output(await call("list_providers", get("kind") ? { kind: get("kind") } : {})); return; }
   if (group === "providers" && action === "show") { output(await call("get_provider", { providerId: id ?? get("provider") })); return; }

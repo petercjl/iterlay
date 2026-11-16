@@ -1,0 +1,14 @@
+import {spawnSync} from "node:child_process";
+import {readFile} from "node:fs/promises";
+import path from "node:path";
+import {prepareCompanyDefaults} from "./prepare-company-defaults.mjs";
+if(process.platform!=="darwin")throw Error("Build macOS installers on macOS.");
+const arg=name=>{const at=process.argv.indexOf(name);return at<0?undefined:process.argv[at+1];};
+const arch=arg("--arch")??process.arch;if(!["arm64","x64"].includes(arch))throw Error("Unsupported Mac architecture.");
+const defaults=await prepareCompanyDefaults({sourceFile:arg("--company-defaults")??process.env.TUDA_COMPANY_DEFAULTS_FILE,sourceJson:process.env.TUDA_COMPANY_DEFAULTS_JSON},path.resolve("tmp/release-config"));
+const run=args=>{const result=spawnSync("pnpm",args,{stdio:"inherit"});if(result.status!==0)throw Error("Build failed: "+args.join(" "));};
+run(["brand:check"]);run(["build"]);
+const {build,Platform,Arch}=await import("electron-builder"),pkg=JSON.parse(await readFile("package.json","utf8"));
+process.env.CSC_IDENTITY_AUTO_DISCOVERY="false";
+await build({targets:Platform.MAC.createTarget("dmg",Arch[arch]),publish:"never",config:{...(arch===process.arch?{electronDist:"node_modules/electron/dist"}:{}),mac:{...pkg.build.mac,identity:"-",hardenedRuntime:false,notarize:false},extraResources:[...pkg.build.extraResources,{from:defaults.file,to:"company-defaults.json"}]}});
+run(["exec","node","scripts/verify-package-size.mjs","--app-path",arch==="arm64"?"release/mac-arm64/Tuda.app":"release/mac/Tuda.app","--report",`output/package-size/mac-${arch}-${pkg.version}.json`,"--company-defaults",defaults.file]);

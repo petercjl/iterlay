@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { GenerateImageInput, GenerationJob, GenerationResult, ProviderConfig } from "../shared/types";
 vi.mock("../electron/system-notification.js", () => ({ showGenerationCompletedNotification: vi.fn() }));
 import { createImageGenerationCommand, type ImageGenerationDependencies } from "../electron/application/image-generation";
+import { toapisDimensions } from "../electron/company/toapis";
 import { ProviderError } from "../electron/providers/errors";
 function fixture() {
   const config: ProviderConfig = { id: "custom", type: "openai-compatible", name: "Fixture", baseUrl: "https://fixture.invalid", generationEndpoint: "/v1/images/generations", model: "gpt-image-1", supportsReferenceImages: true };
@@ -84,4 +85,11 @@ describe("shared UI and MCP image generation service", () => {
     await expect(f.command({ ...f.input, idempotencyKey: "different" })).rejects.toThrow("HTTP 401");
     expect(f.history.updateJob).toHaveBeenLastCalledWith(expect.objectContaining({ status: "failed" }));
   });
+});
+
+it("marks local ToAPIs dimension validation as failed rather than uncertain billing", async () => {
+  const f = fixture();
+  f.generate.mockImplementationOnce(async () => { toapisDimensions("bad-size", "gpt-image-2.6-sunburst"); return {images: []}; });
+  await expect(f.command(f.input)).rejects.toMatchObject({code: "TOAPIS_INPUT_INVALID"});
+  expect(f.history.updateJob).toHaveBeenLastCalledWith(expect.objectContaining({status: "failed", error: expect.not.stringContaining("费用状态待确认")}));
 });

@@ -5,6 +5,7 @@ import path from "node:path";
 import {
   CompanyToapis,
   toapisDimensions,
+  resolveToapisSize,
   type ToapisRunner,
 } from "../electron/company/toapis.js";
 import type { ProviderGenerateInput } from "../shared/types.js";
@@ -63,7 +64,7 @@ it("imports only into the account namespace and recovers the same paid request w
       workflowMode: "generate",
       prompt: "生成一张图",
       model: "gpt-image-2.6-sunburst",
-      size: "auto",
+      size: "9:16",
       n: 1,
       referenceImages: [],
     };
@@ -84,6 +85,9 @@ it("imports only into the account namespace and recovers the same paid request w
     expect((await restarted.generate(input)).images).toHaveLength(1);
     expect(calls.filter((a) => a[0] === "auth")).toHaveLength(1);
     expect(calls.filter((a) => a[0] === "image")).toHaveLength(1);
+    const submitted = calls.find(a => a[0] === "image")!;
+    expect(submitted[submitted.indexOf("--aspect") + 1]).toBe("9:16");
+    expect(submitted[submitted.indexOf("--resolution") + 1]).toBe("2K");
     expect(calls.at(-1)?.slice(0, 2)).toEqual(["task", "wait"]);
     await expect(
       adapter.generate({ ...input, prompt: "另一个请求" }),
@@ -100,4 +104,21 @@ it("preserves requested aspect and rejects unsupported 4K Seedream", () => {
   expect(() => toapisDimensions("3840x2160", "doubao-seedream-5-5")).toThrow(
     "最高",
   );
+});
+
+it.each(["9:16", "16:9", "18:32"])("accepts Agent aspect %s without changing the requested frame", (size) => {
+  expect(toapisDimensions(size, "gpt-image-2.6-sunburst")).toEqual({resolution: "2K", aspect: size === "16:9" ? "16:9" : "9:16"});
+});
+it.each(["0:16", "9:0", "invalid", "9007199254740993x2048", "5:7"])("reports pre-submission dimension failure for %s", size => {
+  expect(() => toapisDimensions(size, "gpt-image-2.6-sunburst")).toThrow(expect.objectContaining({code: "TOAPIS_INPUT_INVALID", status: 400}));
+});
+
+it("preserves the source ratio for auto edits and respects explicit size",()=>{
+ const png=Buffer.alloc(24);Buffer.from([137,80,78,71,13,10,26,10]).copy(png);png.write("IHDR",12,"ascii");png.writeUInt32BE(1086,16);png.writeUInt32BE(1448,20);
+ const input={workflowMode:"edit" as const,size:"auto",referenceImages:[{name:"source",mimeType:"image/png",bytes:png}]};
+ expect(resolveToapisSize(input)).toBe("3:4");
+ expect(toapisDimensions(resolveToapisSize(input),"gemini-nano-banana-2.1").aspect).toBe("3:4");
+ expect(resolveToapisSize({...input,size:"16:9"})).toBe("16:9");
+ expect(resolveToapisSize({...input,workflowMode:"generate"})).toBe("auto");
+ expect(()=>resolveToapisSize({...input,referenceImages:[{...input.referenceImages[0],bytes:Buffer.from("bad")}]})).toThrow("明确指定输出画幅");
 });

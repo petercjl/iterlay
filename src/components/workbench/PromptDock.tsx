@@ -498,13 +498,8 @@ export function PromptDock({
     }),
     creationMode
   ].join("\u0000");
-  const assistantBranchSignature = [
-    boardId,
-    assistantSurface,
-    creationMode,
-    editTargetSignature,
-    assistantTemplateSignature
-  ].join("\u0000");
+  // Images and templates are context within the board's single Agent conversation.
+  const assistantBranchSignature = `${boardId}\u0000${assistantSurface === "comic-drama" ? "comic-drama" : "canvas"}`;
   // 首次挂载也要恢复当前画板，而不是把已保存的会话当作新会话处理。
 
   const editTargetDataUrl = editTarget?.dataUrl;
@@ -866,9 +861,9 @@ export function PromptDock({
 
     void getImageWorkbenchApi().listAssistantConversations({
       ...(boardId ? { boardId } : {}),
-      surface: assistantSurface,
-      ...(editTarget?.path ? { assetPath: editTarget.path } : {})
+      ...(assistantSurface === "comic-drama" ? {surface: assistantSurface} : {})
     }).then((records) => {
+      if (assistantSurface !== "comic-drama") records = records.filter(record => record.surface === "canvas-prompt" || record.surface === "canvas-edit");
       if (
         cancelled
         || assistantBranchSignatureRef.current !== assistantBranchSignature
@@ -1944,7 +1939,7 @@ export function PromptDock({
           onPointerDown: startAssistantDrag
         }}
         rightRailOpen={rightRailOpen}
-        key={`${boardId ?? "board"}:${assistantSurface}`}
+        key={`${boardId ?? "board"}:${assistantSurface === "comic-drama" ? "comic-drama" : "canvas"}`}
         open={assistantAvailable && assistantOpen}
         busy={assistantAvailable && (assistantStreaming || Boolean(assistantActivity))}
         inputDisabled={assistantAvailable && Boolean(assistantInteraction)}
@@ -1960,6 +1955,7 @@ export function PromptDock({
         /> : null}
         value={assistantValue}
         directValue={promptDraft}
+        focusNonce={promptFocusNonce}
         getDirectValue={() => promptDraftRef.current}
         latestPrompt={[...assistantMessages].reverse().find((message) => message.role === "assistant" && !message.streaming && message.tone !== "error" && message.generatedPrompt?.trim())?.generatedPrompt}
         contextImages={assistantContextImages}
@@ -2030,10 +2026,13 @@ export function PromptDock({
               </div>
               <ul id="fusion-suggested-edit-list" hidden={!editSmartSuggestionsEnabled || !suggestedEditsExpanded || suggestedEdits.length === 0} className="mt-1 max-h-40 space-y-0.5 overflow-y-auto">
                 {suggestedEdits.map((suggestion, index) => (
-                  <li key={`${suggestion}:${index}`}>
-                    <button type="button" onClick={() => onApplySuggestedEdit(suggestion)} title={t("prompt.smartSuggestions.item", { suggestion })} className="flex min-h-8 w-full items-center rounded-md px-2.5 py-1.5 text-left text-xs leading-5 text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                      {suggestion}
-                    </button>
+                  <li key={`${suggestion}:${index}`} className="flex items-start gap-2 rounded-md px-2.5 py-1.5">
+                    <p className="min-w-0 flex-1 text-xs leading-5 text-foreground">{suggestion}</p>
+                    <Button type="button" variant="outline" size="sm" className="h-7 shrink-0 px-2 text-xs"
+                      aria-label={uiText("采纳建议 {{ui:0}}", [String(index + 1)])}
+                      onClick={() => { clearPromptSyncTimer(); promptDraftRef.current = suggestion; setAssistantValue(suggestion); onApplySuggestedEdit(suggestion); }}>
+                      {uiText("采纳")}
+                    </Button>
                   </li>
                 ))}
               </ul>

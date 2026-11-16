@@ -158,3 +158,6 @@ body {
   -webkit-app-region: no-drag;
 }
 
+
+/* Keep canvas navigation clear of the bottom-left account avatar. */
+[data-canvas-workspace] [data-canvas-zoom-toolbar] { left: 68px; }

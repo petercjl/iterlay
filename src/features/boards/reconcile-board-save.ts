@@ -26,7 +26,13 @@ export function reconcileBoardSave(
   const nodes = rebased.nodes ?? [];
   const images = nodes.filter(isBoardImageNode).flatMap((node) => {
     const hydrated = hydrateGeneratedImage(node, urls);
-    return hydrated ? [{ ...imageById.get(node.id), ...hydrated }] : [];
+    if (!hydrated) return [];
+    const previous = imageById.get(node.id);
+    // Old NAS nodes may omit intrinsic dimensions. Preserve decoded metadata only
+    // for the same media version; another version must resolve its own size.
+    const dimensions = previous?.path === hydrated.path && (!hydrated.width || !hydrated.height)
+      ? {width: previous.width, height: previous.height} : {};
+    return [{...previous, ...hydrated, ...dimensions}];
   });
   return {
     images: [...images, ...current.images.filter((image) => image.pending)],

@@ -1,3 +1,4 @@
+import { GlobalAccountMenu } from "@/components/enterprise/GlobalAccountMenu";
 import { AgentSkillPicker } from "./AgentSkillPicker";
 import { TextModelPicker } from "./TextModelPicker";
 import "../assistant/assistant-chat.css";
@@ -1344,6 +1345,7 @@ export function CreationAssistantPage({
         {onExit ? <button type="button" className="creation-assistant-exit" onClick={onExit} aria-label={uiText("退出助手")} title={uiText("退出助手")}>
           <LogOut size={16} strokeWidth={1.7} aria-hidden="true" /><span>{uiText("退出助手")}</span>
         </button> : null}
+        <GlobalAccountMenu />
       </div>
     </aside>
     <section

@@ -18,9 +18,9 @@ export async function prepareDevElectron() {
   const icon = path.join(projectRoot, "build/icon.icns");
   const pnpm = execFileSync("/usr/bin/which", ["pnpm"], { encoding: "utf8" }).trim();
   const quote = (value) => `'${value.replaceAll("'", "'\\''")}'`;
-  const launcher = `#!/bin/sh\ncd ${quote(projectRoot)} || exit 1\nexport PATH=${quote(`${path.dirname(process.execPath)}:${path.dirname(pnpm)}`)}:"$PATH"\nexec ${quote(pnpm)} electron:dev\n`;
+  const launcher = `#!/bin/sh\ncd ${quote(projectRoot)} || exit 1\nexport PATH=${quote(`${path.dirname(process.execPath)}:${path.dirname(pnpm)}`)}:"$PATH"\nexec ${quote(process.execPath)} ${quote(path.join(projectRoot, "scripts/launch-desktop-dev.mjs"))}\n`;
   const key = createHash("sha256")
-    .update("tuda-dev-bundle-v3-single-runtime")
+    .update("tuda-dev-bundle-v4-reusable-launch")
     .update(`${version}-${process.arch}`)
     .update(projectRoot)
     .update(process.execPath)

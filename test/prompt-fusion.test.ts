@@ -135,6 +135,14 @@ describe("production prompt fusion", () => {
       await act(async () => pointer(menu));
       expect(expanded()).toBe("true");
       menu.remove();
+      for (const attributes of [{"data-image-node":""}, {class:"react-flow__pane"}]) {
+        const canvasTarget = document.createElement("div");
+        for (const [key,value] of Object.entries(attributes)) canvasTarget.setAttribute(key,value);
+        document.body.append(canvasTarget);
+        await act(async () => pointer(canvasTarget));
+        expect(expanded()).toBe("true");
+        canvasTarget.remove();
+      }
       await act(async () => pointer(document.body));
       expect(expanded()).toBe("false");
       expect(container.querySelector("textarea")?.value).toBe("hello");

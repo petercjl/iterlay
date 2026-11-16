@@ -1,3 +1,5 @@
+import { withModelTrace } from "./debug-network.js";
+import { ensureAgentToapis } from "./company/agent-toapis.js";
 import { readSkillLibrary, mutateSkillLibrary } from "./skill-library.js";
 import { tudaAgentHome, rebaseAgentPath } from "./tuda-agent-home.js";
 import { createHash } from "node:crypto";
@@ -255,6 +257,7 @@ export async function decorateAssetLibraryItem(
 }
 
 interface IpcDependencies {
+  company?: import("./company/desktop.js").CompanyDesktop;
   templates: TemplateStore;
   settings: SettingsStore;
   onboarding: OnboardingStore;
@@ -290,6 +293,7 @@ interface IpcDependencies {
 }
 
 export function registerIpc({
+  company,
   templates,
   settings,
   onboarding,
@@ -408,7 +412,9 @@ export function registerIpc({
     if (config.type === "codex-oauth") {
       return new CodexOAuthTextTransport(codexAuth, config.authProviderId || config.id, config.model);
     }
-    return new OpenAICompatibleTextTransport(config, settings.getApiKey(config.id));
+    if (config.transport === "company-direct" && !company) throw new Error("公司直连授权服务尚未准备好。");
+    return new OpenAICompatibleTextTransport(config, settings.getApiKey(config.id),
+      config.transport === "company-direct" ? company!.account.textFetch(config) : undefined);
   };
   const authorizeScreenCapture = createScreenAccessService({
     getPolicy: () => settings.getSettings().assistantScreenAccess,
@@ -465,6 +471,9 @@ export function registerIpc({
       builtInRoot,
       overrideRoot
     );
+    const toapisSkill = await ensureAgentToapis(tudaAgentDirectory());
+    skills.paths = [...skills.paths, toapisSkill];
+    skills.ids = [...skills.ids, "toapiscli"];
     const currentSettings = getAgentSettings();
     const resolvedSettings = request.assistantSurface === "comic-drama"
       ? {
@@ -661,7 +670,7 @@ export function registerIpc({
         signal
       });
     }
-    return createTudaAgentTools(app.getPath("userData"), { boardId, preserveView: request.creationWorkflow === true,
+    return createTudaAgentTools(app.getPath("userData"), { boardId, conversationId: request.conversationId, preserveView: request.creationWorkflow === true,
       referenceImagePaths: request.referenceImages.flatMap((reference) => reference.imagePath ? [reference.imagePath] : []),
       referenceNodeIds: request.referenceImages.flatMap((reference) => reference.sourceNodeId ? [reference.sourceNodeId] : []) });
   };
@@ -674,7 +683,8 @@ export function registerIpc({
   const discoverCurrentAgentResources = async () => {
     const roots = getAssistantSkillRoots();
     const guides = await listAssistantSkills(roots.builtInRoot, roots.overrideRoot);
-    return discoverPiAgentResources(executionContext().workspace ?? app.getPath("userData"), tudaAgentDirectory(), getAgentSettings(), guides.map((skill) => skill.activePath));
+    const toapisSkill = await ensureAgentToapis(tudaAgentDirectory());
+    return discoverPiAgentResources(executionContext().workspace ?? app.getPath("userData"), tudaAgentDirectory(), getAgentSettings(), [...guides.map((skill) => skill.activePath), toapisSkill]);
   };
   const sceneCollaborationStreams = new Map<
     string,
@@ -1714,7 +1724,7 @@ export function registerIpc({
 
   ipcMain.on(
     SCENE_COLLABORATION_START_CHANNEL,
-    async (event, payload: StartSceneCollaborationPayload): Promise<void> => {
+    (event, payload: StartSceneCollaborationPayload): Promise<void> => withModelTrace({requestId:payload?.requestId,conversationId:payload?.request?.conversationId}, async () => {
       const requestId = typeof payload?.requestId === "string" ? payload.requestId.trim() : "";
       if (!requestId || requestId.length > 128) return;
       if (sceneCollaborationStreams.has(requestId)) {
@@ -1737,6 +1747,9 @@ export function registerIpc({
       sender.once("destroyed", handleDestroyed);
       let toolCalls: AssistantToolCall[] = [];
       let reasoningSummary = "";
+      let preparedRequest: CollaborateSceneRequest | undefined;
+      let responseText = "";
+      let replySaved = false;
       const presentActivity = (label: string): void => {
         if (!controller.signal.aborted) {
           sendSceneCollaborationEvent(sender, { requestId, type: "activity", label });
@@ -1755,10 +1768,11 @@ export function registerIpc({
       };
 
       try {
-        const preparedRequest = await prepareSceneCollaborationRequest(payload.request);
+        preparedRequest = await prepareSceneCollaborationRequest(payload.request);
         const textProvider = resolveTextProvider(preparedRequest.textProviderId, "generate");
         const onDelta = (delta: string): void => {
           if (!controller.signal.aborted && delta) {
+            responseText += delta;
             sendSceneCollaborationEvent(sender, { requestId, type: "delta", delta });
           }
         };
@@ -1872,9 +1886,15 @@ export function registerIpc({
         if (!controller.signal.aborted) {
           presentActivity("正在保存回复…");
           await recordAssistantResult(preparedRequest, result, toolCalls, reasoningSummary);
+          replySaved = true;
           sendSceneCollaborationEvent(sender, { requestId, type: "result", result });
         }
       } catch (error) {
+        if (preparedRequest && !replySaved) {
+          const reason = controller.signal.aborted ? "执行已停止，已提交的生成任务仍可在画板中查看。" : normalizeProviderError(error).message;
+          await recordAssistantResult(preparedRequest, {intent: "chat", fields: [], message: [responseText.trim(), `执行状态：${reason}`].filter(Boolean).join("\n\n")}, toolCalls, reasoningSummary)
+            .catch(saveError => console.warn("保存中断会话失败。", saveError));
+        }
         if (controller.signal.aborted) {
           sendSceneCollaborationEvent(sender, { requestId, type: "cancelled" });
         } else {
@@ -1892,7 +1912,7 @@ export function registerIpc({
         sender.removeListener("destroyed", handleDestroyed);
         sceneCollaborationStreams.delete(requestId);
       }
-    }
+    })
   );
 
   ipcMain.on(SCENE_COLLABORATION_CANCEL_CHANNEL, (event, requestId: string): void => {

@@ -1,3 +1,4 @@
+import { canViewImageDetails } from "./image-node-model";
 import { CanvasSelectionCountContext } from "./canvas-selection-context";
 import { translateSourceText } from "@/i18n/ui-text";
 import { useUiText } from "@/i18n";
@@ -461,7 +462,7 @@ function ImageNodeComponent({ data, id, selected, width, height }: NodeProps): R
           <img
             src={displayUrl}
             alt={image.source === "upload" ? uiText("上传图片") : image.source === "slice" ? uiText("切图结果") : uiText("生成结果")}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-contain"
             draggable={false}
             decoding="async"
           />
@@ -505,7 +506,7 @@ function ImageNodeComponent({ data, id, selected, width, height }: NodeProps): R
           onSlice={onSlice}
           onSaveAsTemplate={onSaveAsTemplate}
           onOpenSourceTemplate={onOpenSourceTemplate}
-          onViewDetails={onViewDetails}
+          onViewDetails={canViewImageDetails(image) ? onViewDetails : undefined}
           onDelete={onDelete}
         />
       ) : null}

@@ -38,23 +38,27 @@ export function useAssistantHistory({ session, boardId, boardNameById, assistant
   const [assistantHistoryLoading, setAssistantHistoryLoading] = useState(false);
   const [assistantHistoryScope, setAssistantHistoryScope] = useState<"board" | "all">("board");
   const historyRequestVersionRef = useRef(0);
+  const canvas = assistantSurface === "canvas-prompt" || assistantSurface === "canvas-edit";
+  const scopeSurface = canvas ? "canvas" : assistantSurface;
+  const scopeAssetPath = canvas ? undefined : assetPath;
   useEffect(() => {
     historyRequestVersionRef.current += 1;
     setAssistantHistory([]);
     setAssistantHistoryLoading(false);
     return () => { historyRequestVersionRef.current += 1; };
-  }, [boardId, assistantSurface, assetPath]);
+  }, [boardId, scopeSurface, scopeAssetPath]);
 
   async function loadAssistantHistory(scope = assistantHistoryScope): Promise<void> {
     const requestVersion = ++historyRequestVersionRef.current;
     setAssistantHistoryLoading(true);
     try {
-      const records = await getImageWorkbenchApi().listAssistantConversations({
+      let records = await getImageWorkbenchApi().listAssistantConversations({
         ...(scope === "board" && boardId ? { boardId } : {}),
-        surface: assistantSurface,
-        ...(assetPath ? { assetPath: assetPath } : {})
+        ...(!canvas ? {surface: assistantSurface} : {}),
+        ...(scopeAssetPath ? { assetPath: scopeAssetPath } : {})
       });
       if (historyRequestVersionRef.current !== requestVersion) return;
+      if (canvas) records = records.filter(record => record.surface === "canvas-prompt" || record.surface === "canvas-edit");
       setAssistantHistory(buildAssistantHistory(records, boardNameById));
     } catch (error) {
       if (historyRequestVersionRef.current !== requestVersion) return;

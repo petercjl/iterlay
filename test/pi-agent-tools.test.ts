@@ -86,3 +86,23 @@ describe("Tuda Pi Agent tools", () => {
     expect(callBridge).not.toHaveBeenCalled();
   });
 });
+
+it("waits for image task completion within one Agent tool call",async()=>{
+ const callBridge=vi.fn().mockResolvedValueOnce({status:"running"}).mockResolvedValueOnce({status:"succeeded",images:[]});
+ const tool=createTudaAgentTools("/tmp/tuda",{},callBridge).find(tool=>tool.name==="get_generation_status")!;
+ const result=await tool.execute("poll",{generationId:"task"});
+ expect(callBridge).toHaveBeenCalledTimes(2);expect(JSON.stringify(result.content)).toContain("succeeded");
+});
+it("cancels an Agent task wait without resubmitting generation",async()=>{
+ const callBridge=vi.fn(async()=>({status:"running"}));
+ const tool=createTudaAgentTools("/tmp/tuda",{},callBridge).find(tool=>tool.name==="get_generation_status")!;
+ const controller=new AbortController();controller.abort();
+ await expect(tool.execute("poll",{generationId:"task"},controller.signal)).rejects.toThrow();expect(callBridge).toHaveBeenCalledOnce();
+});
+
+it("binds generated media to the active Agent conversation",async()=>{
+ const callBridge=vi.fn(async()=>({status:"running"}));
+ const tool=createTudaAgentTools("/tmp/tuda",{boardId:"board",conversationId:"chat"},callBridge).find(tool=>tool.name==="edit_image")!;
+ await tool.execute("edit",{boardId:"board",sourcePath:"source",prompt:"light"});
+ expect(callBridge).toHaveBeenCalledWith("/tmp/tuda","edit_image",expect.objectContaining({assistantConversationId:"chat"}));
+});

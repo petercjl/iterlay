@@ -1,3 +1,5 @@
+import { imageDimensionsFromHeader } from "../media/image-metadata.js";
+import { ProviderError } from "../providers/errors.js";
 import { execFile } from "node:child_process";
 import { createRequire } from "node:module";
 import { createHash, randomUUID } from "node:crypto";
@@ -63,10 +65,12 @@ export const runToapis: ToapisRunner = (args, config) =>
   });
 export function toapisDimensions(size: string, model: string) {
   if (!size || size === "auto") return { resolution: "2K", aspect: "1:1" };
-  const match = /^(\d+)x(\d+)$/.exec(size);
-  if (!match) throw new Error("ToAPIs 尺寸格式无效。");
+  const match = /^(\d+)(x|:)(\d+)$/.exec(size.trim());
+  if (!match) throw new ProviderError("TOAPIS_INPUT_INVALID", "ToAPIs 尺寸格式无效，请使用宽x高或画幅比例，例如 1152x2048 或 9:16。", 400);
   const w = Number(match[1]),
-    h = Number(match[2]);
+    h = Number(match[3]);
+  if (![w, h].every(value => Number.isSafeInteger(value) && value > 0))
+    throw new ProviderError("TOAPIS_INPUT_INVALID", "ToAPIs 尺寸必须为正整数。", 400);
   const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a);
   const d = gcd(w, h),
     aspect = `${w / d}:${h / d}`;
@@ -74,12 +78,22 @@ export function toapisDimensions(size: string, model: string) {
   if (model === "gemini-nano-banana-2.1")
     allowed.push("1:4", "4:1", "1:8", "8:1");
   if (!allowed.includes(aspect))
-    throw new Error("当前 ToAPIs 模型不支持该画幅，请选择标准比例。");
+    throw new ProviderError("TOAPIS_INPUT_INVALID", "当前 ToAPIs 模型不支持该画幅，请选择标准比例。", 400);
   const pixels = w * h,
-    resolution = pixels <= 1_600_000 ? "1K" : pixels <= 5_000_000 ? "2K" : "4K";
+    resolution = match[2] === ":" ? "2K" : pixels <= 1_600_000 ? "1K" : pixels <= 5_000_000 ? "2K" : "4K";
   if (resolution === "4K" && model === "doubao-seedream-5-5")
-    throw new Error("Seedream 当前授权接口最高支持 2K，请选择 2K 尺寸。");
+    throw new ProviderError("TOAPIS_INPUT_INVALID", "Seedream 当前授权接口最高支持 2K，请选择 2K 尺寸。", 400);
   return { resolution, aspect };
+}
+
+/** Auto reference edits preserve the first reference's intrinsic aspect ratio. */
+export function resolveToapisSize(input: Pick<ProviderGenerateInput, "size" | "referenceImages" | "workflowMode">): string {
+  if ((input.size && input.size !== "auto") || input.workflowMode !== "edit" || !input.referenceImages.length) return input.size;
+  const size = imageDimensionsFromHeader(input.referenceImages[0].bytes);
+  if (!size) throw new ProviderError("TOAPIS_INPUT_INVALID", "无法读取参考图比例，请明确指定输出画幅。", 400);
+  const gcd = (a: number, b: number): number => b ? gcd(b, a % b) : a;
+  const d = gcd(size.width, size.height);
+  return `${size.width / d}:${size.height / d}`;
 }
 
 /** Pinned desktop dependency. Config and task evidence live in private app data, never the NAS. */
@@ -93,6 +107,7 @@ export class CompanyToapis implements ImageProviderAdapter {
     },
     private runner: ToapisRunner = runToapis,
     private beforeGenerate?: () => void,
+    private remoteGenerate?: (input: { requestId: string; model: string; prompt: string; resolution: string; aspect: string; references: Array<{mimeType: string; base64: string}> }) => Promise<GenerationResult>,
   ) {}
   private async grant() {
     const { namespace, image } = this.resolveGrant();
@@ -151,10 +166,19 @@ export class CompanyToapis implements ImageProviderAdapter {
     return { namespace, image, config };
   }
   async testConnection() {
+    if (this.resolveGrant().image.adapter === "company-proxy") return;
     await this.grant();
   }
   async generate(input: ProviderGenerateInput): Promise<GenerationResult> {
     this.beforeGenerate?.();
+    const remote = this.resolveGrant().image;
+    if (remote.adapter === "company-proxy") {
+      if (!remote.enabled || !remote.models.includes(input.model) || !this.remoteGenerate || input.n !== 1 || input.background === "transparent"
+        || input.outputFormat && input.outputFormat !== "png" || input.quality && !["auto", "high"].includes(input.quality)) throw new Error("访客生图参数或授权无效。");
+      const { resolution, aspect } = toapisDimensions(resolveToapisSize(input), input.model);
+      return this.remoteGenerate({ requestId: input.clientRequestId ?? randomUUID(), model: input.model, prompt: input.prompt, resolution, aspect,
+        references: input.referenceImages.map(ref => ({mimeType: ref.mimeType, base64: ref.bytes.toString("base64")})) });
+    }
     const grant = await this.grant();
     if (!grant.image.models.includes(input.model))
       throw new Error("该模型不在当前员工的生图授权目录中。");
@@ -165,7 +189,7 @@ export class CompanyToapis implements ImageProviderAdapter {
       throw new Error("ToAPIs 当前合同不支持指定此输出格式。");
     if (input.quality && !["auto", "high"].includes(input.quality))
       throw new Error("ToAPIs 当前合同不支持该质量选项。");
-    const { resolution, aspect } = toapisDimensions(input.size, input.model);
+    const { resolution, aspect } = toapisDimensions(resolveToapisSize(input), input.model);
     const id = input.clientRequestId ?? randomUUID();
     const hash = createHash("sha256").update(id).digest("hex");
     const directory = path.join(this.root, grant.namespace, "tasks", hash),

@@ -23,10 +23,10 @@ afterEach(async () => {
 async function fixture(replies: Array<string | { name: string; args: unknown }>, protocol: "openai-chat-completions" | "openai-responses" | "anthropic-messages" = "openai-chat-completions", holdRequests = false) {
   const root = await mkdtemp(path.join(os.tmpdir(), "tuda-native-agent-")); directories.push(root);
   const cwd = path.join(root, "workspace"); await mkdir(cwd);
-  const requests: Array<{ body: Record<string, unknown> & { tools: Array<{ type: string }> }; headers: import("node:http").IncomingHttpHeaders }> = [];
+  const requests: Array<{ url?: string; body: Record<string, unknown> & { tools: Array<{ type: string }> }; headers: import("node:http").IncomingHttpHeaders }> = [];
   const server = createServer(async (request, response) => {
     let body = ""; for await (const chunk of request) body += chunk;
-    requests.push({ body: JSON.parse(body), headers: request.headers });
+    requests.push({ url: request.url, body: JSON.parse(body), headers: request.headers });
     const reply = replies.shift();
     if (reply === undefined) { if (!holdRequests) response.writeHead(400).end("Unexpected extra model request"); return; }
     response.writeHead(200, { "Content-Type": "text/event-stream" });
@@ -74,14 +74,34 @@ async function fixture(replies: Array<string | { name: string; args: unknown }>,
 }
 
 describe("shared native Pi harness", () => {
+  it.each(["/v1", "/api/company/v1/proxy/tuda/anthropic/v1"])("calls the native Anthropic endpoint exactly once with the versioned root %s", async prefix => {
+    const f=await fixture(["Claude endpoint verified"],"anthropic-messages");
+    const transport=new OpenAICompatibleTextTransport({id:"anthropic",name:"Claude",type:"openai-compatible",model:"test-vision",protocol:"anthropic-messages",baseUrl:f.transport.getAgentConnection().baseUrl+prefix},"fixture-key");
+    await new TudaAgentService().run({connection:transport.getAgentConnection(),request:f.request,resources:f.resources,systemPrompt:"Tuda Agent",tools:[],onDelta:vi.fn()});
+    expect(new URL(f.requests[0].url!,"http://localhost").pathname).toBe(prefix+"/messages");
+  },30_000);
+  it("offers npm tools without Shell permission and keeps the restricted comic surface isolated", async () => {
+    const f = await fixture([{ name: "manage_npm_package", args: { action: "list" } }, "当前没有安装 npm 包。", "只使用漫剧工具。"]);
+    const run = (request = f.request) => new TudaAgentService().run({ connection: f.transport.getAgentConnection(), request,
+      resources: f.resources, systemPrompt: "Tuda Agent", tools: [], onDelta: vi.fn() });
+    await run();
+    expect(JSON.stringify(f.requests[0].body.tools)).toContain("manage_npm_package");
+    expect(JSON.stringify(f.requests[0].body.tools)).toContain("run_npm_package");
+    expect(JSON.stringify(f.requests[1].body.messages)).toContain("packages");
+    await run({ ...f.request, conversationId: "comic", assistantSurface: "comic-drama" });
+    expect(JSON.stringify(f.requests[2].body.tools)).not.toContain("manage_npm_package");
+  }, 30_000);
   it("executes native tools once, retains receipts across entrances and restart, keeps credentials out of sessions", async () => {
     const f = await fixture([{ name: "get_active_board", args: {} }, "已读取画板，只给方案。", "继续上一轮方案。"]);
     const execute = vi.fn(async () => ({ content: [{ type: "text" as const, text: "board-3 receipt-123" }], details: {} }));
     const tools = [{ name: "get_active_board", label: "画板", description: "Read board", parameters: Type.Object({}), execute }];
+    f.resources.settings.providers = [{ id: "company-image/test", name: "ToAPIs", type: "openai-compatible", transport: "toapiscli", baseUrl: "", generationEndpoint: "", supportsReferenceImages: true, model: "gpt-image-2.6-sunburst" }];
     const events: unknown[] = [];
     f.resources.presentTool = (event) => events.push(event);
     const first = await new TudaAgentService().run({ connection: f.transport.getAgentConnection(), request: f.request,
       resources: f.resources, systemPrompt: "Tuda Agent", tools, onDelta: vi.fn() });
+    expect(JSON.stringify(f.requests[0].body.messages)).toContain("gpt-image-2.6-sunburst");
+    expect(JSON.stringify(f.requests[0].body.messages)).toContain("authorizedModels");
     expect(first).toEqual({ message: "已读取画板，只给方案。", intent: "chat", fields: [] });
     expect(execute).toHaveBeenCalledOnce();
     expect(events).toEqual(expect.arrayContaining([expect.objectContaining({ status: "running" }), expect.objectContaining({ status: "completed" })]));

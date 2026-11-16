@@ -457,5 +457,41 @@
       "space": "enterprise",
       "source": "codex-own"
     }
+  },
+  "debug": {
+    "desktopBridge": "authenticated loopback /call only",
+    "sharedHarness": true,
+    "commands": [
+      "debug chats list",
+      "debug chats create",
+      "debug chats get",
+      "debug chats send",
+      "debug chats events",
+      "debug chats result",
+      "debug chats wait",
+      "debug chats cancel",
+      "debug chats respond",
+      "debug network"
+    ],
+    "networkEvidence": {
+      "source": "node-undici-wire",
+      "fields": [
+        "method",
+        "origin",
+        "path",
+        "remoteAddress",
+        "remotePort",
+        "status",
+        "durationMs",
+        "conversationId",
+        "requestId"
+      ],
+      "retention": "latest 500 requests; resets when desktop restarts",
+      "secrets": false
+    },
+    "platformEvidence": {
+      "darwin": "development verification",
+      "win32": "implemented; runtime not verified"
+    }
   }
 }

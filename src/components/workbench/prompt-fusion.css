@@ -328,7 +328,7 @@
   padding: 0;
   min-inline-size: 0;
   flex: 1;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
 }
 .prompt-fusion-controls > * {
   flex: none;
@@ -339,10 +339,18 @@
   overflow: hidden;
   justify-content: flex-start;
 }
-/* Reserve the mode and submit controls; only the middle settings track may shrink. */
+.prompt-fusion-controls > .create-chat-model {
+  flex: 1 1 100px;
+  min-width: 0;
+  max-width: 220px;
+}
+.prompt-fusion-controls > [role="status"] {
+  white-space: nowrap;
+}
+/* Keep submit in its own track while the tools fit the available panel width. */
 .prompt-fusion-toolbar {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 6px;
   padding-top: 4px;
 }

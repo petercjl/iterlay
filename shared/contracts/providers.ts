@@ -56,6 +56,7 @@ export type TextProviderType = "official" | "codex-oauth" | "openai-compatible";
  * 与图片 Provider 独立切换；Codex 账号类型可与图片 Provider 共享同一份 OAuth 凭据。
  */
 export interface TextProviderConfig {
+  transport?: "company-direct";
   protocol?: import("../company-account.js").CompanyTextProtocol;
   managed?: boolean;
   id: string;

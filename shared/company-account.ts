@@ -2,10 +2,12 @@
 export type CompanyTextProtocol =
   "anthropic-messages" | "openai-responses" | "openai-chat-completions";
 export interface CompanyIdentity {
+  avatarUrl?: string;
   id: string;
   name: string;
 }
 export interface CompanySession {
+  accountKind?: "password";
   contract: 1;
   appId: "tuda";
   sessionId: string;
@@ -13,6 +15,26 @@ export interface CompanySession {
   expiresAt: string;
   member: CompanyIdentity;
   organization: CompanyIdentity;
+}
+/** Main-process private configuration; never return this object through UI IPC. */
+export interface CompanyDirectModels {
+  contract: 2;
+  appId: "tuda";
+  sessionId: string;
+  authenticated: true;
+  expiresAt: string;
+  member: CompanyIdentity;
+  organization: CompanyIdentity;
+  transport: "direct";
+  subject: string;
+  configVersion: string;
+  model: string;
+  provider: Record<string, {
+    name: string;
+    wire_api: "anthropic" | "responses" | "chat";
+    options: { baseURL: string; apiKey: string };
+    models: Record<string, { name: string; limit: { context: number; output: number }; reasoning?: boolean }>;
+  }>;
 }
 export interface CompanyBootstrap {
   contract: 1;
@@ -22,6 +44,7 @@ export interface CompanyBootstrap {
   member: CompanyIdentity;
   organization: CompanyIdentity;
   text: {
+    transport?: "proxy";
     enabled: boolean;
     reason?: string;
     defaultModel: string | null;
@@ -42,7 +65,7 @@ export interface CompanyBootstrap {
   image: {
     enabled: boolean;
     reason?: string;
-    adapter?: "toapiscli";
+    adapter?: "toapiscli" | "company-proxy";
     package?: "@petercjl/toapiscli";
     credential?: {
       schemaVersion: 1;

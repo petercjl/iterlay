@@ -1,6 +1,5 @@
 import { useUiText } from "@/i18n";
 import { useEffect, useMemo, useState } from "react";
-import { motion, useReducedMotion } from "framer-motion";
 import { Bot, Check, Copy, ExternalLink, Images, Loader2, RefreshCw, X } from "lucide-react";
 import type { AssetDetailData, AssetReference, AssetVersion } from "@shared/types";
 import { getImageWorkbenchApi } from "@/lib/image-workbench-api";
@@ -8,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { GeneratedImage } from "./ImageNode";
-import { railMotion } from "@/components/workbench/HistoryRail";
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 
 interface ImageDetailsPanelProps {
   boardId: string;
@@ -29,7 +28,9 @@ export function ImageDetailsPanel({
 }: ImageDetailsPanelProps): React.ReactElement {
   const uiText = useUiText();
 
-  const reduceMotion = useReducedMotion();
+  const anchor = useMemo(() => ({current: {
+    getBoundingClientRect: () => document.querySelector<HTMLElement>(`.react-flow__node[data-id="${CSS.escape(image.id)}"] [data-image-node]`)?.getBoundingClientRect() ?? new DOMRect()
+  }}), [image.id]);
   const [detail, setDetail] = useState<AssetDetailData | null>(null);
   const [activeVersion, setActiveVersion] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -86,12 +87,18 @@ export function ImageDetailsPanel({
   }
 
   return (
-    <motion.aside
-      {...railMotion}
-      transition={{ duration: reduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
-      aria-label={uiText("图片详情")}
-      className="pointer-events-auto absolute bottom-4 right-4 top-16 z-20 flex w-[calc(100%-2rem)] max-w-[360px] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-[0_2px_12px_hsl(0_0%_0%/0.14)]"
-    >
+    <Popover open modal={false} onOpenChange={open => {if (!open) onClose();}}>
+      <PopoverAnchor virtualRef={anchor} />
+      <PopoverContent side="right" align="start" sideOffset={14} collisionPadding={16}
+        updatePositionStrategy="always"
+        data-image-details
+        aria-label={uiText("图片详情")}
+        onOpenAutoFocus={event => event.preventDefault()}
+        onCloseAutoFocus={event => event.preventDefault()}
+        onFocusOutside={event => event.preventDefault()}
+        className="flex w-[360px] max-w-[calc(100vw-32px)] flex-col overflow-hidden p-0"
+        style={{height: "min(640px, var(--radix-popover-content-available-height))", maxHeight: "calc(100dvh - 32px)"}}
+      >
       <header className="flex h-11 shrink-0 items-center justify-between border-b border-border px-4">
         <div className="flex min-w-0 items-baseline gap-2">
           <h2 className="text-sm font-semibold">{uiText("图片详情")}</h2>
@@ -221,6 +228,7 @@ export function ImageDetailsPanel({
           ) : null}
         </div>
       )}
-    </motion.aside>
+      </PopoverContent>
+    </Popover>
   );
 }

@@ -57,6 +57,7 @@ interface Props {
   assistant: ReactNode;
   value: string;
   directValue: string;
+  focusNonce?: number;
   getDirectValue?: () => string;
   latestPrompt?: string;
   contextImages: AiAssistantContextImage[];
@@ -88,6 +89,15 @@ export function PromptFusionDock(props: Props): React.ReactElement {
   const [contextPrompt, setContextPrompt] = useState<string | null>(null);
   const [preview, setPreview] = useState<AiAssistantContextImage | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (!props.focusNonce) return;
+    const frame = requestAnimationFrame(() => {
+      const input = inputRef.current;
+      input?.focus({preventScroll: true});
+      if (input) input.setSelectionRange(input.value.length, input.value.length);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [props.focusNonce]);
   const localDockRef = useRef<HTMLDivElement>(null);
   const dockRef = props.panelRef ?? localDockRef;
   const previousHeight = useRef<number | null>(null);
@@ -186,7 +196,7 @@ export function PromptFusionDock(props: Props): React.ReactElement {
       // Portaled menus and dialogs remain part of the dock interaction.
       if (
         target.closest(
-          '[role="dialog"], [role="menu"], [role="listbox"], [data-radix-popper-content-wrapper]',
+          '[role="dialog"], [role="menu"], [role="listbox"], [data-radix-popper-content-wrapper], [data-image-node], .react-flow__pane',
         )
       )
         return;

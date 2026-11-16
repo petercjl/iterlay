@@ -1,3 +1,4 @@
+import { GlobalAccountMenu } from "@/components/enterprise/GlobalAccountMenu";
 import { SpaceControl } from "@/components/enterprise/SpaceControl";
 import { ONLINE_SHARING_AVAILABLE } from "@shared/sharing-availability";
 import { translateSourceText } from "@/i18n/ui-text";
@@ -813,6 +814,7 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
             onOpenTrash={() => setTab("trash")}
             onOpenSettings={onOpenSettings}
           />
+          <GlobalAccountMenu compact={compactSidebar} />
         </div>
       </motion.aside>
 

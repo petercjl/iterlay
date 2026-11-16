@@ -39,6 +39,12 @@ export interface GeneratedImage {
   editingStartedAt?: number;
 }
 
+/** Generation metadata is available only for completed generated images. */
+export function canViewImageDetails(image: GeneratedImage): boolean {
+  return !image.pending && Boolean(image.jobId)
+    && image.source !== "upload" && image.source !== "slice";
+}
+
 export interface VersionSeparationPlacement {
   position: { x: number; y: number };
   previewIndex: number;

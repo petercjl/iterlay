@@ -1,6 +1,6 @@
 export type SpaceKind = "personal" | "enterprise";
 export type EnterpriseRole = "admin" | "editor" | "viewer";
-export interface EnterpriseMember { id: string; name: string; role: EnterpriseRole }
+export interface EnterpriseMember { avatarUrl?: string; id: string; name: string; role: EnterpriseRole }
 export interface EnterprisePresence extends EnterpriseMember {
   connectionId: string;
   boardId?: string;
@@ -9,9 +9,12 @@ export interface EnterprisePresence extends EnterpriseMember {
 }
 export interface EnterpriseStatus {
   accountMode?: "shared";
+  accountKind?: "password";
+  accountNickname?: string;
   storageKind?: "nas" | "local";
   localFolder?: string;
   storageUrl?: string;
+  storageError?: string;
   nasPendingWrites?: number;
   textModels?: number;
   imageModels?: number;

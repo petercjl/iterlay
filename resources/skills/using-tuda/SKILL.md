@@ -26,6 +26,10 @@ Read [capabilities.json](capabilities.json) and [the generic adapter](adapters/g
 2. Check the returned `ok` field and process exit code. Provider metadata reports saved configuration, not a guarantee that its remote service is available. If no usable image provider exists, guide the user to App model settings.
 3. Run `tuda tools list --json` for the exact operation schemas. All workspace operations are accessible through `tuda call <operation> --input '<JSON>' --json`. Read [references/cli.md](references/cli.md) for examples.
 
+## Conversation diagnostics
+
+For an explicitly requested Agent diagnostic, use the shared creative-assistant `debug chats` and actual request `debug network` commands documented in [references/cli.md](references/cli.md). Read existing conversations before sending; preserve paid-media and confirmation boundaries.
+
 ## Create and edit
 
 - A user request to generate authorizes that generation. Use one output unless variants were requested. Do not generate images merely to test a connection.

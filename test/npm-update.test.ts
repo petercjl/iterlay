@@ -20,10 +20,12 @@ describe("npm update discovery", () => {
     expect(await new NpmUpdateApiClient(request).fetchLatest(query)).toEqual({ ...manifest, channel: "stable" });
     expect(request.mock.calls[1]?.[0]).toBe("https://registry.npmmirror.com/%40petercjl%2Ftuda-desktop/latest");
   });
-  it("does not request an installer for macOS development", async () => {
-    const request = registry({});
-    expect(await new NpmUpdateApiClient(request).fetchLatest({ ...query, platform: "darwin" })).toBeNull();
-    expect(request).not.toHaveBeenCalled();
+  it("selects the matching Mac installer without mixing Windows or CPU targets", async () => {
+    const mac={...manifest,platform:"darwin",arch:"arm64"};
+    const request = registry({version:"0.2.0",tudaRelease:{schemaVersion:1,applicationVersion:"0.2.0",installers:[manifest,mac]}});
+    const client=new NpmUpdateApiClient(request);
+    expect(await client.fetchLatest({...query,platform:"darwin",arch:"arm64"})).toEqual({...mac,channel:"stable"});
+    expect(await client.fetchLatest({...query,platform:"darwin",arch:"x64"})).toBeNull();
   });
   it("preserves the current app when the package has no release yet", async () => {
     expect(await new NpmUpdateApiClient(async () => new Response("", { status: 404 })).fetchLatest(query)).toBeNull();

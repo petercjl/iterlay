@@ -1,3 +1,7 @@
+import { TudaDebugAgent } from "./debug-agent.js";
+import { invokeRegisteredCommand, sendRegisteredMessage } from "./renderer-security.js";
+import { SCENE_COLLABORATION_START_CHANNEL, SCENE_COLLABORATION_EVENT_CHANNEL, SCENE_COLLABORATION_CANCEL_CHANNEL, SCENE_COLLABORATION_INTERACTION_RESPONSE_CHANNEL } from "../shared/assistant.js";
+import type { IpcMainEvent, IpcMainInvokeEvent, WebContents } from "electron";
 import { assertBoardPluginMethod } from "./board-plugin-tools.js";
 import { createMainWorkbenchApi } from "./application/workbench-api.js";
 import { WorkspaceCommands } from "./application/workspace-commands.js";
@@ -19,6 +23,24 @@ export async function startLocalApi(window: BrowserWindow | (() => BrowserWindow
   const getWindow = typeof window === "function" ? window : () => window;
   const initialWindow = getWindow();
   if (!initialWindow || initialWindow.isDestroyed()) throw new Error("没有可用的 Tuda 窗口。");
+  const sender = initialWindow.webContents;
+  const trustedEvent = {sender, senderFrame: sender.mainFrame};
+  const debugAgent = new TudaDebugAgent({
+    invoke: (channel, args) => invokeRegisteredCommand(trustedEvent as IpcMainInvokeEvent, channel, args),
+    start: (requestId, request, receive) => {
+      const proxy = new Proxy(sender, { get(target, key) {
+        if (key === "send") return (channel: string, ...args: unknown[]) => {
+          if (channel === SCENE_COLLABORATION_EVENT_CHANNEL) receive(args[0] as import("../shared/types.js").CollaborateSceneStreamEvent);
+          else target.send(channel, ...args);
+        };
+        const value = Reflect.get(target, key, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      }});
+      sendRegisteredMessage({...trustedEvent, sender: proxy as WebContents} as IpcMainEvent, SCENE_COLLABORATION_START_CHANNEL, [{requestId, request}]);
+    },
+    cancel: requestId => sendRegisteredMessage(trustedEvent as IpcMainEvent, SCENE_COLLABORATION_CANCEL_CHANNEL, [requestId]),
+    respond: payload => sendRegisteredMessage(trustedEvent as IpcMainEvent, SCENE_COLLABORATION_INTERACTION_RESPONSE_CHANNEL, [payload])
+  });
   const runtimes=new Map<string,WorkspaceCommands>();
   const runtime = (space?:unknown) => {
     const context={...executionContext(),...(space===undefined?{}:{space})}, key=JSON.stringify([context.space,context.account,context.workspace,context.storage]);
@@ -37,7 +59,12 @@ export async function startLocalApi(window: BrowserWindow | (() => BrowserWindow
   };
   let instanceId = "";
   const server = createServer((request, response) => {
-    void handleRequest(runtime, token, request, response, showWindow ?? (() => { const active = getWindow(); if (active && !active.isDestroyed()) { active.show(); active.focus(); } }), acceptHostHandoff, authorizeHostOperation, quitHost, plugin, () => instanceId);
+    void handleRequest(runtime, token, request, response, showWindow ?? (() => { const active = getWindow(); if (active && !active.isDestroyed()) { active.show(); active.focus(); } }), acceptHostHandoff, authorizeHostOperation, quitHost, plugin, () => instanceId, async (method, args) => {
+      // Pass the ordinary authenticated command router before exposing any debug data.
+      await invokeRegisteredCommand(trustedEvent as IpcMainInvokeEvent, "creation:sessions:list", []);
+      if (args.space && args.space !== executionContext().space) throw new Error("调试命令仅操作当前空间。");
+      return debugAgent.call(method, args);
+    });
   });
   server.requestTimeout = 30_000;
   server.headersTimeout = 10_000;
@@ -68,7 +95,8 @@ async function handleRequest(
   authorizeHostOperation?: () => Promise<void>,
   quitHost?: () => Promise<void>,
   plugin?: {sessions:BoardPluginSessions;desktopVersion:string},
-  instance?: () => string
+  instance?: () => string,
+  debug?: (method: string, args: Record<string, unknown>) => Promise<unknown>
 ): Promise<void> {
   if (request.method !== "POST" || !["/call", "/board-plugin/call", "/board-plugin/auth", "/board-plugin/host/quit"].includes(request.url ?? "") || request.headers.authorization !== `Bearer ${token}`) {
     response.writeHead(401).end();
@@ -110,7 +138,9 @@ async function handleRequest(
       throw new Error("EXPLICIT_VIEW_INTENT_REQUIRED: Opening or focusing Tuda requires an explicit user request to view it. Importing, editing, verifying layout and reconnecting must stay silent. Only when the user explicitly asks to view, pass userRequestedView=true.");
     }
     const invoke = async () => inExecutionContext({ ...executionContext(), silent: !viewRequested }, async () => {
-      const result = await runtime(requestBody.args!.space).call(requestBody.method!, {
+      const result = requestBody.method!.startsWith("debug_") && request.url === "/call" && debug
+        ? await debug(requestBody.method!, requestBody.args!)
+        : await runtime(requestBody.args!.space).call(requestBody.method!, {
         ...requestBody.args!, preserveView: !viewRequested
       });
       // Show only after authorization and the operation have both succeeded.

@@ -520,6 +520,7 @@ export class WorkspaceCommands {
     if (!Number.isInteger(count) || count < 1 || count > 4) throw new Error("图片数量必须是 1 到 4 的整数。");
     const input: GenerateImageInput = {
       clientTaskId: requestId,
+      assistantConversationId: string(a.assistantConversationId) || undefined,
       sceneId: template?.id, useCase: template?.useCase,
       editSource: edit && target ? { nodeId: target.id, boardId, imagePath: sourcePath,
         jobId: target.versions?.find((version) => version.imagePath === sourcePath)?.jobId ?? target.jobId } : undefined,
@@ -544,8 +545,11 @@ export class WorkspaceCommands {
       submittedToBackend = true;
       const result = await api.generateImage({ ...input, referenceImages });
       await this.dependencies.flush();
-      if (edit && target && !prepared) await api.appendBoardNodeVersions(boardId, target.id, result.images.map((image) => ({ imagePath: image.path, jobId: result.job.id, width: "width" in target ? target.width : undefined, height: "height" in target ? target.height : undefined })));
-      else if (!prepared) await api.appendBoardNodes(boardId, result.images.map((image) => ({ id: crypto.randomUUID(), imagePath: image.path, jobId: result.job.id, source: "generated" })));
+      if (!prepared) await api.appendBoardNodes(boardId, result.images.map((image) => {
+        const bytes = image.dataUrl.startsWith("data:") ? Buffer.from(image.dataUrl.split(",")[1], "base64") : undefined;
+        const size = bytes ? imageDimensionsFromHeader(bytes) : undefined;
+        return {id: crypto.randomUUID(), imagePath: image.path, jobId: result.job.id, source: "generated", ...size};
+      }));
       await this.remember({ ...record, status: "succeeded", completedAt: new Date().toISOString(), job: result.job,
         images: result.images.map((image) => ({ ...image, dataUrl: "" })), warnings: result.warnings });
       emit({ type: "board-updated", boardId, operationId: record.generationId });

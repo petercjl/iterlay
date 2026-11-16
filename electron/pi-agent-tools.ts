@@ -1,3 +1,4 @@
+import { setTimeout as delay } from "node:timers/promises";
 import type { AgentTool } from "./agents/tool-runtime.js";
 import type { TSchema } from "typebox";
 import { callLocalApi } from "./local-api-client.js";
@@ -40,6 +41,7 @@ const SEQUENTIAL_TOOLS = new Set([
 
 export interface TudaAgentToolOptions {
   boardId?: string;
+  conversationId?: string;
   preserveView?: boolean;
   referenceImagePaths?: string[];
   referenceNodeIds?: string[];
@@ -62,7 +64,7 @@ export function createTudaAgentTools(
       description,
       parameters: inputSchema as TSchema,
       executionMode: SEQUENTIAL_TOOLS.has(name) ? "sequential" : "parallel",
-      execute: async (_toolCallId, rawArgs) => {
+      execute: async (_toolCallId, rawArgs, signal) => {
         let args = isRecord(rawArgs) ? rawArgs : {};
         if (name === "generate_video" && args.textOnly !== true && !args.firstFramePath && !args.lastFramePath
           && !(Array.isArray(args.referenceImagePaths) && args.referenceImagePaths.length)) {
@@ -70,8 +72,16 @@ export function createTudaAgentTools(
             ...(options.referenceImagePaths?.length ? { referenceImagePaths: options.referenceImagePaths } : {}),
             ...(options.referenceNodeIds?.length ? { referenceNodeIds: options.referenceNodeIds } : {}) };
         }
+        if (["generate_image", "edit_image"].includes(name) && options.conversationId) args = {...args, assistantConversationId: options.conversationId};
         assertBoardScope(name, args, options.boardId);
-        const result = await callBridge(userDataPath, name, options.preserveView ? { ...args, preserveView: true } : args);
+        const call = () => callBridge(userDataPath, name, options.preserveView ? { ...args, preserveView: true } : args);
+        let result = await call();
+        // Wait within one tool invocation instead of spending a Pi turn on each poll.
+        const deadline = Date.now() + 30_000;
+        while (name === "get_generation_status" && isRecord(result) && ["running", "queued"].includes(String(result.status)) && Date.now() < deadline) {
+          await delay(1500, undefined, {signal});
+          result = await call();
+        }
         return {
           content: buildToolContent(result),
           details: { toolName: name }

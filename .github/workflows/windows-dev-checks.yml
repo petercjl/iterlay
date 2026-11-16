@@ -1,7 +1,5 @@
 name: Tuda Windows build verification
 on:
-  push:
-    branches: [main, feature/tuda-app]
   workflow_dispatch:
 permissions:
   contents: read

@@ -43,7 +43,7 @@ describe("assistant history controller", () => {
     try {
       await act(async () => { void harness.history().loadAssistantHistory("board"); });
       await act(async () => harness.history().changeAssistantHistoryScope("all"));
-      expect(list.mock.calls.map(([query]) => query)).toEqual([{ boardId: "one", surface: "canvas-prompt" }, { surface: "canvas-prompt" }]);
+      expect(list.mock.calls.map(([query]) => query)).toEqual([{ boardId: "one" }, {}]);
       await act(async () => second.resolve([record("newest")]));
       await act(async () => first.resolve([record("stale")]));
       expect(harness.history().assistantHistory.map(({ id }) => id)).toEqual(["newest"]);

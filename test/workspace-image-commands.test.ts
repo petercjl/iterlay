@@ -69,8 +69,8 @@ describe("typed workspace image tasks", () => {
     const f = workspaceFixture();
     await expect(f.commands.call("edit_image", { boardId: "board", sourcePath: "/other.png", prompt: "test" })).rejects.toThrow("编辑目标");
     const task = await f.commands.call("edit_image", { boardId: "board", sourcePath: "/managed/source.png", prompt: "test" }) as { generationId: string };
-    await vi.waitFor(() => expect(f.mocks.appendBoardNodeVersions).toHaveBeenCalledWith("board", "image", expect.any(Array)));
-    expect(f.mocks.appendBoardNodes).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(f.mocks.appendBoardNodes).toHaveBeenCalledWith("board", expect.arrayContaining([expect.objectContaining({source:"generated"})])));
+    expect(f.mocks.appendBoardNodeVersions).not.toHaveBeenCalled();
     await vi.waitFor(async () => expect(await f.commands.call("get_generation_status", { generationId: task.generationId })).toMatchObject({ status: "succeeded" }));
   });
   it("keeps an unconfirmed provider result unknown rather than reporting failure or success", async () => {

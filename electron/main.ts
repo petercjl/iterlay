@@ -177,7 +177,9 @@ app.setName(APP_NAME);
 if (app.isPackaged) {
   const explicitHostData = process.env.TUDA_EMBEDDED_HOST && process.env.TUDA_USER_DATA_PATH;
   if (explicitHostData && !path.isAbsolute(explicitHostData)) throw new Error("嵌入式 Tuda 工作区必须为绝对路径。");
-  const userData = explicitHostData || path.join(app.getPath("appData"), BRAND.name);
+  const testData = process.env.TUDA_PLAYWRIGHT === "1" && process.env.TUDA_E2E_USER_DATA;
+  if (testData && !path.isAbsolute(testData)) throw new Error("Test user data must be absolute.");
+  const userData = testData || explicitHostData || path.join(app.getPath("appData"), BRAND.name);
   app.setPath("userData", userData);
   app.setPath("sessionData", path.join(userData, "session"));
   app.setAppLogsPath(path.join(userData, "logs"));
@@ -221,7 +223,10 @@ if (!hasSingleInstanceLock) {
     dispatchDeepLink(url);
   });
   app.on("second-instance", (_event, argv) => {
-    if (!isBrowserDev && !argv.includes(CLI_BACKGROUND_FLAG)) backgroundSession.requestForeground();
+    if (!isBrowserDev && !argv.includes(CLI_BACKGROUND_FLAG)) {
+      backgroundSession.requestForeground();
+      if (app.isReady() && BrowserWindow.getAllWindows().length === 0) app.emit("activate");
+    }
     for (const url of extractTudaDeepLinks(argv)) dispatchDeepLink(url);
   });
   for (const url of extractTudaDeepLinks(process.argv)) {
@@ -1052,6 +1057,7 @@ app.whenReady().then(async () => {
   );
   await masterGoBridge.start();
   const disposeIpcResources = registerIpc({
+    company,
     templates,
     settings,
     onboarding,

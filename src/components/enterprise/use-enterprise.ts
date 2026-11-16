@@ -10,8 +10,9 @@ export function useEnterpriseStatus() {
     if (typeof api.enterpriseStatus !== "function") return;
     let alive = true;
     void api.enterpriseStatus().then(value => { if (alive) setStatus(value); }).catch(() => undefined);
+    const timer = window.setInterval(() => { void api.enterpriseStatus().then(value => { if (alive) setStatus(value); }).catch(() => undefined); }, 30_000);
     const dispose = api.onEnterpriseState(value => { if (alive) setStatus(value); });
-    return () => { alive = false; dispose(); };
+    return () => { alive = false; window.clearInterval(timer); dispose(); };
   }, []);
   return status;
 }

@@ -12,6 +12,7 @@ let generated = 0;
 let lastGenerationArgs: Record<string, unknown>;
 let resolvedBoards = 0;
 let lastSliceArgs: Record<string, unknown>;
+const debugCalls: Array<{method:string;args:Record<string,unknown>}> = [];
 const configurations: Record<string, unknown>[] = [];
 const server = createServer(async (request, response) => {
   if (request.headers.authorization !== 'Bearer ' + 'a'.repeat(32)) { response.writeHead(401).end(); return; }
@@ -19,6 +20,9 @@ const server = createServer(async (request, response) => {
   const { method, args } = JSON.parse(content);
   let result: unknown;
   switch (method) {
+    case 'debug_chats_send': debugCalls.push({method,args}); result={conversationId:args.conversationId,requestId:args.requestId,status:'running'};break;
+    case 'debug_chats_result': debugCalls.push({method,args}); result={conversationId:args.conversationId,status:'completed',message:{content:'DEBUG_OK'}};break;
+    case 'debug_network': debugCalls.push({method,args});result={requests:[{origin:'https://provider.example',status:200}]};break;
     case 'status': result = { protocolVersion: 1 }; break;
     case 'resolve_generation_board': resolvedBoards++; result = { boardId: 'configured-default' }; break;
     case 'configure_provider': configurations.push(args); result = { providerId: args.providerId, kind: args.kind, authConfigured: Boolean(args.apiKey) }; break;
@@ -44,6 +48,15 @@ beforeAll(async () => {
 });
 afterAll(async () => { await new Promise<void>((resolve) => server.close(() => resolve())); await rm(directory, { recursive: true, force: true }); });
 describe('CLI subprocess workflow', () => {
+  it('sends a shared Agent message once, polls the result and filters wire evidence', async()=>{
+    const common=['--user-data-path',directory,'--no-launch','--json'];
+    const sent=await exec(process.execPath,[script,'debug','chats','send','chat-1','--prompt','read only','--request-id','once',...common]);
+    expect(JSON.parse(sent.stdout).data).toMatchObject({status:'completed',message:{content:'DEBUG_OK'}});
+    expect(debugCalls.filter(c=>c.method==='debug_chats_send')).toEqual([{method:'debug_chats_send',args:{conversationId:'chat-1',prompt:'read only',requestId:'once'}}]);
+    await exec(process.execPath,[script,'debug','network','--conversation','chat-1',...common]);
+    expect(debugCalls.at(-1)).toEqual({method:'debug_network',args:{conversationId:'chat-1'}});
+    await expect(exec(process.execPath,[script,'debug','chats','send','chat-1',...common])).rejects.toMatchObject({stdout:expect.stringContaining('--prompt')});
+  });
   it('routes local slicing and exports PNGs without submitting generation', async () => {
     const before = generated;
     const target = path.join(directory, 'slices');

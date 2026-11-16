@@ -8,8 +8,7 @@ import { readNpmRegistry } from "./npm-registry.js";
 export class NpmUpdateApiClient implements UpdateApiClient {
   constructor(private readonly fetcher: UpdateFetch = fetch, private readonly packageName = BRAND.desktopPackageName) {}
   async fetchLatest(query: UpdateCheckQuery): Promise<UpdateManifest | null> {
-    // Customer releases are Windows only. macOS is a desktop development target.
-    if (query.platform !== "win32") return null;
+    if (query.platform !== "win32" && query.platform !== "darwin") return null;
     const tag = query.channel === "beta" ? "next" : "latest";
     const pkg = await readNpmRegistry(`https://registry.npmjs.org/${encodeURIComponent(this.packageName)}/${tag}`, this.fetcher, async (response) => {
       if (response.status === 404) return null;

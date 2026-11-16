@@ -61,3 +61,28 @@ tuda image slice --node <节点ID> --board <画板ID> --crops '[{"x":10,"y":20,"
 Use `tuda templates list|show <id>` to inspect custom templates shared with the App. Create with `templates create --name <name> --prompt <fixed-rules>`; update with `templates update <id> --prompt <rules>` (optional `--expected-prompt <previous-rules>`). `--input <JSON-file>` supports structured fields. Saving templates does not call a model.
 
 Use `image generate --template <id> --prompt <run-content>` to reuse fixed rules without editing the template. Edit-mode templates require `image edit --template <id> --input <file> --prompt <instruction>`. Generation retains the source template ID. Raw operations: `list_templates`, `get_template`, `create_template`, `update_template`; `generate_image`/`edit_image` accept `templateId`. Built-in presets are not included. Legacy local templates migrate when the upgraded workspace first opens; keep App and CLI versions aligned.
+
+
+## Agent conversation debugging
+
+Requires a logged-in desktop with the debug bridge capability. Use this only for an explicitly requested conversation or diagnostic task. Model messages execute the real Tuda Agent and may invoke tools; state the user's authorized scope in the message. The CLI shares the current account, selected storage space, model configuration and creative-assistant conversation store. It does not open a second agent runtime.
+
+```sh
+tuda debug chats list --json
+tuda debug chats create --name "Connection verification" --json
+tuda debug chats send <conversation-id> --prompt "Reply with DIRECT_OK. Do not modify boards or generate media." --request-id <unique-id> --async --json
+tuda debug chats get <conversation-id> --json
+tuda debug chats events <conversation-id> --json
+tuda debug chats wait <conversation-id> --timeout 120 --json
+tuda debug chats result <conversation-id> --json
+tuda debug network --conversation <conversation-id> --json
+tuda debug chats cancel <conversation-id> --json
+```
+
+`send` waits by default. `--async` returns acceptance; `wait` polls without submitting another message. `waiting` means an explicit interaction needs a response, not completion. After reviewing the interaction and obtaining the required user authorization, use `debug chats respond <id> --input '{"interactionId":"...","action":"submit","values":{}}'`; use `dismiss` to decline. Cancellation requests stop the run and require a subsequent result check. A timeout ends waiting only. Request IDs deduplicate identical sends within the running desktop; after an uncertain outcome or desktop restart inspect history before sending again.
+
+`get` returns persisted user/assistant messages; `events` returns visible activity, tool receipts, structured interactions and assistant history. Internal model reasoning is not a debugging output contract. CLI-created conversations appear in the creative assistant when its session list reloads; use a separate conversation instead of editing one currently active in the UI. Interrupted runs remain visible on restart.
+
+`debug network` reports actual Node HTTP request metadata, including host, path, peer address, response status and timing. It records only managed direct text calls, keeps the latest 500 requests in desktop memory, and resets on desktop restart. It excludes credentials, headers, query strings, request and response bodies. It is evidence of the local HTTP destination, not a trace of infrastructure behind that provider. Empty results are not proof of direct connection.
+
+Read boards through `boards show <board-id> --json` (including nodes, dimensions, paths and connections); list boards first to resolve IDs. For Mac Dev, supply the existing Dev `--user-data-path <path> --no-launch` on every command. An older desktop without these methods must be upgraded. These methods are not exposed to board-only plugin sessions. Windows runtime validation is separate from Mac Dev verification.

@@ -41,6 +41,9 @@ export const bootstrap: CompanyBootstrap = {
   image: { enabled: false, reason: "KEY_BINDING_UNVERIFIED", models: [] },
   storage: { enabled: false, reason: "STORAGE_NOT_CONFIGURED" },
 };
+const direct = {contract:2,appId:"tuda",sessionId:session.sessionId,authenticated:true,expiresAt:session.expiresAt,member:session.member,organization:session.organization,transport:"direct",subject:"a".repeat(64),configVersion:"b".repeat(64),model:"gateway/model",
+  provider:{gateway:{name:"共享文本",wire_api:"responses",options:{baseURL:"https://models.example.test/v1",apiKey:"fixture-provider-key"},models:{model:{name:"文本",limit:{context:128000,output:16384}}}}}};
+const lease = {subject:direct.subject,configVersion:direct.configVersion,authorization:{validForSeconds:300,refreshAfterSeconds:120}};
 it("rejects insecure remote account origins and cross-app/model credential destinations", () => {
   expect(() => companyOrigin("http://192.168.1.2:1234")).toThrow();
   expect(companyOrigin("http://127.0.0.1:1234")).toBe("http://127.0.0.1:1234");
@@ -106,7 +109,8 @@ it("uses a local verifier, validates authorization URL and claims once with app 
         expect(body.verifier).toMatch(/^[A-Za-z0-9_-]{43}$/);
         data = { ...session, status: "authorized" };
       } else if (String(url).endsWith("/session"))
-        data = { ...session, token: undefined, authenticated: true };
+        data = { ...session, ...lease, token: undefined, authenticated: true };
+      else if (String(url).endsWith("/direct-models")) data = direct;
       else data = bootstrap;
       return Response.json({ ok: true, data });
     }) as typeof fetch,
@@ -164,9 +168,40 @@ it("keeps company login and text models when NAS permission alone is denied", as
       storage: { enabled: true, scopes: ["boards:read", "assets:read"] },
     },
   });
-  await expect(account.storageToken()).rejects.toThrow("公司本地文件夹");
+  await expect(account.storageToken()).rejects.toThrow("本地空间");
   expect(account.status).toMatchObject({ authenticated: true, textModels: 1 });
   expect(JSON.stringify(account.status)).not.toContain(
     "private upstream detail",
   );
+});
+
+it("refreshes DingTalk profile without changing account identity", async () => {
+  const member = {...session.member, name: "钉钉新名称", avatarUrl: "https://static.dingtalk.com/avatar-fixture.png"};
+  const account = new CompanyAccount(origin, async () => undefined, (async url => Response.json({ok:true,data: String(url).endsWith("/session") ? {...session,...lease, authenticated:true, member} : String(url).endsWith("/direct-models") ? direct : {...bootstrap, member}})) as typeof fetch);
+  await account.restore({origin,session,bootstrap});await account.refresh();
+  expect(account.status.member).toEqual(member);expect(account.session?.member).toEqual(member);
+  expect(JSON.stringify(account.status)).not.toContain(session.token);
+});
+it.each(["javascript:alert(1)","data:image/png;base64,AA", "https://name:password@example.com/avatar"])("rejects unsafe avatar URL %s", async avatarUrl => {
+  const account = new CompanyAccount(origin, async () => undefined);
+  await expect(account.restore({origin,session:{...session,member:{...session.member,avatarUrl}}})).rejects.toThrow("公司设备授权格式无效");
+});
+
+it("requests a real profile OAuth and binds its return to the same employee", async () => {
+  vi.useFakeTimers();
+  const id = "p".repeat(43);let profileRequested = false;
+  const account = new CompanyAccount(origin, async () => undefined, (async (url, init) => {
+    if (String(url).endsWith("/auth/start")) {
+      profileRequested = JSON.parse(String(init?.body)).refreshProfile === true;
+      return Response.json({ok:true,data:{contract:1,appId:"tuda",requestId:id,userCode:id.slice(0,8).toUpperCase(),verificationUrl:origin+"/api/company/v1/auth/authorize?request="+id+"&refreshProfile=1",expiresIn:600,intervalMs:1000}});
+    }
+    return Response.json({ok:true,data:{...session,status:"authorized",member:{id:"another-employee",name:"Other"}}});
+  }) as typeof fetch);
+  try {
+    await account.restore({origin,session,bootstrap});
+    expect((await account.beginLogin(true)).authorizeUrl).toContain("refreshProfile=1");
+    expect(profileRequested).toBe(true);vi.advanceTimersByTime(1100);
+    await expect(account.pollLogin()).rejects.toThrow("当前登录的钉钉账号");
+    expect(account.session?.member.id).toBe(session.member.id);
+  } finally {vi.useRealTimers();}
 });

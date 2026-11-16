@@ -1,5 +1,5 @@
 import { defaultTudaTextProvider } from "../../shared/tuda-models.js";
-import { BrowserWindow, dialog, safeStorage } from "electron";
+import { BrowserWindow, net, safeStorage } from "electron";
 import { createHash, randomUUID } from "node:crypto";
 import {
   copyFile,
@@ -12,6 +12,7 @@ import {
 import path from "node:path";
 import { CompanyAccount, type AccountSnapshot } from "./account.js";
 import { CompanyToapis } from "./toapis.js";
+import { directProvider, directTextProviders } from "./direct-models.js";
 import type { CompanyDefaults } from "./defaults.js";
 import { comicBoardSnapshot } from "../domain/comic-board-snapshot.js";
 import {
@@ -39,6 +40,7 @@ interface Preferences {
   origin: string;
   activeSpace: SpaceKind;
   folders: Record<string, string>;
+  profiles?: Record<string, {nickname?: string}>;
   selections: Record<string, { image?: string; text?: string }>;
   storage?: Record<string, { kind: "nas" | "local"; url?: string }>;
 }
@@ -54,6 +56,8 @@ export class CompanyDesktop {
   private imageRevision = "";
   private imageConfigured = false;
   private imageSetupError?: string;
+  private nasConnectionError?: string;
+  private profileLogin = false;
   changingSpace = false;
   constructor(
     readonly userData: string,
@@ -81,6 +85,7 @@ export class CompanyDesktop {
           .toString("base64");
         await this.write("company-session.json", { version: 1, encrypted });
       },
+      (input, init) => net.fetch(input instanceof URL ? input.toString() : input, init),
     );
     this.toapis = new CompanyToapis(
       path.join(userData, "company-models"),
@@ -97,16 +102,17 @@ export class CompanyDesktop {
           this.usesNas &&
           !this.legacy.status.connected
         )
-          throw new Error("NAS 暂时不可用，请先选择公司本地文件夹后生成图片。");
+          throw new Error("NAS 连接失败，请先切换本地空间完成工作。");
         if (
           executionSpace() === "enterprise" &&
           this.usesNas &&
           !this.nasImageWritable
         )
           throw new Error(
-            "当前 NAS 存储为只读；请切换个人空间或公司本地文件夹后生成图片。",
+            "当前 NAS 存储为只读，请切换本地空间后生成图片。",
           );
       },
+      input => this.account.guestImage(input),
     );
     if (!this.connectionOnly) this.account.on("state", () => {
       this.changed();
@@ -145,6 +151,7 @@ export class CompanyDesktop {
     return !!this.account.origin;
   }
   get activeSpace() {
+    if (this.account.session?.accountKind === "password") return "personal" as const;
     return this.enabled
       ? this.preferences.activeSpace
       : this.legacy.activeSpace;
@@ -169,12 +176,11 @@ export class CompanyDesktop {
       : undefined;
   }
   get storage() {
-    return this.namespace
-      ? (this.preferences.storage?.[this.namespace] ??
-          (this.defaultNasUrl
-            ? { kind: "nas" as const, url: this.defaultNasUrl }
-            : undefined))
-      : undefined;
+    if (this.account.session?.accountKind === "password") return undefined;
+    if (!this.namespace) return undefined;
+    const previous = this.preferences.storage?.[this.namespace];
+    const url = previous?.kind === "nas" ? previous.url : this.defaultNasUrl;
+    return url ? {kind: "nas" as const, url} : undefined;
   }
   private get defaultNasUrl() {
     return this.defaults.nasUrl || this.legacy.status.serverUrl;
@@ -183,11 +189,8 @@ export class CompanyDesktop {
     return this.enabled && this.storage?.kind === "nas";
   }
   get workspace() {
-    return this.usesNas && this.namespace
-      ? path.join(this.userData, "company-cache", this.namespace)
-      : this.folder && this.namespace
-        ? path.join(this.folder, ".tuda-company", this.namespace)
-        : undefined;
+    if (this.account.session?.accountKind === "password" && this.namespace) return path.join(this.userData, "guest-workspaces", this.namespace);
+    return this.usesNas && this.namespace ? path.join(this.userData, "company-cache", this.namespace) : undefined;
   }
   get status(): EnterpriseStatus {
     if (!this.enabled) return this.legacy.status;
@@ -216,9 +219,12 @@ export class CompanyDesktop {
         (this.usesNas ? this.legacy.status.error : undefined),
       history: this.usesNas ? this.legacy.status.history : undefined,
       accountMode: "shared",
+      accountKind: this.account.session?.accountKind,
+      accountNickname: this.namespace ? this.preferences.profiles?.[this.namespace]?.nickname : undefined,
       storageKind: this.usesNas ? "nas" : "local",
-      storageUrl: this.storage?.url ?? this.defaultNasUrl,
-      localFolder: this.folder,
+      storageUrl: this.account.session?.accountKind === "password" ? undefined : this.storage?.url ?? this.defaultNasUrl,
+      storageError: this.nasConnectionError,
+
       textModels: a.textModels,
       imageModels: a.imageModels,
       imageConfigured: this.imageConfigured,
@@ -319,9 +325,14 @@ export class CompanyDesktop {
           console.warn("公司登录需重新授权。");
       }
       if (this.account.authenticated)
-        void this.account
+        await this.account
           .refresh()
-          .then(() => (this.usesNas ? this.connectNas() : undefined))
+          .then(async () => {
+            if (this.usesNas) {
+              try { await this.connectNas(); }
+              catch { this.preferences.activeSpace = "personal"; await this.save(); this.changed(); }
+            }
+          })
           .catch(() => undefined);
       else this.preferences.activeSpace = "personal";
     }
@@ -339,7 +350,7 @@ export class CompanyDesktop {
       if (this.account.authenticated)
         void this.account.refresh().catch(() => undefined);
       this.changed();
-    }, 15 * 60_000);
+    }, 120_000);
     this.refreshTimer.unref();
   }
   assertAccount() {
@@ -349,6 +360,13 @@ export class CompanyDesktop {
       (context.account && context.account !== this.namespace)
     )
       throw new Error("公司登录已更改，请重新打开当前画板。");
+  }
+  async updateProfile(nickname: unknown) {
+    this.assertAccount();
+    if (typeof nickname !== "string" || nickname.trim().length > 40 || Array.from(nickname).some(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)) throw new Error("昵称请使用 40 字以内的有效文字。");
+    this.preferences.profiles ??= {};
+    this.preferences.profiles[this.namespace!] = {nickname: nickname.trim() || undefined};
+    await this.save();this.changed();return this.status;
   }
   async configure(origin: string) {
     await this.flush();
@@ -360,10 +378,21 @@ export class CompanyDesktop {
     this.reload();
     return this.status;
   }
-  async beginLogin() {
-    if (this.enabled && this.account.authenticated)
+  async beginLogin(refreshProfile = false) {
+    if (this.enabled && this.account.authenticated && !refreshProfile)
       throw new Error("当前已登录公司账号，请先退出后切换账号。");
-    return this.enabled ? this.account.beginLogin() : this.legacy.beginLogin();
+    if (refreshProfile) await this.flush();
+    this.profileLogin = refreshProfile;
+    return this.enabled ? this.account.beginLogin(refreshProfile) : this.legacy.beginLogin();
+  }
+  async passwordLogin(username: string, password: string) {
+    if (!this.enabled) throw new Error("账号服务尚未配置。");
+    if (this.account.authenticated) throw new Error("请先退出当前账号。");
+    await this.flush();
+    const result = await this.account.passwordLogin(username, password);
+    this.preferences.activeSpace = "personal";
+    await this.save(); this.reload();
+    return result;
   }
   /** Internal host integration: no dialogs, credentials or personal-space fallback. */
   async authorizeHostOperation() {
@@ -375,14 +404,8 @@ export class CompanyDesktop {
     if (!this.enabled) throw new Error("COMPANY_AUTH_NOT_CONFIGURED");
     await this.flush();
     const result = await this.account.acceptHostHandoff(value);
-    // Honor an existing NAS/local workspace. A fresh embedded host gets private local storage.
-    if (!this.workspace) {
-      this.preferences.folders[this.namespace!] = path.join(this.userData, "host-board-workspace");
-      this.preferences.storage ??= {};
-      this.preferences.storage[this.namespace!] = { kind: "local" };
-    }
-    if (this.usesNas) await this.connectNas();
-    else await mkdir(this.workspace!, { recursive: true, mode: 0o700 });
+    if (!this.usesNas) throw new Error("企业空间固定使用 NAS，请先配置 NAS 服务。");
+    await this.connectNas();
     this.preferences.activeSpace = "enterprise";
     await this.save();
     this.reload();
@@ -398,13 +421,8 @@ export class CompanyDesktop {
       if (connection.account.bootstrap?.text.enabled || connection.account.bootstrap?.image.enabled)
         throw new Error("PLUGIN_SESSION_SCOPE_INVALID");
       if (!connection.namespace) throw new Error("COMPANY_AUTH_REQUIRED");
-      if (!connection.preferences.storage?.[connection.namespace]) {
-        connection.preferences.folders[connection.namespace] ??= path.join(this.userData, "plugin-board-workspace");
-        connection.preferences.storage ??= {};
-        connection.preferences.storage[connection.namespace] = {kind:"local"};
-      }
-      if (connection.usesNas) await inExecutionContext({space:"enterprise",account:connection.namespace,workspace:connection.workspace,storage:connection.storage,pluginCompany:connection}, () => connection.connectNas());
-      else await mkdir(connection.workspace!, {recursive:true,mode:0o700});
+      if (!connection.usesNas) throw new Error("企业空间固定使用 NAS，请先配置 NAS 服务。");
+      await inExecutionContext({space:"enterprise",account:connection.namespace,workspace:connection.workspace,storage:connection.storage,pluginCompany:connection}, () => connection.connectNas());
       connection.preferences.activeSpace = "enterprise";
       return connection;
     } catch (error) { legacy.stop(); throw error; }
@@ -413,46 +431,28 @@ export class CompanyDesktop {
     if (!this.enabled) return this.legacy.pollLogin();
     const result = await this.account.pollLogin();
     if (result.status === "authorized") {
-      await this.flush();
-      if (!this.workspace) await this.chooseFolder(false);
-      if (this.usesNas) await this.connectNas();
+      if (this.profileLogin) { await this.flush(); this.profileLogin = false; }
+      // Company identity/model authorization is independent of NAS availability.
+      let nasAvailable = false;
+      if (this.usesNas) { try { await this.connectNas(); nasAvailable = true; } catch { /* Login is valid; use local storage. */ } }
       this.changingSpace = true;
-      this.preferences.activeSpace = this.workspace ? "enterprise" : "personal";
+      this.preferences.activeSpace = nasAvailable ? "enterprise" : "personal";
       await this.save();
       this.reload();
     }
     return result;
   }
-  async chooseFolder(reload = true, reuseExisting = false) {
+  async chooseFolder(_reload = true, _reuseExisting = false) {
+    void _reload; void _reuseExisting;
     this.assertAccount();
-    await this.flush();
-    const choice =
-      reuseExisting && this.folder
-        ? { canceled: false, filePaths: [this.folder] }
-        : await dialog.showOpenDialog({
-            title: "选择公司账号的本地画板文件夹",
-            properties: ["openDirectory", "createDirectory"],
-          });
-    if (choice.canceled || !choice.filePaths[0]) return this.status;
-    this.changingSpace = true;
-    this.preferences.folders[this.namespace!] = path.resolve(
-      choice.filePaths[0],
-    );
-    this.preferences.storage ??= {};
-    this.preferences.storage[this.namespace!] = { kind: "local" };
-    this.preferences.activeSpace = "enterprise";
-    this.legacy.stop();
-    await mkdir(this.workspace!, { recursive: true, mode: 0o700 });
-    await this.save();
-    if (reload) this.reload();
-    else this.changingSpace = false;
-    return this.status;
+    throw new Error("企业空间固定使用 NAS。请切换到本地空间继续工作。");
   }
   async connectNas() {
     this.assertAccount();
     const url = this.storage?.url,
       identity = this.namespace;
-    if (!url) throw new Error("请配置公司 NAS 存储地址。");
+    if (!url) { this.nasConnectionError = "NAS 连接失败，请先使用本地空间完成工作。"; throw new Error(this.nasConnectionError); }
+    try {
     await this.legacy.useStorageSession(url, async () => {
       if (this.namespace !== identity || !this.usesNas)
         throw new Error("公司存储会话已更改。");
@@ -472,6 +472,12 @@ export class CompanyDesktop {
         },
       };
     });
+    this.nasConnectionError = undefined;
+    } catch {
+      this.nasConnectionError = "NAS 连接失败，请先使用本地空间完成工作。";
+      this.changed();
+      throw new Error(this.nasConnectionError);
+    }
   }
   async chooseNas(input: string) {
     this.assertAccount();
@@ -510,19 +516,20 @@ export class CompanyDesktop {
   }
   async selectSpace(space: SpaceKind) {
     if (!this.enabled) return this.legacy.selectSpace(space);
-    if (space !== "personal" && space !== "enterprise")
-      throw new Error("空间类型无效。");
+    this.assertAccount();
+    if (space === "enterprise" && this.account.session?.accountKind === "password") throw new Error("当前账号仅开放本地空间。");
+    if (space !== "personal" && space !== "enterprise") throw new Error("空间类型无效。");
     await this.flush();
     if (space === "enterprise") {
-      this.assertAccount();
-      if (!this.workspace) await this.chooseFolder(false);
+      try { await this.connectNas(); }
+      catch {
+        this.preferences.activeSpace = "personal";
+        await this.save(); this.reload(); return this.status;
+      }
     }
     this.changingSpace = true;
-    this.preferences.activeSpace =
-      space === "enterprise" && !this.workspace ? "personal" : space;
-    await this.save();
-    this.reload();
-    return this.status;
+    this.preferences.activeSpace = space;
+    await this.save(); this.reload(); return this.status;
   }
   nasBoards(local: BoardStore): BoardStore {
     const channels: Record<string, string> = {
@@ -542,12 +549,18 @@ export class CompanyDesktop {
     };
     return new Proxy(local, {
       get: (target, property) => {
+        if (storedExecutionContext()?.account && storedExecutionContext()!.account !== this.namespace) throw new Error("账号已切换，请重新打开当前画板。");
         this.assertStorage();
         if (!this.usesNas || executionSpace() !== "enterprise") {
           const v = Reflect.get(target, property, target);
           return typeof v === "function" ? v.bind(target) : v;
         }
         this.assertAccount();
+        if (property === "listBoards") return async () => {
+          const summaries = await this.legacy.command("boards:list", []) as Array<{id:string}>;
+          const boards = await Promise.all(summaries.map(summary => this.legacy.command("boards:get", [summary.id])));
+          return boards.filter(Boolean);
+        };
         if (property === "getComicDramaBoardSnapshot")
           return async (id: string) => {
             const board = await this.legacy.command("boards:get", [id]);
@@ -589,6 +602,8 @@ export class CompanyDesktop {
                   ).path,
               ),
             );
+        if (property === "isReadable") return (file: string) => file.startsWith(ENTERPRISE_ASSET_PREFIX)
+          ? this.legacy.command("asset:readDataUrl", [file]).then(() => true, () => false) : bound(file);
         if (
           [
             "readManagedBytes",
@@ -658,20 +673,12 @@ export class CompanyDesktop {
           supportsReferenceImages: true,
         }))
       : [];
-    const textProviders: TextProviderConfig[] = b?.text.enabled
-      ? b.text.providers.flatMap((p) =>
-          p.models.map((m) => ({
-            id: `company-text/${p.id}/${m.id}`,
-            name: m.name,
-            type: "openai-compatible" as const,
-            protocol: p.protocol,
-            managed: true,
-            baseUrl: p.baseUrl,
-            model: m.id,
-          })),
-        )
-      : [];
-    const selectedText = defaultTudaTextProvider(textProviders, s?.text, b?.text.defaultModel ?? undefined);
+    const direct = this.account.directModels;
+    const textProviders: TextProviderConfig[] = b?.text.enabled && b.text.transport === "proxy"
+      ? b.text.providers.flatMap(provider => provider.models.map(model => ({ id: `company-text/${provider.id}/${model.id}`, name: model.name, type: "openai-compatible" as const,
+        managed: true, protocol: provider.protocol, baseUrl: provider.baseUrl, model: model.id })))
+      : b?.text.enabled && direct ? directTextProviders(direct) : [];
+    const selectedText = defaultTudaTextProvider(textProviders, s?.text, direct?.model);
     return {
       ...settings,
       providers,
@@ -693,8 +700,13 @@ export class CompanyDesktop {
   token(id?: string) {
     this.assertAccount();
     const b = this.account.bootstrap;
-    if (id?.startsWith("company-text/") && b?.text.enabled)
-      return this.account.session!.token;
+    if (id?.startsWith("company-text/") && b?.text.enabled) {
+      if (b.text.transport === "proxy" && this.account.session?.accountKind === "password") return this.account.session.token;
+      if (!this.account.directModels) return "";
+      directProvider(this.account.directModels, id);
+      // Generic settings/SDK callers receive a marker. Account.textFetch injects the real Key.
+      return "managed-direct-text";
+    }
     if (
       id?.startsWith("company-image/") &&
       b?.image.enabled &&
@@ -718,7 +730,8 @@ export class CompanyDesktop {
     const stores = new Map<string, T>();
     return new Proxy(personal, {
       get: (target, property) => {
-        if (!this.enabled || executionSpace() !== "enterprise") {
+        if (storedExecutionContext()?.account && storedExecutionContext()!.account !== this.namespace) throw new Error("账号已切换，请重新打开当前画板。");
+        if (!this.enabled || (executionSpace() !== "enterprise" && this.account.session?.accountKind !== "password")) {
           const v = Reflect.get(target, property, target);
           return typeof v === "function" ? v.bind(target) : v;
         }
@@ -737,6 +750,7 @@ export class CompanyDesktop {
   }
   stop() {
     if (this.refreshTimer) clearInterval(this.refreshTimer);
+    this.account.stopAuthorization();
   }
 }
 
