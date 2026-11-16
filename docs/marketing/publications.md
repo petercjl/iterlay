@@ -366,3 +366,13 @@ X、小红书、Hacker News、Linux.do、开源中国、少数派暂未找到已
 - 升级说明：0.1.3 首次升级时需使用能覆盖应用下载流量的代理；0.1.4 起版本检查和下载统一读取系统网络设置并提供镜像回退。用户自行通过应用内更新升级，NAS首装0.1.3保留。
 - 历史执行：首轮 Windows 文件复制／锁恢复测试超过默认5秒，按文件系统集成测试设置时限后重新验收；新增界面验收改为普通桌面模式后通过。npm首个分块在元数据可见后仍需等待下载CDN可用，流程在全部文件可下载并校验后才发布稳定清单；未重复上传或升版。
 - 指标未采集。
+
+
+### DESKTOP-NPM-003 · Tuda 0.1.5 Windows / Mac 双平台版
+
+- 入口：[npm 精确版本](https://www.npmjs.com/package/@petercjl/tuda-desktop/v/0.1.5)，稳定渠道 `latest`；日期：2026-11-16（Asia/Shanghai）。
+- 内容：保留钉钉授权并增加管理员管理的账号密码登录；访客使用服务端模型授权及独立本地工作区，默认关闭公司 NAS。提供 Windows x64 与 M 系列 Mac 首装及更新内容。
+- 原生源码：`238913e209b6d2108d236d8e31aa13b263554b6a`，两平台构建输入 SHA-256 `59096df2188a162e0548e08678a436a77e32eb1cbc103f8c660e154b2aaf8d90`，均在对应操作系统实际构建并验收。
+- 状态：本机固定制品发布完成；六个分块 SHA-512、两份公开安装器 SHA-256、精确版本和 latest、真实 npm 精确安装以及两个平台的更新选择均已核验。Windows 验证机实际发现 0.1.5。源码同步未触发云端 Actions 或网站部署。
+- 验收：最终 2501 项单元测试通过、4 项跳过，官网 13 项检查通过；Windows 专项 97 项通过。两平台均通过实际安装、访客三次登录退出、进程重启恢复、内置 CLI 和 Pi 检查；Windows 验证同版本重装保留画板。Mac 为 ad-hoc 签名，尚未做苹果公证。
+- npm SRI：`sha512-VOjEaS5WhyScEhLjTyzTBU/zwZhfyAL8P1i07ItQ8+fmTktNt7rd7OKbBTmMlArZ0zmZi4pQZKPMZgYthIH8sg==`。完整文件哈希、验收范围和恢复证据见 [发布记录](../releases/tuda-0.1.5.md)。独立插件 `@petercjl/tuda` 保持 0.1.2。指标未采集。

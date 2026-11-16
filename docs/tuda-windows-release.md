@@ -18,13 +18,14 @@ Pi Agent 的私有根目录为 `~/.tuda`（Windows 为 `%USERPROFILE%\.tuda`）�
 
 后续更新在应用内检查并由用户点击安装。0.1.3 首次升级时需使用能覆盖应用下载流量的代理；0.1.4 起版本检查和下载统一采用系统网络与代理设置，优先连接官方 npm，失败后自动尝试国内 npm 镜像。连接超时或传输长时间无数据时会切换来源，每个分块完整校验后才用于组装安装器。稳定版读取 npm `latest`，测试渠道读取 `next`。安装器按最大 48 MiB 分块，作为同一 npm 包的不可变内部数据版本发布：`0.0.0-payload.<sha256>`，使用 `payload` 标签。每块为包含 `payload.bin` 的 npm 归档；客户端限定 npm 来源、数据类型及大小，校验分块与完整安装包后执行安装。用户的日常更新通过应用内置能力完成。
 
-## 构建和发布入口
+## 构建和发布入口（开发者参考）
 
 - 本机开发：`pnpm electron:dev`。
 - Windows 构建：`pnpm release --arch x64`。
 - Mac 构建：`pnpm release:mac --arch arm64`。
 - Windows 本机发布验证：`scripts/windows-local-release.ps1`。平台构建均显式提供私有默认连接配置；只将两个公共连接地址写入 App。
 - `scripts/prepare-release-manifest.mjs --platform win32 --arch x64` 或 `--platform darwin --arch arm64` 从实际安装器生成不可变分块和更新清单；`--merge <manifest>` 合并另一个平台的同版本清单，冲突时拒绝覆盖。元数据修改前自动备份。
+- 公开下载校验可通过支持该参数的 Node 使用 `--use-env-proxy` 复用本机代理配置；校验分块和整包哈希后才开放更新。
 - 两个平台验收后，依次通过 npm-release-kit doctor / prepare / publish 的本机流程发布固定分块，回读核验完整安装器后，最后发布稳定桌面清单。清单按 platform/arch 精确选择安装内容，保留 CLI/插件的独立版本。仓库工作流保留手动入口，不因源码推送自动消耗构建额度或部署网站。
 
-0.1.4 已通过 Windows 实装验收并发布为 npm `latest`；官方和镜像版本、peter-new 镜像完整下载及安装器哈希均已核验。NAS 保留 0.1.3 首装文件，后续通过应用内更新。验收及公开核验见 [发布记录](marketing/publications.md)。发布恢复通过 `resume_run` 指定已成功完成 Windows 验收的原始运行，校验原生输入未变化后复用同一制品；`verify_only` 对已发布版本执行只读核验。
+0.1.5 已完成 Mac 与 Windows 实装验收、公开安装器重建校验和 npm latest 发布，详见 [0.1.5 发布记录](releases/tuda-0.1.5.md)。历史 0.1.3、0.1.4 分发和验收证据保留在 [发布台账](marketing/publications.md)。
