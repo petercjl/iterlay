@@ -262,13 +262,9 @@ describe("canvas viewport controller", () => {
     });
     act(() => flushFrames());
 
-    expect(harness.setCenter).not.toHaveBeenCalled();
-    expect(harness.fitView).toHaveBeenCalledWith({
-      nodes: [videoNode],
-      padding: { top: "8%", right: "8%", bottom: "256px", left: "8%" },
-      duration: 500,
-      maxZoom: 1.25
-    });
+    expect(harness.fitView).not.toHaveBeenCalled();
+    const zoom = 0.88 * (600 - 240) / 636;
+    expect(harness.setCenter).toHaveBeenCalledWith(470, 518 + 240 / (2 * zoom), { zoom, duration: 500 });
     act(() => harness.root.unmount());
   });
 

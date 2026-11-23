@@ -2,12 +2,28 @@ import type { Edge, Node } from "@xyflow/react";
 import { describe, expect, it } from "vitest";
 import {
   mergeVideoReferences,
+  normalizeVideoReferenceConnections,
   resolveVideoGenerationPresentation,
   sameCanvasNodeSelection,
   videoReferenceFromPath
 } from "@/components/canvas/CanvasBoard";
 
 describe("canvas board video bindings", () => {
+  it("moves ordinary video frame connections to the reference port and preserves comic references", () => {
+    const connections = [
+      { id: "old", source: "image", target: "ordinary", targetHandle: "target-start-frame", label: "首帧" },
+      { id: "segment", source: "script", target: "comic", targetHandle: "target-reference" },
+      { id: "comic-frame", source: "image", target: "comic", targetHandle: "target-end-frame", label: "尾帧" }
+    ];
+    const nodes = [
+      { id: "ordinary", type: "video-generation" }, { id: "comic", type: "video-generation" },
+      { id: "script", type: "comic-segment-script" }
+    ] as const;
+    const normalized = normalizeVideoReferenceConnections(connections, nodes);
+    expect(normalized[0]).toMatchObject({ id: "old", kind: "reference", targetHandle: "target-reference", label: "参考" });
+    expect(normalized[2]).toBe(connections[2]);
+    expect(normalizeVideoReferenceConnections(normalized, nodes)).toBe(normalized);
+  });
   it("reports canvas selection only when the selected ids change", () => {
     expect(sameCanvasNodeSelection([], [])).toBe(true);
     expect(sameCanvasNodeSelection(["setting", "character"], ["setting", "character"])).toBe(true);
@@ -109,7 +125,8 @@ describe("canvas board video bindings", () => {
     };
 
     expect(resolveVideoGenerationPresentation(video.id, [uploadedImage, video], [edge])).toMatchObject({
-      startFrame: { id: "uploaded-image", dataUrl: "asset://uploaded.png" }
+      startFrame: undefined,
+      referenceImages: [{ id: "uploaded-image", dataUrl: "asset://uploaded.png" }]
     });
   });
 

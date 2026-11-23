@@ -12,7 +12,7 @@ import { resolveConnectionRoute } from "@/components/canvas/connection-routing";
 function descriptor(
   id: string,
   mode: "auto" | "manual" = "auto",
-  kind: "orthogonal" | "curved" = "orthogonal",
+  kind: "orthogonal" | "curved" | "straight" = "orthogonal",
   obstacleCount = 1,
   signature = `${id}-signature`
 ): ConnectionRouteDescriptor {
@@ -51,14 +51,15 @@ describe("CanvasBoard connection worker coordination", () => {
     ], { source: "source", target: "target" }).map((obstacle) => obstacle.id)).toEqual(["blocker"]);
   });
 
-  it("only schedules automatic orthogonal routes that have intermediate obstacles", () => {
+  it("refines automatic orthogonal routes, including migrated curves, when obstacles are present", () => {
     const automatic = descriptor("automatic");
     const noObstacles = descriptor("no-obstacles", "auto", "orthogonal", 0);
     const manual = descriptor("manual", "manual");
-    const curved = descriptor("curved", "auto", "curved");
+    const legacyCurve = descriptor("legacy-curve", "auto", "curved");
+    const straight = descriptor("straight", "auto", "straight");
 
-    expect(connectionRoutingWorkerCandidates([automatic, noObstacles, manual, curved]))
-      .toEqual([automatic]);
+    expect(connectionRoutingWorkerCandidates([automatic, noObstacles, manual, legacyCurve, straight]))
+      .toEqual([automatic, legacyCurve]);
   });
 
   it("adopts visibility fallback geometry instead of reverting to the baseline", () => {

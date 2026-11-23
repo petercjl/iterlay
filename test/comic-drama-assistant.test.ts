@@ -50,7 +50,7 @@ describe("comic drama assistant plans", () => {
         source: setting.id,
         kind: "reference",
         versionBinding: { mode: "pinned", versionId: setting.activeVersionId },
-        routing: { mode: "auto", kind: "curved", waypoints: [] }
+        routing: { mode: "auto", kind: "orthogonal", waypoints: [] }
       });
     }
   });
@@ -129,7 +129,7 @@ describe("comic drama assistant plans", () => {
     expect(repairGuide.message).toContain("细节完整后才进入形象生成");
   });
 
-  it("creates a single character with an explicit curved setting reference", () => {
+  it("creates a single character with an explicit orthogonal setting reference", () => {
     const draft = { id: "single", name: "林默", role: "主角", profile: "克制敏锐的旧物修复师。", appearanceAnchors: ["短黑发", "深色工作围裙"], visualPrompt: "短黑发旧物修复师，深色工作围裙，冷色手绘角色设定图", visualDescription: "冷色手绘", required: true, imageCount: 1, estimatedCost: 1 };
     const result = createComicCharactersMutationPlan({
       snapshot: snapshot([setting]), settingNodeId: setting.id, drafts: [draft], characterDraftIds: [draft.id]
@@ -147,7 +147,7 @@ describe("comic drama assistant plans", () => {
       sourceAnchor: { side: "right", ratio: 0.5, mode: "pinned" },
       targetAnchor: { side: "left", ratio: 0.5, mode: "pinned" },
       style: { dash: "solid", endMarker: "arrow", markerSize: 9, width: 2 },
-      routing: { mode: "auto", kind: "curved", waypoints: [] }
+      routing: { mode: "auto", kind: "orthogonal", waypoints: [] }
     }]);
     expect(result.additions.nodes[0]).toMatchObject({
       type: "comic-character",

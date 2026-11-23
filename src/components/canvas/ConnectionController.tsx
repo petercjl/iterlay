@@ -212,7 +212,7 @@ export function FreeConnectionPreviewPath({ drag }: { drag: FreeConnectionDrag }
     targetX: visibleTarget.x,
     targetY: visibleTarget.y,
     targetPosition: targetSide as Position,
-    borderRadius: 12
+    borderRadius: 0
   });
   return <path d={path} />;
 }

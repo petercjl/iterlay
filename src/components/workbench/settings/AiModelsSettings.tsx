@@ -7,14 +7,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { AudioServiceSettings } from "./AudioServiceSettings";
 import { Field } from "@/components/workbench/Field";
 import { useUiText } from "@/i18n";
 import {
   connectionOwnerId,
   connectionState,
+  isEnterpriseModel,
   modelChoices,
   modelServiceKey,
   modelServices,
@@ -42,13 +43,9 @@ import type {
 import {
   ArrowLeft,
   ArrowRight,
-  Check,
   CheckCircle2,
   ChevronDown,
   CircleHelp,
-  Image as ImageIcon,
-  MessageSquare,
-  Video,
   Loader2,
   LogIn,
   LogOut,
@@ -95,7 +92,9 @@ const PLATFORM_LABELS: Record<string, string> = {
   bailian: "阿里云百炼",
   ark: "火山方舟",
   poe: "Poe",
-  minimax: "MiniMax"
+  minimax: "MiniMax",
+  "seedance-aipai": "AI派 Seedance",
+  "seedance-toapis": "ToAPIs Seedance"
 };
 const PLATFORMS: Array<{
   type: string;
@@ -155,6 +154,7 @@ type Props = Pick<
   | "bridgeError"
   | "onSaved"
   | "entryPoint"
+  | "companyAccount"
 > & {
   ref?: Ref<AiModelsSettingsHandle>;
   portalContainer: HTMLElement | null;
@@ -227,9 +227,11 @@ export function AiModelsSettings({
   providerKeyStatus,
   navigation,
   embedded = false,
+  companyAccount = false,
   ...initial
 }: Props): React.ReactElement {
   const uiText = useUiText();
+  const availableKinds: readonly ModelKind[] = KINDS;
   const [snapshot, setSnapshot] = useState<ModelSettingsSnapshot>(initial);
   const [keys, setKeys] = useState(providerKeyStatus);
   const [accounts, setAccounts] = useState<Record<string, CodexAuthStatus>>({});
@@ -658,9 +660,9 @@ export function AiModelsSettings({
         {view === "overview" ? (
           <>
             <div className="model-page-intro">
-              <h2>{uiText("AI 模型")}</h2>
-              <p title={uiText("连接服务，为图片、文本和视频选择模型。")}>
-                {uiText("连接服务，为图片、文本和视频选择模型。")}
+              <h2>{uiText("服务设置")}</h2>
+              <p title={uiText("管理服务地址、协议和 API Key。")}>
+                {uiText("管理服务地址、协议和 API Key。")}
               </p>
             </div>
             <Button className="model-add-button" disabled={locked} onClick={() => openView("add")}>
@@ -723,29 +725,6 @@ export function AiModelsSettings({
         ) : null}
         {view === "overview" ? (
           <div className="model-overview">
-            <section aria-labelledby="model-defaults-title" className="model-defaults-section">
-              <div className="model-section-heading">
-                <h3 id="model-defaults-title">{uiText("默认模型")}</h3>
-                <span>{uiText("用于新建的 AI 任务")}</span>
-              </div>
-              <div className="model-defaults">
-                {KINDS.map((kind) => (
-                  <DefaultModelRow
-                    key={kind}
-                    kind={kind}
-                    snapshot={snapshot}
-                    keys={keys}
-                    accounts={accounts}
-                    disabled={locked}
-                    saving={busy === "default"}
-                    portalContainer={portalContainer}
-                    onSelect={changeDefault}
-                    onConnect={() => openView("add", undefined, kind)}
-                    onEdit={(service) => openView("edit", service)}
-                  />
-                ))}
-              </div>
-            </section>
             <section aria-labelledby="model-services-title" className="model-services-section">
 
               {allServices.length ? (
@@ -756,7 +735,7 @@ export function AiModelsSettings({
                       <span className="model-count">{allServices.length}</span>
                     </div>
                     <div className="model-filter-group" role="group" aria-label={uiText("按用途筛选服务")}>
-                      {(["all", ...KINDS] as const).map((kind) => (
+                      {(["all", ...availableKinds] as const).map((kind) => (
                         <button
                           type="button"
                           key={kind}
@@ -794,6 +773,7 @@ export function AiModelsSettings({
                     </div>
                     {visibleServices.map((service) => {
                       const { provider, kind } = service;
+                      const enterprise = isEnterpriseModel(service);
                       const state = connectionState(service, snapshot, keys, accounts);
                       const activeId =
                         kind === "image"
@@ -806,16 +786,17 @@ export function AiModelsSettings({
                           <button
                             type="button"
                             className="model-service-main"
-                            disabled={locked}
+                            disabled={locked || enterprise}
                             onClick={() => openView("edit", service)}
                             aria-label={uiText("编辑 {{ui:0}}", [provider.name])}
                           >
                             <span className="model-service-identity">
                               <span className="model-service-name">
                                 <span className="model-service-title">
-                                  {provider.name || uiText("未命名服务")}
+                                  {enterprise ? uiText("山海管理") : provider.name || uiText("未命名服务")}
                                 </span>
                                 <span className="model-service-purpose-tag">{uiText(kind === "image" ? "图片" : kind === "text" ? "文本" : "视频")}</span>
+                                <span className="model-service-purpose-tag">{uiText(enterprise ? "企业下发" : "本机配置")}</span>
                                 {provider.id === activeId ? (
                                   <span className="model-default-tag">{uiText("默认")}</span>
                                 ) : null}
@@ -835,7 +816,7 @@ export function AiModelsSettings({
                               <button
                                 type="button"
                                 className="model-service-actions"
-                                disabled={locked}
+                                disabled={locked || enterprise}
                                 aria-label={uiText("管理 {{ui:0}}", [provider.name])}
                               >
                                 <MoreHorizontal />
@@ -846,6 +827,11 @@ export function AiModelsSettings({
                                 <Pencil />
                                 {uiText(provider.type === "official" ? "查看配置" : "编辑服务")}
                               </DropdownMenuItem>
+                              {provider.id !== activeId && state.ready ? (
+                                <DropdownMenuItem onSelect={() => void changeDefault({ ...service, model: provider.model })}>
+                                  {uiText("设为默认")}
+                                </DropdownMenuItem>
+                              ) : null}
                               {provider.type !== "official" ? (
                                 <DropdownMenuItem
                                   className="model-service-menu-delete"
@@ -895,6 +881,7 @@ export function AiModelsSettings({
                 </div>
               )}
             </section>
+            <AudioServiceSettings />
             <p className="model-local-note">
               <ShieldCheck />
               {uiText("凭据保存在本机，服务配置不随画板分享。")}
@@ -911,7 +898,7 @@ export function AiModelsSettings({
               role="group"
               aria-label={uiText("选择服务用途")}
             >
-              {(["all", ...KINDS] as const).map((kind) => (
+              {(["all", ...availableKinds] as const).map((kind) => (
                 <button
                   type="button"
                   key={kind}
@@ -922,7 +909,9 @@ export function AiModelsSettings({
                 </button>
               ))}
             </div>
-            {PLATFORMS.filter((platform) => addKind === "all" || platform.kinds.includes(addKind)).map(
+            {PLATFORMS.filter(platform => !companyAccount || platform.type !== "codex-oauth")
+              .map(platform => ({ ...platform, kinds: platform.kinds.filter(kind => availableKinds.includes(kind)) }))
+              .filter(platform => platform.kinds.length && (addKind === "all" || platform.kinds.includes(addKind))).map(
               (platform) => (
                 <div className="model-platform-choice" key={platform.type}>
                   <PlatformMark type={platform.type} />
@@ -1037,6 +1026,16 @@ export function AiModelsSettings({
                           spellCheck={false}
                         />
                       </Field>
+                      {text?.type === "openai-compatible" && <Field label={uiText("调用协议")}>
+                        <Select value={text.protocol || "openai-chat-completions"} onValueChange={(protocol) => patch({ protocol: protocol as TextProviderConfig["protocol"] })}>
+                          <SelectTrigger aria-label={uiText("调用协议")}><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="openai-chat-completions">OpenAI Chat Completions</SelectItem>
+                            <SelectItem value="openai-responses">OpenAI Responses</SelectItem>
+                            <SelectItem value="anthropic-messages">Anthropic Messages</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </Field>}
                       <Field label="API Key">
                         <ApiKeyInput
                           value={draft.key}
@@ -1399,173 +1398,6 @@ export function AiModelsSettings({
           ) : null}
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
-
-function DefaultModelRow({
-  kind,
-  snapshot,
-  keys,
-  accounts,
-  disabled,
-  saving,
-  portalContainer,
-  onSelect,
-  onConnect,
-  onEdit
-}: {
-  kind: ModelKind;
-  snapshot: ModelSettingsSnapshot;
-  keys: Record<string, boolean>;
-  accounts: Record<string, CodexAuthStatus>;
-  disabled: boolean;
-  saving: boolean;
-  portalContainer: HTMLElement | null;
-  onSelect: (choice: ModelChoice) => Promise<void>;
-  onConnect: () => void;
-  onEdit: (service: ModelService) => void;
-}): React.ReactElement {
-  const uiText = useUiText();
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const choices = modelChoices(snapshot, kind);
-  const activeId =
-    kind === "image"
-      ? snapshot.activeProviderId
-      : kind === "text"
-        ? snapshot.activeTextProviderId
-        : snapshot.activeVideoProviderId;
-  const current = choices.find(
-    (choice) => choice.provider.id === activeId && choice.provider.model === choice.model
-  );
-  const currentState = current ? connectionState(current, snapshot, keys, accounts) : null;
-  const filtered = choices.filter((choice) =>
-    `${choice.provider.name} ${choice.model}`.toLowerCase().includes(query.trim().toLowerCase())
-  );
-  return (
-    <div className="model-default-row">
-      <Popover
-        open={open}
-        onOpenChange={(next) => {
-          setOpen(next);
-          if (!next) setQuery("");
-        }}
-      >
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            className={cn("model-default-select", currentState?.ready && "model-default-select--set")}
-            disabled={disabled}
-            aria-label={uiText("选择{{ui:0}}", [uiText(KIND_LABELS[kind])])}
-          >
-            <span className="model-default-card-heading">
-              <span className="model-default-card-icon" aria-hidden="true">
-                {kind === "image" ? <ImageIcon /> : kind === "text" ? <MessageSquare /> : <Video />}
-              </span>
-              <span>{uiText(KIND_LABELS[kind])}</span>
-              {saving ? (
-                <Loader2 className="model-select-chevron animate-spin" />
-              ) : (
-                <ChevronDown className="model-select-chevron" />
-              )}
-            </span>
-            <span className="model-default-card-model">
-              <strong title={current?.model}>
-                {current ? current.model || uiText("平台默认模型") : uiText("选择模型")}
-              </strong>
-              <span title={current?.provider.name}>
-                {current ? current.provider.name : uiText(
-                  kind === "image" ? "生成、编辑与参考图" : kind === "text"
-                    ? "对话、提示词与图片分析" : "生成、续写与重混"
-                )}
-              </span>
-            </span>
-            <span className={cn("model-default-card-status", currentState?.ready && "model-default-card-status--ready")}>
-              <span className="model-status-dot" aria-hidden="true" />
-              {uiText(currentState ? REASONS[currentState.reason] : "选择模型")}
-            </span>
-          </button>
-        </PopoverTrigger>
-        <PopoverContent
-          portalContainer={portalContainer}
-          align="end"
-          className="model-route-popover w-[350px] max-w-[calc(100vw-40px)] p-0"
-        >
-          <div className="model-route-search">
-            <Search />
-            <Input
-              autoFocus
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={uiText("搜索模型或服务")}
-              aria-label={uiText("搜索模型或服务")}
-            />
-          </div>
-          <div className="model-route-options" role="group" aria-label={uiText("可选模型")}>
-            {filtered.map((choice, index) => {
-              const state = connectionState(choice, snapshot, keys, accounts);
-              const selected = current?.provider.id === choice.provider.id && current.model === choice.model;
-              const groupStart = index === 0 || filtered[index - 1].provider.id !== choice.provider.id;
-              return (
-                <div key={`${choice.provider.id}:${choice.model}`}>
-                  {groupStart ? (
-                    <div className="model-route-group">
-                      <PlatformMark type={choice.provider.type} small />
-                      <span>{choice.provider.name}</span>
-                      {!state.ready ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setOpen(false);
-                            onEdit(choice);
-                          }}
-                        >
-                          {uiText("配置")}
-                          <ArrowRight />
-                        </button>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  <button
-                    type="button"
-                    disabled={!state.ready}
-                    aria-pressed={selected}
-                    className="model-route-option"
-                    onClick={() => {
-                      setOpen(false);
-                      void onSelect(choice);
-                    }}
-                  >
-                    <span>
-                      <strong>{choice.model || uiText("平台默认模型")}</strong>
-                      {!state.ready ? <span>{uiText(REASONS[state.reason])}</span> : null}
-                    </span>
-                    {selected ? <Check /> : null}
-                  </button>
-                </div>
-              );
-            })}
-            {!filtered.length ? (
-              <p className="model-route-empty">
-                {uiText(choices.length ? "没有找到匹配的模型" : "连接服务后即可选择模型")}
-              </p>
-            ) : null}
-          </div>
-          <button
-            type="button"
-            className="model-route-add"
-            onClick={() => {
-              setOpen(false);
-              onConnect();
-            }}
-          >
-            <Plus />
-            {uiText("添加服务")}
-            <ArrowRight />
-          </button>
-        </PopoverContent>
-      </Popover>
     </div>
   );
 }

@@ -1,0 +1,68 @@
+# 山海向 Tuda 同步企业模型
+
+## 会话与读取
+
+Tuda 主进程使用现有山海公司设备会话。请求继续使用 Authorization Bearer 设备凭据和 X-Company-App-Id: tuda。山海根据会话确定企业和员工，客户端不提交成员选择参数。管理员的配置入口独立校验企业管理员权限。
+
+GET /api/company/v1/session 可返回 managedModelsVersion（不透明、非空字符串）。存在此字段时，客户端读取 GET /api/company/v1/managed-models。两处版本须一致。山海先原子发布配置，再更新版本。并发发布造成版本不一致时客户端重新读取。尚未部署此功能的旧服务省略 managedModelsVersion。已启用此功能但撤销全量模型时继续发布新版本，并返回四个空目录。
+
+GET /api/company/v1/managed-models 返回现有的 {ok:true,data:...} 外层，响应设置 Cache-Control: no-store。数据结构如下。
+
+```json
+{
+  "contract": 1,
+  "appId": "tuda",
+  "sessionId": "<当前设备会话 ID>",
+  "organizationId": "<企业 ID>",
+  "memberId": "<成员 ID>",
+  "configVersion": "<配置版本>",
+  "models": {
+    "text": {
+      "defaultModelId": "writing",
+      "items": [
+        {
+          "id": "writing",
+          "name": "写作助手",
+          "channels": [
+            {
+              "id": "writing-primary",
+              "name": "企业渠道 A",
+              "adapter": "openai-chat-completions",
+              "baseUrl": "https://relay.example.invalid/v1",
+              "model": "upstream-model-id",
+              "apiKey": "<此员工此渠道的凭据>"
+            }
+          ]
+        }
+      ]
+    },
+    "image": {"defaultModelId": null, "items": []},
+    "video": {"defaultModelId": null, "items": []},
+    "audio": {"defaultModelId": null, "items": []}
+  }
+}
+```
+
+每类最多 50 个模型，每个启用模型有 1–30 条启用渠道。渠道数组的顺序就是调用顺序。模型 ID 在类型内唯一，渠道 ID 在配置内唯一，ID 由 ASCII 字母、数字、连字符和下划线组成（1–96 字符）。同一类型内模型显示名唯一。发布时仅下发启用的条目。默认模型 ID 必须指向该类已发布的模型。空类型用 null。修改名字、顺序和密钥时保留 ID，模型和渠道删除后重建时使用新 ID。
+
+| 类型 | adapter | 其他字段 |
+| --- | --- | --- |
+| text | openai-chat-completions、openai-responses、anthropic-messages | Base URL 使用对应协议的 API 根地址 |
+| image | images、responses、openai-compatible（旧本机配置迁移用 images） | 可选 generationEndpoint、referenceEndpoint、supportsReferenceImages |
+| video | ark、fal、openrouter、minimax、seedance-aipai、seedance-toapis | 可选 modelOption，结构见 shared/contracts/providers.ts 的 VideoProviderModelOption |
+| audio | openai-speech | voice、speechEndpoint，缺省为 alloy、/v1/audio/speech |
+
+Base URL 使用 HTTPS，无 URL 内嵌凭证、查询串和片段。相对端点以单个斜线开头，限定使用同一服务来源。API Key 按企业、成员、渠道分配，仅进入 Tuda 主进程和所属厂商的请求。日志、普通设置、CLI 配置输出与对话不得暴露密钥或企业连接参数。
+
+## 应用与失效
+
+- Tuda 登录成功、恢复会话及续验时读取配置。「同步模型配置」复用同一读取流程。有效快照经整体校验后一并生效。暂时性网络错误可在既有授权租约内沿用已验证快照。到期、换号、退出、明确撤销或验证失败时，停止提交企业模型请求。
+- 个人和企业配置分开存储。企业模型与个人模型同名时分别列出。企业路由只包含其自身渠道。当前渠道确认在受理前拒绝且属于适合换站的错误时，可用原参数提交下一条。结果不明时按原渠道和任务身份核对。
+- 山海负责管理员操作、租户隔离、启停、加密存储及厂商密钥轮换。私有化部署可将配置存在企业 NAS 或自有数据库，通过同一山海应用接口提供给 Tuda。
+- 对比验收使用模型类型、名称、默认项、渠道顺序、适配器、上游模型、能力和凭据配置状态。密钥值不进入对比报告。
+
+## 山海管理员保存
+
+沿用 GET/POST /v1/enterprise/members/{accountId}/apps/tuda。先 GET 当前应用授权，保留其他授权字段和 revision，将 managedModels 替换为 {enabled, models} 后 POST。管理员可在模型和渠道上分别保存 enabled 字段，排序以数组顺序为准。GET 只返回 keyConfigured。保留已有密钥时可省略 apiKey。更换 Base URL 或适配器时重新提供该渠道的 Key。
+
+同时编辑导致 revision 不一致时，服务端返回 409。管理员刷新后再应用变更。关闭 managedModels.enabled 后发布新版本，设备接口返回四个空目录。

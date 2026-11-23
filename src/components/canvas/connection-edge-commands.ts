@@ -16,6 +16,7 @@ import type {
 } from "./canvas-connection-edge-contract";
 import { normalizeConnectionRouting } from "./connection-routing";
 import { canvasPortsCompatible } from "./NodeRegistry";
+import { isHiddenVideoFrameTarget } from "./canvas-node-layout";
 
 export type ConnectionBuildFailure = "incomplete" | "self" | "missing-node" | "incompatible";
 
@@ -91,6 +92,7 @@ export function buildConnectionEdge(
   const targetNode = nodes.find((node) => node.id === connection.target);
   const targetNodeType = targetNode?.type ?? options.targetNodeType;
   if (!sourceNode || !targetNodeType) return { ok: false, reason: "missing-node" };
+  if (isHiddenVideoFrameTarget(targetNode, connection.targetHandle)) return { ok: false, reason: "incompatible" };
   if (!canvasPortsCompatible(
     sourceNode.type,
     connection.sourceHandle,
@@ -124,7 +126,7 @@ export function buildConnectionEdge(
         ratio: semanticTargetRatio ?? 0.5,
         mode: semanticTargetRatio === undefined ? "auto" : "pinned"
       },
-      routing: { mode: "auto", kind: "curved", waypoints: [] }
+      routing: { mode: "auto", kind: "orthogonal", waypoints: [] }
     })
   };
 }

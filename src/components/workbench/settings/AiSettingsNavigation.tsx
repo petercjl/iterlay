@@ -1,8 +1,7 @@
 import { useUiText } from "@/i18n";
 
-export type AiSettingsSection = "provider" | "ai" | "pi-agent";
+export type AiSettingsSection = "ai" | "pi-agent";
 const SECTIONS: Array<{ value: AiSettingsSection; label: string }> = [
-  { value: "provider", label: "模型与服务" },
   { value: "ai", label: "创作助手" },
   { value: "pi-agent", label: "助手能力" }
 ];

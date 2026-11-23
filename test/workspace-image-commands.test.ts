@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { ImageSubmissionError } from "../electron/providers/errors";
 import { WorkspaceCommands } from "../electron/application/workspace-commands";
 import type { WorkspaceApi } from "../electron/application/workbench-api";
 import { workspaceFixture } from "./helpers/workspace-fixture";
@@ -17,6 +18,29 @@ describe("typed workspace image tasks", () => {
     expect(f.mocks.generateImage).toHaveBeenCalledWith(expect.objectContaining({ providerId: "custom", n: 1, background: "auto" }));
     expect(f.flush).toHaveBeenCalledTimes(2);
   });
+  it.each([
+    { outcome: "rejected" as const, expected: "succeeded", attempts: ["first", "second"] },
+    { outcome: "unknown" as const, expected: "unknown", attempts: ["first"] }
+  ])("handles an Agent image attempt with $outcome status using one logical task", async ({ outcome, expected, attempts }) => {
+    const f = workspaceFixture();
+    f.mocks.getSettings.mockResolvedValue({
+      activeProviderId: "second",
+      providers: ["first", "second"].map(id => ({ id, name: id, type: "openai-compatible", model: "same-model" })),
+      providerKeyStatus: { first: true, second: true },
+      imageRouting: { defaultModel: "configured-model", models: [{ name: "configured-model", channels:
+        ["first", "second"].map(providerId => ({ providerId, model: "same-model" })) }] }
+    });
+    f.mocks.generateImage.mockRejectedValueOnce(new ImageSubmissionError(outcome, "TEST_FAILURE", "test failure"));
+    const task = await f.commands.call("generate_image", { boardId: "board", prompt: "test", useImageRouting: true }) as { generationId: string };
+    await vi.waitFor(async () => {
+      const status = await f.commands.call("get_generation_status", { generationId: task.generationId });
+      expect(status).toMatchObject({ status: expected });
+      if (expected === "succeeded") expect(status).toMatchObject({ warnings: expect.arrayContaining([expect.stringContaining("second")]) });
+    });
+    expect(f.mocks.generateImage.mock.calls.map(([request]) => (request as { providerId: string }).providerId)).toEqual(attempts);
+    expect(f.mocks.appendBoardNodes).toHaveBeenCalledTimes(expected === "succeeded" ? 1 : 0);
+  });
+
   it.each(["generate_image", "edit_image"])("preserves transparent PNG parameters for %s", async (name) => {
     const f = workspaceFixture();
     const task = await f.commands.call(name, { boardId: "board", sourcePath: "/managed/source.png",

@@ -76,6 +76,7 @@ import { toast } from "sonner";
 export type LibraryTab = "create" | "boards" | "assets" | "scenes" | "inspiration" | "trash";
 
 interface LibraryShellProps {
+  authenticated?: boolean;
   textProviders?: import("@shared/types").TextProviderConfig[];
   activeTextProviderId?: string;
   onSelectTextProvider?: (id: string) => void;
@@ -812,9 +813,9 @@ export function LibraryShell(props: LibraryShellProps): React.ReactElement {
             trashedBoardCount={trashedBoards.length}
             trashActive={tab === "trash"}
             onOpenTrash={() => setTab("trash")}
-            onOpenSettings={onOpenSettings}
+            onOpenSettings={props.authenticated ? undefined : onOpenSettings}
           />
-          <GlobalAccountMenu compact={compactSidebar} />
+          <GlobalAccountMenu compact={compactSidebar} onOpenSettings={onOpenSettings} />
         </div>
       </motion.aside>
 
@@ -1295,7 +1296,7 @@ function SidebarUtilityEntries({
   trashActive: boolean;
   onOpenTrash: () => void;
   onOpenReferralInvite?: () => void;
-  onOpenSettings: () => void;
+  onOpenSettings?: () => void;
 }): React.ReactElement {
   const uiText = useUiText();
 
@@ -1346,12 +1347,12 @@ function SidebarUtilityEntries({
         {updateMeta ? <span className="library-sidebar-label text-[11px] tabular-nums text-[hsl(var(--ai-accent))]">{updateMeta}</span> : null}
       </button>
     </CompactSidebarTooltip>
-    <CompactSidebarTooltip compact={compact} label={uiText("设置")}>
+    {onOpenSettings && <CompactSidebarTooltip compact={compact} label={uiText("设置")}>
       <button type="button" data-sidebar-utility onClick={onOpenSettings} className={utilityClass()}>
         <Settings className="h-4 w-4 shrink-0" aria-hidden="true" />
         <span className="library-sidebar-label min-w-0 flex-1 truncate text-left">{uiText("设置")}</span>
       </button>
-    </CompactSidebarTooltip>
+    </CompactSidebarTooltip>}
   </>;
 }
 

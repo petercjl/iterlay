@@ -1,5 +1,6 @@
 import { getProviderModels, selectProviderModel } from "@shared/provider-models";
 import type { CodexAuthStatus, ProviderConfig, TextProviderConfig, VideoProviderConfig } from "@shared/types";
+import { isCompanyModelChannel } from "@shared/contracts/providers";
 
 export type ModelKind = "image" | "text" | "video";
 export type ModelProvider = ProviderConfig | TextProviderConfig | VideoProviderConfig;
@@ -21,6 +22,9 @@ export interface ModelChoice extends ModelService {
 export interface ConnectionState {
   ready: boolean;
   reason: "managed" | "account" | "key" | "missing-key" | "login" | "missing-config" | "missing-connection";
+}
+export function isEnterpriseModel(service: ModelService): boolean {
+  return isCompanyModelChannel(service.provider.id);
 }
 
 export function modelServiceKey(service: ModelService): string {
@@ -61,6 +65,9 @@ export function connectionState(
   accounts: Record<string, CodexAuthStatus>
 ): ConnectionState {
   const { provider, kind } = service;
+  if (isEnterpriseModel(service)) return keys[provider.id]
+    ? { ready: true, reason: "managed" }
+    : { ready: false, reason: "missing-key" };
   if (provider.type === "official") return { ready: true, reason: "managed" };
   if (provider.type === "codex-oauth") {
     const ready = ["connected", "refreshing"].includes(

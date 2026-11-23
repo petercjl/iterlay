@@ -90,6 +90,6 @@ describe("connection line jumps", () => {
     expect(calculateConnectionLineJumps([
       { id: "curved", route: curvedRoute({ x: 0, y: 50 }, { x: 100, y: 50 }) },
       { id: "vertical", route: route({ x: 50, y: 0 }, { x: 50, y: 100 }) }
-    ]).size).toBe(0);
+    ]).size).toBe(1);
   });
 });

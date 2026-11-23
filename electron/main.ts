@@ -648,7 +648,13 @@ app.whenReady().then(async () => {
       console.warn("授权服务暂时不可用，将按本地授权状态启动。", error);
     }),
     update.initialize(),
-    registerAssetProtocol(assets, (request) => enterprise.assetResponse(request))
+    registerAssetProtocol(assets, (request) => {
+      if (company.enabled) {
+        try { company.assertNasAccess(); }
+        catch { return Promise.resolve(new Response("Not found", { status: 404 })); }
+      }
+      return enterprise.assetResponse(request);
+    })
   ]);
   startupMark("core-services-ready");
   registerLicenseIpc(license);
@@ -1090,7 +1096,10 @@ app.whenReady().then(async () => {
     managerApiBaseUrl: manageApiBaseUrl
   });
 
-  const disposeEnterprise = registerEnterprise(enterprise, boards, assets, localSettings, company);
+  const disposeEnterprise = registerEnterprise(enterprise, boards, assets, localSettings, company, isBrowserDev ? undefined : () => {
+    if (process.platform === "darwin") app.focus({ steal: true });
+    backgroundSession.requestForeground();
+  });
   startupMark("ipc-ready");
   if (startupWindow.isDestroyed()) {
     await createWindow(appIcon, customAppIcons, settings.getSettings().theme);

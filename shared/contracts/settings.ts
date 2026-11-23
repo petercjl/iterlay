@@ -54,6 +54,13 @@ export interface AppSettings {
   providers: ProviderConfig[];
   /** 当前激活（默认生成用）的 provider id，需存在于 providers 中。 */
   activeProviderId: string;
+  imageRouting?: import("../image-routing.js").ImageModelRouting;
+  otherModelRouting?: import("../image-routing.js").OtherModelRouting;
+  companyModelRouting?: Record<"text" | "image" | "video" | "audio", import("../image-routing.js").ImageModelRouting>;
+  personalModelRouting?: {
+    image?: import("../image-routing.js").ImageModelRouting;
+    other?: import("../image-routing.js").OtherModelRouting;
+  };
   /** 已保存的文本 Provider 列表（AI 智能辅助用）；至少包含官方内置项。 */
   textProviders: TextProviderConfig[];
   /** 当前激活的文本 provider id，需存在于 textProviders 中。 */
@@ -152,3 +159,22 @@ export interface AppSettings {
 
 /** 对现有设置做原子增量更新，未提供的字段保持不变。 */
 export type AppSettingsPatch = Partial<AppSettings>;
+
+/** Local-only draft. Credentials are written by the main process in the settings transaction. */
+export type NewModelChannel = {
+  providerId: string;
+  kind: "text" | "image" | "video" | "audio";
+  name: string;
+  baseUrl: string;
+  apiKey?: string;
+  model: string;
+  protocol: import("../company-account.js").CompanyTextProtocol | "images" | "responses" | "openai-speech" | Exclude<import("./providers.js").VideoProviderType, "official">;
+  supportsReferenceImages?: boolean;
+  voice?: string;
+  sourceProviderId?: string;
+};
+
+export type SaveModelRoutingInput = Pick<AppSettingsPatch, "imageRouting" | "otherModelRouting"> & {
+  channels: NewModelChannel[];
+  applyDefaults?: import("../image-routing.js").OtherModelKind[];
+};

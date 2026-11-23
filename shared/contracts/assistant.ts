@@ -25,6 +25,7 @@ export const PI_AGENT_DEFAULT_TUDA_TOOLS = [
   "set_image_version",
   "create_board",
   "list_assets",
+  "list_providers",
   "read_asset",
   "get_generation_status",
   "generate_image",

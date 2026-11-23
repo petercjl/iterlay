@@ -65,7 +65,7 @@ import { useCanvasConnectionEdgeActions } from "./use-canvas-connection-edge-act
 import { useCanvasDropController, type CanvasDropPayload } from "./use-canvas-drop-controller";
 import { projectCanvasNodes, type CanvasNodeProjectionBindings, type CanvasWorkflowNode } from "./canvas-node-projection";
 import { resolveGenerationNodeInput } from "./canvas-workflow";
-import { canViewImageDetails, resolveGeneratedImageVersion } from "./image-node-model";
+import { resolveGeneratedImageVersion } from "./image-node-model";
 import type { GenerationNodeData } from "./GenerationNode";
 import type { GenerationReferencePlacementTarget } from "./generation-reference-paste";
 import type { VideoNodeData } from "./VideoNode";
@@ -82,10 +82,26 @@ import { useCanvasCommandApi } from "./use-canvas-command-api";
 import { useCanvasViewportController } from "./use-canvas-viewport-controller";
 import { useCanvasMenuController } from "./use-canvas-menu-controller";
 import { useCanvasRelationshipController } from "./use-canvas-relationship-controller";
-import { VIDEO_GENERATION_NODE_HEIGHT, VIDEO_GENERATION_NODE_WIDTH } from "./canvas-node-layout";
+import { isVideoFrameTargetHandle, VIDEO_GENERATION_NODE_HEIGHT, VIDEO_GENERATION_NODE_WIDTH } from "./canvas-node-layout";
 
 function isImageCanvasNode(node: Node): boolean {
   return node.type === "imageNode";
+}
+
+export function normalizeVideoReferenceConnections(
+  connections: BoardConnection[],
+  nodes: readonly Pick<CanvasWorkflowNode, "id" | "type">[]
+): BoardConnection[] {
+  if (!connections.some(connection => isVideoFrameTargetHandle(connection.targetHandle))) return connections;
+  const videoIds = new Set(nodes.filter(node => node.type === "video-generation").map(node => node.id));
+  const comicIds = new Set(nodes.filter(node => node.type === "comic-segment-script").map(node => node.id));
+  const comicVideoIds = new Set(connections.filter(connection => comicIds.has(connection.source)).map(connection => connection.target));
+  if (!connections.some(connection => isVideoFrameTargetHandle(connection.targetHandle) && videoIds.has(connection.target) && !comicVideoIds.has(connection.target))) return connections;
+  return connections.map(connection => {
+    if (!isVideoFrameTargetHandle(connection.targetHandle) || !videoIds.has(connection.target) || comicVideoIds.has(connection.target)) return connection;
+    const automaticFrameLabel = connection.label === "首帧" || connection.label === "尾帧";
+    return { ...connection, kind: "reference", targetHandle: "target-reference", ...(automaticFrameLabel ? { label: "参考" } : {}) };
+  });
 }
 
 export function resolveVideoGenerationPresentation(
@@ -105,6 +121,7 @@ export function resolveVideoGenerationPresentation(
 } {
   const resolved = resolveGenerationNodeInput(generationNodeId, nodes, edges);
   const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const requiresFirstLastFrame = edges.some(edge => edge.target === generationNodeId && nodeById.get(edge.source)?.type === "comicSegmentNode");
   let startFrame: GeneratedImage | undefined;
   let endFrame: GeneratedImage | undefined;
   const referenceImages: GeneratedImage[] = [];
@@ -143,12 +160,12 @@ export function resolveVideoGenerationPresentation(
       }
       continue;
     }
-    if (source.type === "generationNode"
-      && (edge.targetHandle === "target-start-frame" || edge.targetHandle === "target-end-frame")
+    if (requiresFirstLastFrame && source.type === "generationNode"
+      && isVideoFrameTargetHandle(edge.targetHandle)
       && binding?.mode !== "pinned") continue;
-    if (edge.targetHandle === "target-start-frame") startFrame = image;
-    else if (edge.targetHandle === "target-end-frame") endFrame = image;
-    else if (!referenceImages.some((candidate) => candidate.id === image.id)) referenceImages.push(image);
+    if (requiresFirstLastFrame && edge.targetHandle === "target-start-frame") startFrame = image;
+    else if (requiresFirstLastFrame && edge.targetHandle === "target-end-frame") endFrame = image;
+    else if (!referenceImages.some(candidate => (candidate.path || candidate.id) === (image.path || image.id))) referenceImages.push(image);
   }
   const images = [startFrame, endFrame, ...referenceImages]
     .filter((image): image is GeneratedImage => Boolean(image));
@@ -161,7 +178,7 @@ export function resolveVideoGenerationPresentation(
     endFrame,
     referenceImages,
     referenceVideos,
-    requiresFirstLastFrame: edges.some((edge) => edge.target === generationNodeId && nodeById.get(edge.source)?.type === "comicSegmentNode")
+    requiresFirstLastFrame
   };
 }
 
@@ -254,7 +271,10 @@ interface CanvasBoardProps {
   workflowNodes?: CanvasWorkflowNode[];
   videoUrls?: Record<string, string>;
   activeImageProvider?: ProviderConfig;
+  imageProviders?: ProviderConfig[];
+  imageRouting?: import("@shared/image-routing").ImageModelRouting;
   videoProviders?: VideoProviderConfig[];
+  videoModelRouting?: import("@shared/image-routing").ImageModelRouting;
   activeVideoProviderId?: string;
   goldBeanBalance?: number;
   goldBeanLoading?: boolean;
@@ -428,7 +448,10 @@ export function CanvasBoard({
   workflowNodes = [],
   videoUrls = {},
   activeImageProvider,
+  imageProviders,
+  imageRouting,
   videoProviders = [],
+  videoModelRouting,
   activeVideoProviderId,
   goldBeanBalance,
   goldBeanLoading = false,
@@ -460,7 +483,7 @@ export function CanvasBoard({
   comments = [],
   initialPositions,
   initialViewport,
-  initialConnections = EMPTY_CONNECTIONS,
+  initialConnections: persistedConnections = EMPTY_CONNECTIONS,
   connectionRevision,
   rightRailInset = 0,
   onCanvasChange,
@@ -524,6 +547,7 @@ export function CanvasBoard({
   onExitCanvas
 }: CanvasBoardProps): React.ReactElement {
   const uiText = useUiText();
+  const initialConnections = useMemo(() => normalizeVideoReferenceConnections(persistedConnections, workflowNodes), [persistedConnections, workflowNodes]);
 
   const { fitView, setCenter, setViewport, zoomTo, getViewport, screenToFlowPosition } = useReactFlow();
   const nodesRef = useRef<Node[]>([]);
@@ -628,7 +652,7 @@ export function CanvasBoard({
         style: { dash: "dashed", endMarker: "arrow" },
         sourceAnchor: { side: "right", ratio: 0.5, mode: "auto" },
         targetAnchor: { side: "left", ratio: 0.5, mode: "auto" },
-        routing: { mode: "auto", kind: "curved", waypoints: [] }
+        routing: { mode: "auto", kind: "orthogonal", waypoints: [] }
       }));
       setEdges((current) => {
         const next = [...current, ...additions];
@@ -746,13 +770,7 @@ export function CanvasBoard({
   // 评论模式下点击图片：同时记录屏幕坐标和图片内归一化坐标。
   const handleNodeClick = useCallback(
     (event: React.MouseEvent, node: Node): void => {
-      if (!isImageCanvasNode(node)) return;
-      if (!commentMode) {
-        const image = (node.data as unknown as ImageNodeData).image;
-        if (canViewImageDetails(image) && !(event.target as Element).closest("button, input, textarea, select")) onViewImageDetails?.(image);
-        return;
-      }
-      if (!onCommentImage) return;
+      if (!commentMode || !onCommentImage || !isImageCanvasNode(node)) return;
       const image = (node.data as unknown as ImageNodeData).image;
       if (image.pending) return;
       const imageNode = (event.target as Element).closest<HTMLElement>("[data-image-node]");
@@ -763,7 +781,7 @@ export function CanvasBoard({
         y: Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height))
       });
     },
-    [commentMode, onCommentImage, onViewImageDetails]
+    [commentMode, onCommentImage]
   );
 
   const handleNodeDoubleClick = useCallback(
@@ -986,6 +1004,9 @@ export function CanvasBoard({
       size: workflowNode.size ?? "1024x1024",
       count: workflowNode.count ?? 1,
       provider: activeImageProvider,
+      providerId: workflowNode.providerId,
+      providers: imageProviders,
+      imageRouting,
       status: workflowNode.status ?? "idle",
       error: workflowNode.error,
       lastGenerationId: workflowNode.lastGenerationId,
@@ -1153,6 +1174,7 @@ export function CanvasBoard({
         providerId: workflowNode.providerId ?? activeVideoProviderId ?? "",
         sourceVideoPath: workflowNode.sourceVideoPath,
         providerOptions: videoProviders,
+        modelRouting: videoModelRouting,
         requiresFirstLastFrame: resolved.requiresFirstLastFrame,
         goldBeanBalance,
         goldBeanLoading,
@@ -1193,6 +1215,8 @@ export function CanvasBoard({
     }
   }), [
     activeImageProvider,
+    imageProviders,
+    imageRouting,
     activeVideoProviderId,
     advancedVideoModesEnabled,
     canAddReferences,
@@ -1235,6 +1259,7 @@ export function CanvasBoard({
     videoGoldBeanCostPerSecond,
     videoUrls,
     videoProviders,
+    videoModelRouting,
     workflowNodes
   ]);
 

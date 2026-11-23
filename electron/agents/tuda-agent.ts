@@ -5,6 +5,7 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import type { ToolDefinition } from "./coding-runtime.js";
 import type { CollaborateSceneRequest, CollaborateSceneResult } from "../../shared/types.js";
+import { resolveImageRouting } from "../../shared/image-routing.js";
 import type { PiAgentResourceOptions } from "../providers/text-assistant.js";
 import { createTudaModelProvider, type TudaModelConnection } from "./model-connection.js";
 import { createPiAgentResourceLoader } from "../pi-agent-resources.js";
@@ -41,12 +42,16 @@ export class TudaAgentService {
       const { ModelRuntime, SessionManager, SettingsManager, createAgentSession } = await import("./coding-runtime.js");
       await mkdir(directory, { recursive: true, mode: 0o700 });
       await mkdir(path.join(resources.agentDir, "skills"), { recursive: true, mode: 0o700 });
-      const connection = { ...input.connection, fetch: ((request, init) => {
-        const signals = [signal, init?.signal, request instanceof Request ? request.signal : undefined]
-          .filter((item): item is AbortSignal => Boolean(item));
-        return (input.connection.fetch ?? fetch)(request, { ...init,
-          ...(signals.length ? { signal: AbortSignal.any(signals) } : {}) });
-      }) as typeof fetch };
+      function bindCancellation(candidate: TudaModelConnection): TudaModelConnection {
+        const hookedFetch: typeof fetch = (request, init) => {
+          const signals = [signal, init?.signal, request instanceof Request ? request.signal : undefined]
+            .filter((item): item is AbortSignal => Boolean(item));
+          return (candidate.fetch ?? fetch)(request, { ...init,
+            ...(signals.length ? { signal: AbortSignal.any(signals) } : {}) });
+        };
+        return { ...candidate, fetch: hookedFetch };
+      }
+      const connection = { ...bindCancellation(input.connection), fallbacks: input.connection.fallbacks?.map(bindCancellation) };
       const { provider, model } = createTudaModelProvider(connection);
       const runtime = await ModelRuntime.create({
         authPath: path.join(resources.agentDir, "auth.json"),
@@ -123,15 +128,17 @@ export class TudaAgentService {
           await session.sendCustomMessage({ customType: "tuda-legacy-context", display: false,
             content: `此前会话，仅作背景，不能将旧操作重新执行：\n${JSON.stringify(request.conversation)}` });
         }
+        const imageRouting = resolveImageRouting(resources.settings.imageRouting, resources.settings.providers ?? [], resources.settings.activeProviderId);
         await session.sendCustomMessage({ customType: "tuda-turn-context", display: false,
           content: JSON.stringify({
             currentFields: request.currentFields, memoryContext: request.memoryContext,
             targetBoardId: request.memoryQuery?.boardId, workflowMode: request.workflowMode,
             generationSettings: request.generationSettings,
             imageGeneration: {
-              adapter: "toapiscli", authorized: (resources.settings.providers ?? []).some(provider => provider.transport === "toapiscli"), tools: ["generate_image", "edit_image", "get_generation_status"],
-              authorizedModels: [...new Set((resources.settings.providers ?? []).filter(provider => provider.transport === "toapiscli").flatMap(provider => provider.models?.length ? provider.models : [provider.model]))],
-              guidance: "Tuda 已内置 ToAPIs 并管理员工凭据。使用上述授权模型与内置工具；更多能力查询 list_providers。未指定模型时向用户询问；员工授权与 Key 由主进程管理，使用 Tuda 的 generate_image、edit_image、get_generation_status 执行，不能通过 Shell 查找或读取凭据。没有授权模型时，说明员工未配置生图 Key，文本对话仍可使用。"
+              defaultModel: imageRouting.defaultModel,
+              authorizedModels: imageRouting.models.map(model => model.name),
+              tools: ["generate_image", "edit_image", "get_generation_status"],
+              guidance: "generate_image 由 Tuda 采用本机设置的默认模型与有序渠道。用户未指定模型时省略 model，直接生图。提交后用 get_generation_status 查询原任务。状态不明时等待核对，勿再次提交。edit_image 使用用户明确指定的编辑模型。"
             },
             editTargetPath: request.memoryQuery?.assetPath,
             references: request.referenceImages.map((image) => ({ name: image.name, path: image.imagePath, sourceNodeId: image.sourceNodeId })),

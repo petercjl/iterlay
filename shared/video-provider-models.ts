@@ -1,9 +1,56 @@
 import type {
+  VideoProviderConfig,
   VideoProviderCapability,
   VideoProviderMode,
   VideoProviderModelOption
 } from "./types.js";
+import type { ImageModelRouting } from "./image-routing.js";
+import { getProviderModels } from "./provider-models.js";
+import { isSeedanceGateway } from "./contracts/providers.js";
 import { normalizeModelPricing } from "./model-pricing.js";
+import type { SeedanceGatewayType } from "./contracts/providers.js";
+
+export function seedanceGatewayModelOption(type: SeedanceGatewayType, id: string): VideoProviderModelOption {
+  const extended = /^(sd-2-5|seedance-2-5)(?:$|[-.])/u.test(id);
+  const aiPai = type === "seedance-aipai";
+  const fixedResolution = /-(480p|1080p|4k)$/iu.exec(id)?.[1]?.toLowerCase() ?? "720p";
+  const option = videoProviderModelOptionFromCapability(id, {
+    modes: ["text-to-video", "image-to-video", "first-last-frame", "multi-reference"],
+    maxInputs: extended ? { images: 30, videos: 10, audios: 10 } : { images: 9, videos: 3, audios: 3 },
+    supportsCancel: false, supportsProgress: false, supportsGeneratedAudio: !aiPai, supportsWatermarkControl: false,
+    ratios: ["16:9", "9:16", "1:1", "4:3", "3:4", "21:9", "adaptive"],
+    resolutions: aiPai ? [fixedResolution] : extended ? ["480p", "720p", "1080p"] : ["480p", "720p", "1080p", "4k"],
+    durationSeconds: { min: 4, max: extended ? 30 : 15, supportsAuto: !aiPai }
+  });
+  return { ...option, requiresPrompt: !extended };
+}
+
+export function findVideoModelRoute(routing: ImageModelRouting | undefined, model: string, providerId?: string) {
+  const name = model.trim().toLowerCase();
+  return routing?.models.find((route) => route.name.toLowerCase() === name)
+    ?? routing?.models.find((route) => name
+      ? route.channels.some((channel) => (!providerId || channel.providerId === providerId) && channel.model.toLowerCase() === name)
+      : route.name === routing.defaultModel);
+}
+
+export function videoRouteChannels(route: ImageModelRouting["models"][number] | undefined, providers: readonly VideoProviderConfig[]) {
+  return (route?.channels ?? []).flatMap((channel) => {
+    const provider = providers.find((item) => item.id === channel.providerId);
+    if (!provider || !getProviderModels(provider).includes(channel.model)) return [];
+    const catalogOption = findVideoProviderModelOption(provider.modelOptions, channel.model);
+    const option = isSeedanceGateway(provider.type)
+      ? seedanceGatewayModelOption(provider.type, channel.model)
+      : catalogOption;
+    // AI派 documents horizontal output and a vertical default. Prefer an explicit
+    // channel catalog list if one was supplied; ToAPIs publishes its full enum.
+    if (provider.type === "seedance-aipai" && option) {
+      return [{ ...channel, provider, option: {
+        ...option, supportedRatios: catalogOption?.supportedRatios ?? ["16:9", "9:16"]
+      } }];
+    }
+    return [{ ...channel, provider, option }];
+  });
+}
 
 export type VideoModelCapabilityState = "supported" | "unsupported" | "unknown";
 

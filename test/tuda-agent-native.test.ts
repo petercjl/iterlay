@@ -74,6 +74,26 @@ async function fixture(replies: Array<string | { name: string; args: unknown }>,
 }
 
 describe("shared native Pi harness", () => {
+  it("uses the next channel on explicit rejection and keeps its credentials and tool turns together", async () => {
+    const f = await fixture([{ name: "get_active_board", args: {} }, "备用渠道完成"], "anthropic-messages");
+    const primary = f.transport.getAgentConnection();
+    const rejected = vi.fn(async () => new Response(JSON.stringify({ error: { message: "Rate limited" } }), {
+      status: 429, headers: { "content-type": "application/json" }
+    }));
+    const backup = new OpenAICompatibleTextTransport({ id: "backup", name: "Backup", type: "openai-compatible",
+      model: "backup-upstream-model", baseUrl: f.transport.getAgentConnection().baseUrl, protocol: "anthropic-messages" }, "backup-fixture-key");
+    const execute = vi.fn(async () => ({ content: [{ type: "text" as const, text: "board receipt" }], details: {} }));
+    const tools = [{ name: "get_active_board", label: "画板", description: "Read board", parameters: Type.Object({}), execute }];
+    const result = await new TudaAgentService().run({ connection: { ...primary, fetch: rejected, fallbacks: [backup.getAgentConnection()] },
+      request: f.request, resources: f.resources, systemPrompt: "Tuda Agent", tools, onDelta: vi.fn() });
+    expect(result.message).toBe("备用渠道完成");
+    expect(rejected).toHaveBeenCalledOnce();
+    expect(execute).toHaveBeenCalledOnce();
+    expect(f.requests.map(({ body, headers }) => [body.model, headers["x-api-key"], headers["x-company-app-id"]])).toEqual([
+      ["backup-upstream-model", "backup-fixture-key", undefined],
+      ["backup-upstream-model", "backup-fixture-key", undefined]
+    ]);
+  }, 30_000);
   it.each(["/v1", "/api/company/v1/proxy/tuda/anthropic/v1"])("calls the native Anthropic endpoint exactly once with the versioned root %s", async prefix => {
     const f=await fixture(["Claude endpoint verified"],"anthropic-messages");
     const transport=new OpenAICompatibleTextTransport({id:"anthropic",name:"Claude",type:"openai-compatible",model:"test-vision",protocol:"anthropic-messages",baseUrl:f.transport.getAgentConnection().baseUrl+prefix},"fixture-key");
@@ -134,7 +154,7 @@ describe("shared native Pi harness", () => {
   }, 30_000);
 
   it("preserves image/video tool arguments and task receipts through the existing Tuda adapter", async () => {
-    const image = { boardId: "board-3", providerId: "toapis", model: "selected-image-model", prompt: "电商主图", referencePaths: ["managed/reference.png"], size: "9:16", n: 1 };
+    const image = { boardId: "board-3", model: "selected-image-model", prompt: "电商主图", referencePaths: ["managed/reference.png"], size: "9:16", n: 1 };
     const video = { boardId: "board-3", model: "selected-video-model", prompt: "镜头缓慢推进", referenceImagePaths: ["managed/reference.png"], durationSeconds: 5, aspectRatio: "9:16" };
     const f = await fixture([{ name: "generate_image", args: image }, { name: "generate_video", args: video }, "图片和视频任务已受理。"]);
     f.resources.settings.providers = [{ id: "toapis", name: "ToAPIs", type: "openai-compatible", transport: "toapiscli", baseUrl: "", generationEndpoint: "", model: "selected-image-model", supportsReferenceImages: true }];
@@ -142,8 +162,8 @@ describe("shared native Pi harness", () => {
     const tools = createTudaAgentTools(f.root, { boardId: "board-3", preserveView: true }, bridge);
     await new TudaAgentService().run({ connection: f.transport.getAgentConnection(), request: { ...f.request, instruction: "按指定模型分别生成一张图片和一个视频" }, resources: f.resources,
       systemPrompt: "Tuda Agent", tools: tools as unknown as Parameters<TudaAgentService["run"]>[0]["tools"], onDelta: vi.fn() });
-    expect(bridge).toHaveBeenNthCalledWith(1, f.root, "generate_image", { ...image, preserveView: true });
-    expect(bridge).toHaveBeenNthCalledWith(2, f.root, "generate_video", { ...video, preserveView: true });
+    expect(bridge).toHaveBeenNthCalledWith(1, f.root, "generate_image", { ...image, useImageRouting: true, preserveView: true });
+    expect(bridge).toHaveBeenNthCalledWith(2, f.root, "generate_video", { ...video, useVideoRouting: true, preserveView: true });
     expect(JSON.stringify(f.requests[2].body)).toContain("image-task");
     expect(JSON.stringify(f.requests[2].body)).toContain("video-task");
   }, 30_000);

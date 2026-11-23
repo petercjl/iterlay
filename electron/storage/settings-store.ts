@@ -1,3 +1,5 @@
+import { isSeedanceGateway } from "../../shared/contracts/providers.js";
+import { seedanceGatewayModelOption } from "../../shared/video-provider-models.js";
 import { normalizeScreenAccessPolicy } from "../../shared/screen-access.js";
 import { safeStorage } from "electron";
 import { existsSync, readFileSync } from "node:fs";
@@ -5,6 +7,7 @@ import { MutationQueue, writeJsonAtomic, writeJsonAtomicSync } from "./atomic-js
 import path from "node:path";
 import { COMMUNITY_IMAGE_PROVIDER, COMMUNITY_TEXT_PROVIDER } from '../../shared/community-providers.js';
 import { normalizeAppLanguage, type AppLanguage } from "../../shared/i18n.js";
+import { findTextModelRoute, normalizeImageRouting, normalizeOtherModelRouting } from "../../shared/image-routing.js";
 import { getProviderModels } from "../../shared/provider-models.js";
 import type {
   AppIconLibrary,
@@ -41,6 +44,8 @@ interface SettingsSchema {
   schemaVersion?: 1;
   providers: ProviderConfig[];
   activeProviderId: string;
+  imageRouting?: AppSettings["imageRouting"];
+  otherModelRouting?: AppSettings["otherModelRouting"];
   textProviders?: TextProviderConfig[];
   activeTextProviderId?: string;
   videoProviders?: VideoProviderConfig[];
@@ -204,6 +209,8 @@ export class SettingsStore {
     return {
       providers: current.providers.map((p) => ({ ...p, models: p.models ? [...p.models] : undefined })),
       activeProviderId: current.activeProviderId,
+      imageRouting: current.imageRouting,
+      otherModelRouting: current.otherModelRouting,
       textProviders: (current.textProviders ?? [{ ...COMMUNITY_TEXT_PROVIDER }]).map((p) => ({ ...p })),
       activeTextProviderId: current.activeTextProviderId ?? COMMUNITY_TEXT_PROVIDER.id,
       videoProviders: ensureVideoProviders(
@@ -267,14 +274,14 @@ export class SettingsStore {
   }
 
   /** Settings and encrypted keys commit together, or restore the prior snapshot. */
-  transaction<T>(update: () => T): Promise<T> {
+  transaction<T>(update: () => T | Promise<T>): Promise<T> {
     return this.mutations.run(async () => {
       const previous = this.cached;
       const saved = this.saved;
       this.staging = true;
       this.staged = undefined;
       try {
-        const result = update();
+        const result = await update();
         if (this.staged) await writeJsonAtomic(this.filePath, this.staged);
         return result;
       } catch (error) {
@@ -299,7 +306,8 @@ export class SettingsStore {
     const textProviders = ensureCodexTextBindings(providers, ensureTextProviders(
       (settings.textProviders ?? []).map((p) => normalizeTextProvider(p))
     ));
-    const activeTextProviderId = textProviders.some((p) => p.id === settings.activeTextProviderId)
+    const otherModelRouting = normalizeOtherModelRouting(settings.otherModelRouting ?? current.otherModelRouting);
+    const activeTextProviderId = (findTextModelRoute(otherModelRouting, settings.activeTextProviderId) || textProviders.some((p) => p.id === settings.activeTextProviderId))
       ? settings.activeTextProviderId
       : textProviders[0].id;
     const detachedVideoKeys: Record<string, string> = {};
@@ -337,6 +345,8 @@ export class SettingsStore {
       ...current,
       providers,
       activeProviderId,
+      imageRouting: normalizeImageRouting(settings.imageRouting ?? current.imageRouting),
+      otherModelRouting,
       textProviders,
       activeTextProviderId,
       videoProviders,
@@ -628,7 +638,7 @@ function migrate(parsed: Partial<SettingsSchema> & LegacySettingsSchema): Settin
   let activeTextProviderId: string;
   if (Array.isArray(parsed.textProviders) && parsed.textProviders.length > 0) {
     textProviders = ensureTextProviders(parsed.textProviders.map((p) => normalizeTextProvider(p)));
-    activeTextProviderId = textProviders.some((p) => p.id === parsed.activeTextProviderId)
+    activeTextProviderId = (findTextModelRoute(normalizeOtherModelRouting(parsed.otherModelRouting), parsed.activeTextProviderId) || textProviders.some((p) => p.id === parsed.activeTextProviderId))
       ? (parsed.activeTextProviderId as string)
       : textProviders[0].id;
   } else {
@@ -674,6 +684,8 @@ function migrate(parsed: Partial<SettingsSchema> & LegacySettingsSchema): Settin
   return {
     providers,
     activeProviderId,
+    imageRouting: normalizeImageRouting(parsed.imageRouting),
+    otherModelRouting: normalizeOtherModelRouting(parsed.otherModelRouting),
     textProviders,
     activeTextProviderId,
     videoProviders,
@@ -821,7 +833,7 @@ export function normalizeVideoProvider(provider?: Partial<VideoProviderConfig>):
   if (provider?.type === "official" || provider?.id === OFFICIAL_VIDEO_PROVIDER_ID) {
     return { ...OFFICIAL_VIDEO_PROVIDER_CONFIG };
   }
-  const type = provider?.type === "fal" || provider?.type === "openrouter" || provider?.type === "minimax" ? provider.type : "ark";
+  const type = provider?.type === "fal" || provider?.type === "openrouter" || provider?.type === "minimax" || isSeedanceGateway(provider?.type) ? provider.type : "ark";
   const defaultBaseUrl = type === "fal"
     ? "https://queue.fal.run"
     : type === "openrouter"
@@ -836,7 +848,7 @@ export function normalizeVideoProvider(provider?: Partial<VideoProviderConfig>):
       : type === "minimax"
         ? "MiniMax-H3"
       : DEFAULT_VIDEO_PROVIDER_CONFIG.model;
-  const rawBaseUrl = provider?.baseUrl?.trim() || defaultBaseUrl;
+  const rawBaseUrl = provider?.baseUrl?.trim() || (isSeedanceGateway(type) ? "" : defaultBaseUrl);
   const baseUrl = type === "ark" && /ark\.cn-beijing\.volces\.com\/?$/i.test(rawBaseUrl)
     ? `${rawBaseUrl.replace(/\/+$/, "")}/api/v3`
     : rawBaseUrl.replace(/\/+$/, "");
@@ -849,7 +861,8 @@ export function normalizeVideoProvider(provider?: Partial<VideoProviderConfig>):
     ...(connectionProviderId ? { connectionProviderId } : {}),
     baseUrl,
     models,
-    model: models[0]
+    model: models[0],
+    ...(isSeedanceGateway(type) ? { modelOptions: models.map(model => seedanceGatewayModelOption(type, model)) } : {})
   };
 }
 
@@ -958,6 +971,8 @@ export function normalizeTextProvider(provider?: Partial<TextProviderConfig>): T
     name: provider?.name?.trim() || "文本 Provider",
     type: "openai-compatible",
     baseUrl: provider?.baseUrl?.trim().replace(/\/+$/, "") ?? "",
+    ...(["anthropic-messages", "openai-responses", "openai-chat-completions"].includes(provider?.protocol ?? "")
+      ? { protocol: provider?.protocol } : {}),
     model: provider?.model?.trim() ?? ""
   };
 }
@@ -1048,7 +1063,8 @@ function normalizeKnownProvider(provider: Partial<ProviderConfig>, defaults: Pro
 
 function normalizeTudaTools(value: unknown): string[] {
   const tools = normalizeStringList(value);
-  const previousDefaults = PI_AGENT_DEFAULT_TUDA_TOOLS.filter(name => name !== "create_canvas" && name !== "update_canvas" && name !== "read_asset");
+  const additions = ["create_canvas", "update_canvas", "read_asset", "list_providers"];
+  const previousDefaults = PI_AGENT_DEFAULT_TUDA_TOOLS.filter(name => !additions.includes(name));
   // Upgrade the full former default set, preserving deliberately restricted lists.
-  return previousDefaults.every(name => tools.includes(name)) ? [...new Set([...tools, "create_canvas", "update_canvas", "read_asset"])] : tools;
+  return previousDefaults.every(name => tools.includes(name)) ? [...new Set([...tools, ...additions])] : tools;
 }

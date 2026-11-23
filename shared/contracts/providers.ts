@@ -1,5 +1,9 @@
 export type ProviderType = "official" | "codex-oauth" | "openai-compatible" | "openrouter" | "bailian" | "ark" | "poe" | "fal";
 
+export function isCompanyModelChannel(id: string | undefined): boolean {
+  return Boolean(id && /^company-(text|image|video|audio)\//u.test(id));
+}
+
 export type ProviderApiMode = "images" | "responses";
 
 export type FalSizeMode = "image_size" | "aspect_ratio" | "aspect_ratio_and_resolution";
@@ -59,6 +63,7 @@ export interface TextProviderConfig {
   transport?: "company-direct";
   protocol?: import("../company-account.js").CompanyTextProtocol;
   managed?: boolean;
+  connectionName?: string;
   id: string;
   name: string;
   type: TextProviderType;
@@ -70,7 +75,12 @@ export interface TextProviderConfig {
   model: string;
 }
 
-export type VideoProviderType = "official" | "ark" | "fal" | "openrouter" | "minimax";
+export type SeedanceGatewayType = "seedance-aipai" | "seedance-toapis";
+export type VideoProviderType = "official" | "ark" | "fal" | "openrouter" | "minimax" | SeedanceGatewayType;
+
+export function isSeedanceGateway(type: unknown): type is SeedanceGatewayType {
+  return type === "seedance-aipai" || type === "seedance-toapis";
+}
 
 /** 独立旁白配置；采用 OpenAI-compatible speech 接口，与视频原生音轨无关。 */
 export interface AudioProviderConfig {

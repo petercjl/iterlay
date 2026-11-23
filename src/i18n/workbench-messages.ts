@@ -2,6 +2,11 @@ import { enterpriseEnglish } from "./enterprise-messages";
 // Supplemental UI copy found through the English workspace page audit.
 export const workbenchEnglish: Record<string, string> = {
   ...enterpriseEnglish,
+  "同步模型配置": "Sync model configuration",
+  "正在同步模型配置": "Syncing model configuration",
+  "模型配置已同步。": "Model configuration synced.",
+  "该视频模型没有可用的本地参考素材渠道。": "No channel for this video model supports local reference media.",
+  "该视频模型没有配置可用渠道。": "This video model has no available channels.",
 
   "恢复自动选择": "Restore automatic selection",
   "画板中暂无图片": "This board has no images yet",
@@ -1630,8 +1635,7 @@ export const workbenchEnglish: Record<string, string> = {
   "拖动以新增拐点": "Drag to add a waypoint",
   "连接线路由": "Connection routing",
   "直线": "Straight",
-  "正交线": "Orthogonal",
-  "曲线": "Curved",
+  "折线": "Orthogonal",
   "连接线颜色": "Connection color",
   "切换连接线宽度": "Change connection width",
   "线宽 {{ui:0}}px": "Line width {{ui:0}} px",

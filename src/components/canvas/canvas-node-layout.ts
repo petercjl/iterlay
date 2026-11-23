@@ -37,6 +37,14 @@ export function isVideoGenerationTargetHandle(handleId: string | null | undefine
   return Boolean(handleId && VIDEO_GENERATION_TARGET_HANDLE_Y[handleId] !== undefined);
 }
 
+export function isVideoFrameTargetHandle(handleId: string | null | undefined): boolean {
+  return handleId === "target-start-frame" || handleId === "target-end-frame";
+}
+
+export function isHiddenVideoFrameTarget(node: Node | undefined, handleId: string | null | undefined): boolean {
+  return node?.type === "videoGenerationNode" && node.data.requiresFirstLastFrame !== true && isVideoFrameTargetHandle(handleId);
+}
+
 export function videoGenerationTargetHandleAnchorRatio(
   handleId: string | null | undefined,
   nodeHeight = VIDEO_GENERATION_NODE_HEIGHT

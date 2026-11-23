@@ -134,7 +134,7 @@ export function useCanvasWorkflowNodeActions({
         targetHandle: "target-left",
         kind: "visual",
         label: "生成结果",
-        routing: { mode: "auto", kind: "curved", waypoints: [] }
+        routing: { mode: "auto", kind: "orthogonal", waypoints: [] }
       })];
     });
     if (additions.length === 0) return;

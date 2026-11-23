@@ -6,9 +6,11 @@ import type {
   CompanyBootstrap,
   CompanyDirectModels,
   CompanySession,
+  CompanyStorageMode,
 } from "../../shared/company-account.js";
 import { COMPANY_IMAGE_MODELS } from "../../shared/company-account.js";
 import { directDigest, directProvider, validateDirectModels } from "./direct-models.js";
+import { validateManagedModels, type ManagedModels } from "./managed-models.js";
 import type { TextProviderConfig } from "../../shared/types.js";
 
 const prefix = "/api/company/v1";
@@ -40,6 +42,14 @@ export function companyOrigin(input: string) {
     throw new Error("公司账号服务须使用 HTTPS 地址。");
   return url.origin;
 }
+function storageEndpoint(input: unknown, mode: CompanyStorageMode) {
+  if (typeof input !== "string") throw new Error("企业存储服务地址无效。");
+  if (mode !== "nas") return companyOrigin(input);
+  const url = new URL(input);
+  if (!["http:", "https:"].includes(url.protocol) || url.username || url.password
+    || url.pathname !== "/" || url.hash || url.search) throw new Error("企业存储服务地址无效。");
+  return url.origin;
+}
 export function validateBootstrap(
   value: unknown,
   session: CompanySession,
@@ -63,6 +73,12 @@ export function validateBootstrap(
   const b = value as unknown as CompanyBootstrap;
   if (session.accountKind === "password" && (b.storage.enabled || b.image.credential || b.text.enabled && b.text.transport !== "proxy" || b.image.enabled && b.image.adapter !== "company-proxy"))
     throw new Error("访客账号能力配置无效。");
+  if (b.storage.mode !== undefined || b.storage.endpoint !== undefined) {
+    const { mode, endpoint } = b.storage;
+    if (!b.storage.enabled || !mode || !["hosted", "nas", "self-hosted"].includes(mode)
+      || storageEndpoint(endpoint, mode) !== endpoint)
+      throw new Error("企业存储来源无效。");
+  }
   if (
     (b.storage.audience && b.storage.audience !== "tuda-nas") ||
     (b.storage.scopes &&
@@ -169,6 +185,7 @@ export class CompanyAccount extends EventEmitter {
   private snapshot: AccountSnapshot;
   private pending?: {
     requestId: string;
+    authorizeUrl: string;
     verifier: string;
     expires: number;
     interval: number;
@@ -182,6 +199,8 @@ export class CompanyAccount extends EventEmitter {
   private nextModelCheck = 0;
   private leaseTimer?: ReturnType<typeof setTimeout>;
   private loggingOut = false;
+  private managed?: ManagedModels;
+  private managedSession?: string;
   constructor(
     origin: string,
     private persist: (value: AccountSnapshot) => Promise<void>,
@@ -208,6 +227,13 @@ export class CompanyAccount extends EventEmitter {
   get directModels() {
     return this.authenticated && !this.loggingOut ? this.snapshot.directModels : undefined;
   }
+  get managedModels() {
+    return this.authenticated && !this.loggingOut && Date.now() < this.leaseUntil
+      ? this.managed : undefined;
+  }
+  get hasManagedModelContract() {
+    return Boolean(this.session && this.managedSession === this.session.sessionId);
+  }
   private invalidateText() {
     clearTimeout(this.leaseTimer);
     this.leaseUntil = 0;
@@ -220,19 +246,28 @@ export class CompanyAccount extends EventEmitter {
     if (this.modelController.signal.aborted) this.modelController = new AbortController();
     this.leaseUntil = Math.min(started + 300_000, Date.parse(this.session!.expiresAt));
     this.nextModelCheck = started + 120_000;
-    this.leaseTimer = setTimeout(() => this.invalidateText(), Math.max(0, this.leaseUntil - Date.now()));
+    this.leaseTimer = setTimeout(() => {
+      this.invalidateText();
+      this.changed();
+    }, Math.max(0, this.leaseUntil - Date.now()));
     this.leaseTimer.unref();
   }
   /** Pin each transport to a device, configuration and endpoint. No company Token reaches a provider. */
   textFetch(config: TextProviderConfig, modelFetch: typeof fetch = fetch): typeof fetch {
-    const direct = this.directModels, token = this.session?.token;
-    if (!direct || !token || config.transport !== "company-direct") throw new Error("请先刷新公司直连模型授权。");
-    const p = directProvider(direct, config.id), base = new URL(p.options.baseURL);
+    const direct = this.directModels, token = this.session?.token, managed = this.managedModels;
+    const synced = managed?.textProviders.find(provider => provider.id === config.id && provider.model === config.model);
+    if ((!synced && !direct) || !token || config.transport !== "company-direct") throw new Error("请先刷新公司直连模型授权。");
+    const p = synced && managed ? {
+      options: { baseURL: synced.baseUrl, apiKey: managed.keys[synced.id] },
+      wire_api: synced.protocol === "anthropic-messages" ? "anthropic" : "openai"
+    } : directProvider(direct!, config.id);
+    const base = new URL(p.options.baseURL);
     if (config.baseUrl !== p.options.baseURL) throw new Error("文本模型地址与直连授权不一致。");
-    const pinnedVersion = direct.configVersion;
+    const pinnedVersion = synced ? managed?.version : direct?.configVersion;
     return (async (input, init) => {
       const current = () => {
-        if (this.loggingOut || this.session?.token !== token || this.directModels?.configVersion !== pinnedVersion)
+        if (this.loggingOut || this.session?.token !== token ||
+          (synced ? this.managedModels?.version : this.directModels?.configVersion) !== pinnedVersion)
           throw new Error("公司模型配置已更新，请重新发送本轮请求。");
       };
       current();
@@ -262,11 +297,11 @@ export class CompanyAccount extends EventEmitter {
       authenticated: this.authenticated,
       member: s?.member,
       organization: s?.organization,
-      configVersion: b?.configVersion,
-      textModels: b?.text.enabled
+      configVersion: this.managedModels?.version ?? b?.configVersion,
+      textModels: this.managedModels?.routing.text.models.length ?? (b?.text.enabled
         ? b.text.providers.reduce((n, p) => n + p.models.length, 0)
-        : 0,
-      imageModels: b?.image.enabled ? b.image.models.length : 0,
+        : 0),
+      imageModels: this.managedModels?.routing.image.models.length ?? (b?.image.enabled ? b.image.models.length : 0),
       imageReason: b?.image.reason,
       error: this.problem,
     };
@@ -277,17 +312,20 @@ export class CompanyAccount extends EventEmitter {
   async restore(value: AccountSnapshot) {
     if (companyOrigin(value.origin) !== this.origin) return;
     if (value.session) this.checkSession(value.session);
-    if (value.session?.accountKind === "password" && value.directModels) throw new Error("访客账号不接受直连凭据。");
     if (value.bootstrap && value.session)
       validateBootstrap(value.bootstrap, value.session, this.origin);
     if (value.directModels && value.session) validateDirectModels(value.directModels, value.session, this.origin);
     this.invalidateText();
+    this.managed = undefined;
+    this.managedSession = undefined;
     this.snapshot = value;
     if (!this.authenticated) this.snapshot = { origin: this.origin };
     this.changed();
   }
   async configure(origin: string, persist = true) {
     this.invalidateText();
+    this.managed = undefined;
+    this.managedSession = undefined;
     this.snapshot = { origin: companyOrigin(origin) };
     this.pending = undefined;
     this.problem = undefined;
@@ -303,6 +341,8 @@ export class CompanyAccount extends EventEmitter {
       typeof s.sessionId !== "string" ||
       !s.sessionId ||
       !Number.isFinite(Date.parse(s.expiresAt)) ||
+      s.accountKind === "password" ||
+      (s.legacyWorkspace !== undefined && s.legacyWorkspace !== true) ||
       !identity(s.member) ||
       !identity(s.organization)
     )
@@ -344,7 +384,7 @@ export class CompanyAccount extends EventEmitter {
   ): Promise<Record<string, unknown>> {
     if (!this.origin) throw new Error("请配置公网公司账号服务。");
     if (authenticated && !this.authenticated)
-      throw new Error("请使用公司钉钉重新登录。");
+      throw new Error("请重新登录公司账号。");
     const requestSession = this.session, requestOrigin = this.origin;
     const response = await this.fetcher(requestOrigin + prefix + route, {
       method: body === undefined ? "GET" : "POST",
@@ -380,7 +420,7 @@ export class CompanyAccount extends EventEmitter {
         ? envelope.error.code
         : undefined;
     if (
-      response.status === 401 ||
+      (response.status === 401 && authenticated) ||
       (response.status === 403 &&
         authenticated &&
         (route !== "/storage/token" ||
@@ -396,9 +436,7 @@ export class CompanyAccount extends EventEmitter {
     if (!response.ok)
       throw Object.assign(
         new Error(
-          route === "/auth/password"
-            ? response.status === 429 ? "登录尝试过多，请稍后重试。" : "账号或密码不正确，或账号已停用。"
-          : route === "/storage/token"
+          route === "/storage/token"
             ? `公司存储授权不可用（HTTP ${response.status}），请检查存储权限或选择本地空间。`
             : `公司授权请求失败（HTTP ${response.status}），请重新登录或联系管理员。`,
         ),
@@ -450,6 +488,7 @@ export class CompanyAccount extends EventEmitter {
       throw new Error("公司授权页面地址无效。");
     this.pending = {
       requestId: d.requestId,
+      authorizeUrl: url.href,
       verifier,
       expires: Date.now() + d.expiresIn * 1000,
       interval: d.intervalMs,
@@ -457,53 +496,22 @@ export class CompanyAccount extends EventEmitter {
       ...(refreshProfile && this.session ? {profileIdentity: `${this.session.organization.id}:${this.session.member.id}`} : {}),
     };
     return {
+      requestId: d.requestId,
       authorizeUrl: url.href,
       expiresAt: new Date(this.pending.expires).toISOString(),
       intervalMs: d.intervalMs,
       userCode: d.userCode,
     };
   }
-  async passwordLogin(username: string, password: string) {
-    if (this.authenticated) throw new Error("请先退出当前账号。");
-    const data = await this.request("/auth/password", { appId: "tuda", username, password }, false);
-    if (data.status !== "authorized" || data.accountKind !== "password") throw new Error("账号登录响应无效。");
-    const session = data as unknown as CompanySession;
-    this.checkSession(session);
-    this.invalidateText(); this.pending = undefined;
-    this.snapshot = { origin: this.origin, session };
-    await this.persist(this.snapshot);
-    await this.refresh();
-    this.changed();
-    return { status: "authorized" as const };
+  pendingBrowserAuthorization() {
+    if (!this.pending || Date.now() >= this.pending.expires)
+      throw new Error("登录请求已过期，请重新发起。");
+    return this.pending.authorizeUrl;
   }
-  async guestImage(input: { requestId: string; model: string; prompt: string; resolution: string; aspect: string; references: Array<{ mimeType: string; base64: string }> }) {
-    const session = this.session;
-    if (session?.accountKind !== "password" || this.bootstrap?.image.adapter !== "company-proxy") throw new Error("访客媒体授权不可用。");
-    let job = await this.request("/image/jobs", input);
-    const id = job.id;
-    if (typeof id !== "string" || !/^[a-f0-9-]{36}$/.test(id)) throw new Error("媒体任务响应无效。");
-    const deadline = Date.now() + 15 * 60_000;
-    while (job.state !== "succeeded") {
-      if (job.state === "failed") throw new Error(`生图任务失败，请保留任务 ${id}。`);
-      if (Date.now() > deadline) throw new Error(`生图等待超时，请通过原请求恢复任务 ${id}。`);
-      await new Promise(resolve => setTimeout(resolve, 2500));
-      job = await this.request("/image/jobs/" + id);
-    }
-    if (!Number.isSafeInteger(job.assetCount) || Number(job.assetCount) < 1 || Number(job.assetCount) > 8) throw new Error("媒体素材响应无效。");
-    const images = [];
-    for (let i = 0; i < Number(job.assetCount); i++) {
-      if (this.session?.token !== session.token) throw new Error("账号已切换。");
-      const response = await this.fetcher(this.origin + prefix + `/image/jobs/${id}/assets/${i}`, {
-        headers: { authorization: `Bearer ${session.token}`, "X-Company-App-Id": "tuda" }, redirect: "error", signal: AbortSignal.timeout(60_000)
-      });
-      if (!response.ok || Number(response.headers.get("content-length")) > 40 * 1024 * 1024) throw new Error("媒体素材下载失败。");
-      const bytes = Buffer.from(await response.arrayBuffer());
-      if (this.session?.token !== session.token || bytes.length > 40 * 1024 * 1024) throw new Error("媒体素材下载无效。");
-      const mimeType = bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])) ? "image/png" : bytes[0] === 255 && bytes[1] === 216 ? "image/jpeg" : bytes.subarray(0,4).toString() === "RIFF" && bytes.subarray(8,12).toString() === "WEBP" ? "image/webp" : undefined;
-      if (!mimeType) throw new Error("媒体产物不是有效图片。");
-      images.push({ bytes, mimeType });
-    }
-    return { images };
+  cancelLogin() {
+    if (!this.pending) return false;
+    this.pending = undefined;
+    return true;
   }
   async pollLogin(): Promise<{ status: "pending" | "authorized" }> {
     const p = this.pending;
@@ -519,22 +527,32 @@ export class CompanyAccount extends EventEmitter {
         false,
       );
     } catch (error) {
-      this.pending = undefined;
+      if (this.pending === p) this.pending = undefined;
       throw error;
     }
+    if (this.pending !== p) throw new Error("登录请求已更改，请重新登录。");
     if (d.status === "pending") return { status: "pending" };
     if (d.status !== "authorized") throw new Error("公司授权状态无效。");
     const session = d as unknown as CompanySession;
     this.checkSession(session);
     if (p.profileIdentity && p.profileIdentity !== `${session.organization.id}:${session.member.id}`) {
       this.pending = undefined;
-      throw new Error("刷新资料时请使用当前登录的钉钉账号。");
+      throw new Error("刷新资料时请使用当前登录的账号。");
     }
     this.pending = undefined;
     this.invalidateText();
+    const previous = this.snapshot;
     this.snapshot = { origin: this.origin, session };
-    await this.persist(this.snapshot);
-    await this.refresh();
+    try {
+      await this.refresh();
+    } catch (error) {
+      if (this.session?.token === session.token) {
+        this.snapshot = previous;
+        await this.persist(previous);
+        this.changed();
+      }
+      throw error;
+    }
     this.changed();
     return { status: "authorized" };
   }
@@ -560,21 +578,33 @@ export class CompanyAccount extends EventEmitter {
           s,
           this.origin,
         );
+        const version = d.managedModelsVersion;
+        if (version !== undefined && (typeof version !== "string" || !version.trim() || version.length > 300))
+          throw new Error("山海模型配置版本无效。");
+        if (version === undefined && this.managedSession === s.sessionId)
+          throw new Error("山海未返回当前会话的企业模型配置版本。");
+        if (typeof version === "string") this.managedSession = s.sessionId;
+        const managed = typeof version === "string"
+          ? validateManagedModels(await this.request("/managed-models"), s, version) : undefined;
         let directModels: CompanyDirectModels | undefined;
         if (bootstrap.text.transport === "proxy" && (s.accountKind !== "password" || bootstrap.storage.enabled)) throw new Error("访客代理授权无效。");
-        if (bootstrap.text.enabled && bootstrap.text.transport !== "proxy") {
+        if (!managed && bootstrap.text.enabled && bootstrap.text.transport !== "proxy") {
           if (!directDigest(d.subject) || !directDigest(d.configVersion) || !record(d.authorization)
             || d.authorization.validForSeconds !== 300 || d.authorization.refreshAfterSeconds !== 120)
             throw new Error("公司服务尚未提供 Tuda 直连授权续验契约。");
           directModels = validateDirectModels(await this.request("/direct-models"), s, this.origin, d.subject, d.configVersion);
         }
         if (this.session?.token !== s.token || this.loggingOut) throw new Error("公司登录已变更。");
-        if (this.snapshot.directModels?.configVersion !== directModels?.configVersion) this.invalidateText();
+        if (this.snapshot.directModels?.configVersion !== directModels?.configVersion || this.managed?.version !== managed?.version)
+          this.invalidateText();
         // Profile data can change while the app-bound identity remains the same.
         this.snapshot = { ...this.snapshot, session: { ...s, member: bootstrap.member, organization: bootstrap.organization }, bootstrap, directModels };
         this.problem = undefined;
         await this.persist(this.snapshot);
-        if (directModels) this.acceptLease(started);
+        if (this.session?.token !== s.token || this.loggingOut) throw new Error("公司登录已变更。");
+        this.managed = managed;
+        this.managedSession = managed ? s.sessionId : undefined;
+        if (directModels || managed) this.acceptLease(started);
       } catch (error) {
         if (this.session && this.session.token !== initialSession?.token) throw error;
         const problem = error as {code?: string; status?: number};
@@ -603,6 +633,8 @@ export class CompanyAccount extends EventEmitter {
       }
     } finally {
       this.snapshot = { origin: this.origin };
+      this.managed = undefined;
+      this.managedSession = undefined;
       this.pending = undefined;
       this.loggingOut = false;
       await this.persist(this.snapshot);
@@ -616,14 +648,16 @@ export class CompanyAccount extends EventEmitter {
     const storage = this.bootstrap?.storage;
     if (!storage?.enabled)
       throw new Error(
-        "当前账号未获 NAS 存储授权，可选择本地空间继续工作。",
+        "当前账号未获企业存储授权，可选择本地空间继续工作。",
       );
     const scopes = storage.scopes ?? ["boards:read", "assets:read"];
     if (!scopes.includes("boards:read"))
-      throw new Error("当前账号无权查看 NAS 画板，可选择本地空间。");
+      throw new Error("当前账号无权查看企业画板，可选择本地空间。");
+    const { mode, endpoint } = storage;
     const d = await this.request("/storage/token", {
       audience: "tuda-nas",
       scopes,
+      ...(mode ? { mode, endpoint } : {}),
     });
     if (
       typeof d.token !== "string" ||
@@ -632,6 +666,11 @@ export class CompanyAccount extends EventEmitter {
       d.audience !== "tuda-nas" ||
       d.organizationId !== this.session?.organization.id ||
       d.memberId !== this.session?.member.id ||
+      (mode !== undefined && (
+        d.mode !== mode || d.endpoint !== endpoint ||
+        this.bootstrap?.storage.mode !== mode || this.bootstrap?.storage.endpoint !== endpoint
+        || !this.bootstrap.storage.enabled
+      )) ||
       typeof d.expiresAt !== "string" ||
       !Number.isFinite(Date.parse(d.expiresAt)) ||
       Date.parse(d.expiresAt) <= Date.now() ||
@@ -648,7 +687,7 @@ export class CompanyAccount extends EventEmitter {
           ].includes(String(s)) || !scopes.includes(String(s)),
       )
     )
-      throw new Error("NAS 存储授权格式无效。");
+      throw new Error("企业存储授权与当前来源不匹配。");
     return {
       token: d.token,
       expiresAt: d.expiresAt,

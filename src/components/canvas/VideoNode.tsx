@@ -260,9 +260,11 @@ function VideoNodeComponent({ id, data, selected, dragging, width, height }: Nod
             <strong>{videoNodeStatusLabel(status)}</strong>
             <span>{status === "post_processing"
               ? uiText("视频已生成，正在下载到本机")
-              : busy
-                ? uiText("任务会在后台继续，可先处理画布中的其他内容")
-                : uiText("等待视频结果")}</span>
+              : status === "failed"
+                ? uiText(video.error || "视频生成失败")
+                : busy
+                  ? uiText("任务会在后台继续，可先处理画布中的其他内容")
+                  : uiText("等待视频结果")}</span>
           </div>
         )}
         {busy && poster ? (

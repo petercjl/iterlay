@@ -3,6 +3,8 @@ import { translateSourceText } from "@/i18n/ui-text";
 import { getImageWorkbenchApi, getWorkbenchErrorMessage, missingImageWorkbenchMessage } from "@/lib/image-workbench-api";
 import { resolveVideoGenerationImageInputs } from "@/components/canvas/video-generation-image-inputs";
 import { VIDEO_MAX_REFERENCE_IMAGES, type VideoReferenceInput } from "@/components/canvas/video-node-model";
+import type { ImageModelRouting } from "@shared/image-routing";
+import { findVideoModelRoute, findVideoProviderModelOption, resolveVideoParameters, videoRouteChannels } from "@shared/video-provider-models";
 import type { GeneratedImage } from "@/components/canvas/image-node-model";
 import { GENERATION_OUTPUT_HORIZONTAL_GAP } from "@shared/generation-output-layout";
 import { pendingVideoJobId, reconcileVideoGenerationPlaceholder } from "@shared/video-generation-placeholder";
@@ -23,6 +25,7 @@ interface VideoGenerationOptions {
   getWorkbenchApi: () => ImageWorkbenchApi | null;
   videoProviders: VideoProviderConfig[];
   activeVideoProviderId: string;
+  videoRouting?: ImageModelRouting;
   updateWorkflowNode: (id: string, patch: Partial<CanvasPersistedNode>) => void;
   paidSubmissionInFlightRef: RefObject<Set<string>>;
   requestGenerationConfirmation: (request: GenerationConfirmationRequest) => Promise<boolean>;
@@ -39,7 +42,7 @@ interface VideoGenerationOptions {
   notifyVideoJob: (job: VideoGenerationJob) => void;
 }
 
-export function createVideoGenerationController({ activeBoardRef, getWorkbenchApi, videoProviders, activeVideoProviderId, updateWorkflowNode, paidSubmissionInFlightRef, requestGenerationConfirmation, workflowNodesRef, canvasStateRef, setWorkflowNodes, setCanvasConnectionsVersion, scheduleBoardSave, flushBoardSave, videoPollingStoppedRef, refreshHistory, boardDetailCacheRef, openBoard, notifyVideoJob }: VideoGenerationOptions) {
+export function createVideoGenerationController({ activeBoardRef, getWorkbenchApi, videoProviders, activeVideoProviderId, videoRouting, updateWorkflowNode, paidSubmissionInFlightRef, requestGenerationConfirmation, workflowNodesRef, canvasStateRef, setWorkflowNodes, setCanvasConnectionsVersion, scheduleBoardSave, flushBoardSave, videoPollingStoppedRef, refreshHistory, boardDetailCacheRef, openBoard, notifyVideoJob }: VideoGenerationOptions) {
   async function runVideoGenerationNode(
     node: BoardVideoGenerationNode,
     resolved: {
@@ -69,19 +72,29 @@ export function createVideoGenerationController({ activeBoardRef, getWorkbenchAp
       return;
     }
     const prompt = resolved.prompt.trim();
-    if (resolved.referenceImages.length > VIDEO_MAX_REFERENCE_IMAGES) {
-      toast.error(translateSourceText("当前模型最多接收 {{ui:0}} 张参考图，请先移除多余连接。", [VIDEO_MAX_REFERENCE_IMAGES]));
-      return;
-    }
-    if (!prompt && resolved.images.length === 0 && resolved.referenceVideos.length === 0 && !node.sourceVideoPath) {
+    if (!prompt && resolved.images.length === 0 && resolved.referenceVideos.length === 0 && !node.referenceAudioPaths?.length && !node.sourceVideoPath) {
       toast.error(translateSourceText("请填写运动描述，或连接图片/视频参考。"));
       return;
     }
     const selectedVideoProvider = videoProviders.find((provider) => provider.id === (node.providerId || activeVideoProviderId));
-    if (!selectedVideoProvider) {
+    const route = !resolved.requiresFirstLastFrame && (node.mode ?? "generate") === "generate"
+      ? findVideoModelRoute(videoRouting, node.model ?? "", node.providerId)
+      : undefined;
+    if (!route && !selectedVideoProvider) {
       const message = "当前视频服务已被删除，请重新选择模型。";
       updateWorkflowNode(node.id, { status: "failed", error: message });
       toast.error(message);
+      return;
+    }
+    const modelName = route?.name || node.model?.trim() || selectedVideoProvider?.model || "";
+    const options = route ? videoRouteChannels(route, videoProviders).map(({ option }) => option)
+      : [findVideoProviderModelOption(selectedVideoProvider?.modelOptions, modelName)];
+    const maxImages = Math.max(0, ...options.map(option => resolveVideoParameters(option).maxInputs?.images ?? VIDEO_MAX_REFERENCE_IMAGES));
+    const referenceImages = resolved.requiresFirstLastFrame ? resolved.referenceImages
+      : [resolved.startFrame, resolved.endFrame, ...resolved.referenceImages].filter((image, index, items): image is GeneratedImage =>
+        Boolean(image?.path) && items.findIndex(candidate => candidate?.path === image?.path) === index);
+    if (referenceImages.length > maxImages) {
+      toast.error(translateSourceText("当前模型最多接收 {{ui:0}} 张参考图，请先移除多余连接。", [maxImages]));
       return;
     }
 
@@ -94,8 +107,8 @@ export function createVideoGenerationController({ activeBoardRef, getWorkbenchAp
     const videoCostLabel = metadata.priceSnapshot?.amount ? metadata.priceSnapshot.amount + " 金豆" : "由 Provider 计费";
     const confirmed = await requestGenerationConfirmation({
       title: "确认生成视频",
-      providerLabel: selectedVideoProvider.name,
-      model: node.model?.trim() || selectedVideoProvider.model,
+      providerLabel: route ? translateSourceText("按模型渠道顺序") : selectedVideoProvider?.name ?? "",
+      model: modelName,
       totalCostLabel: videoCostLabel,
       items: [{
         id: node.id,
@@ -161,7 +174,7 @@ export function createVideoGenerationController({ activeBoardRef, getWorkbenchAp
                 target: placeholderId,
                 sourceAnchor: { side: "right", ratio: 0.5, mode: "pinned" },
                 targetAnchor: { side: "left", ratio: 0.5, mode: "pinned" },
-                routing: { mode: "auto", kind: "curved", waypoints: [] }
+                routing: { mode: "auto", kind: "orthogonal", waypoints: [] }
               }
             : connection
         ));
@@ -172,7 +185,7 @@ export function createVideoGenerationController({ activeBoardRef, getWorkbenchAp
           sourceHandle: "source-right", targetHandle: "target-left", kind: "visual", label: "生成结果",
           sourceAnchor: { side: "right", ratio: 0.5, mode: "pinned" },
           targetAnchor: { side: "left", ratio: 0.5, mode: "pinned" },
-          routing: { mode: "auto", kind: "curved", waypoints: [] }
+          routing: { mode: "auto", kind: "orthogonal", waypoints: [] }
         }];
         setCanvasConnectionsVersion((value) => value + 1);
       }
@@ -202,15 +215,15 @@ export function createVideoGenerationController({ activeBoardRef, getWorkbenchAp
     try {
       await flushBoardSave();
       const imageInputs = resolveVideoGenerationImageInputs(
-        selectedVideoProvider.type === "official",
-        resolved.startFrame,
-        resolved.endFrame,
-        resolved.referenceImages
+        resolved.requiresFirstLastFrame && selectedVideoProvider?.type === "official",
+        resolved.requiresFirstLastFrame ? resolved.startFrame : undefined,
+        resolved.requiresFirstLastFrame ? resolved.endFrame : undefined,
+        referenceImages
       );
       const input: VideoGenerationInput = {
         mode: node.mode ?? "generate",
         prompt,
-        model: node.model?.trim() || selectedVideoProvider.model,
+        model: modelName,
         aspectRatio: node.aspectRatio || "16:9",
         resolution: node.resolution || "720p",
         durationSeconds: node.duration ?? 5,
@@ -228,7 +241,8 @@ export function createVideoGenerationController({ activeBoardRef, getWorkbenchAp
         lastFramePath: imageInputs.lastFramePath,
         generateAudio: node.generateAudio ?? false,
         watermark: node.watermark ?? false,
-        providerId: node.providerId,
+        providerId: route ? undefined : node.providerId,
+        useVideoRouting: Boolean(route),
         boardId,
         generationNodeId: node.id,
         ...metadata

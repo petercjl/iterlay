@@ -20,3 +20,18 @@ export function normalizeProviderError(error: unknown): ProviderError {
 
   return new ProviderError("PROVIDER_ERROR", "Unknown provider error");
 }
+
+export function isRetryableTextChannelRejection(status: number | undefined): boolean {
+  return status === 401 || status === 402 || status === 404 || status === 429;
+}
+
+export class ImageSubmissionError extends ProviderError {
+  constructor(
+    readonly outcome: "rejected" | "failed" | "unknown" | "blocked",
+    code: string,
+    message: string,
+    status?: number
+  ) {
+    super(code, message, status);
+  }
+}

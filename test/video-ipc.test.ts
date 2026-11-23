@@ -1,9 +1,17 @@
 import { beforeEach,describe,expect,it,vi } from "vitest";
+import { mkdtemp, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { registerVideoIpc } from "../electron/ipc.js";
 import { PaidMediaQuoteService } from "../electron/paid-media-quote.js";
 import type { VideoRemoteTask } from "../electron/providers/video-types.js";
-import { VideoTaskServiceError } from "../electron/video-generation-service.js";
-import type { VideoGenerationInput,VideoGenerationJob } from "../shared/types.js";
+import { ProviderError } from "../electron/providers/errors";
+import { VideoGenerationService, VideoTaskServiceError } from "../electron/video-generation-service.js";
+import { AssetStore } from "../electron/storage/asset-store.js";
+import { SeedanceGatewayVideoProvider } from "../electron/providers/video-seedance-gateway.js";
+import { bindTudaAgentMediaTools } from "../electron/agents/media-tools.js";
+import { workspaceFixture } from "./helpers/workspace-fixture";
+import type { AppSettings,VideoGenerationInput,VideoGenerationJob,VideoProviderConfig } from "../shared/types.js";
 
 const electronMocks = vi.hoisted(() => ({
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
@@ -112,7 +120,7 @@ function makeHarness(options: { wait?: (task: VideoRemoteTask, signal?: AbortSig
     model: "seedance-model"
   };
   const settings = {
-    getSettings: vi.fn(() => ({
+    getSettings: vi.fn((): Pick<AppSettings, "activeVideoProviderId" | "videoProviders" | "otherModelRouting"> => ({
       activeVideoProviderId: "ark-provider",
       videoProviders: [videoProvider]
     })),
@@ -129,6 +137,120 @@ describe("video IPC", () => {
     electronMocks.handlers.clear();
     electronMocks.showSaveDialog.mockReset();
     electronMocks.netFetch.mockReset();
+  });
+
+  it.each(["canvas", "assistant"] as const)("uploads the %s reference, submits to the selected video channel and writes the result back", async (surface) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "tuda-video-reference-"));
+    const assets = new AssetStore(root);
+    const harness = makeHarness();
+    const providers: VideoProviderConfig[] = [
+      { id: "aipai", name: "AI派", type: "seedance-aipai", model: "doubao-seedance-2-0-260128", baseUrl: "https://aipai.test/v1" },
+      { id: "toapis", name: "ToAPIs", type: "seedance-toapis", model: "seedance-2", baseUrl: "https://toapis.test/v1" }
+    ];
+    const model = "Seedance 2.0";
+    const routing = { video: { defaultModel: model, models: [{ name: model,
+      channels: providers.map(provider => ({ providerId: provider.id, model: provider.model })) }] } };
+    const settings = { activeVideoProviderId: "aipai", videoProviders: providers, otherModelRouting: routing };
+    harness.settings.getSettings.mockReturnValue(settings);
+    harness.settings.resolveVideoProviderConnection.mockImplementation((provider?: VideoProviderConfig) => ({
+      baseUrl: provider!.baseUrl, apiKey: "fixture-" + provider!.id, connectionProviderId: provider!.id
+    }));
+    const fetcher = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(Response.json({ data: { url: "https://media.test/reference.png" } }))
+      .mockResolvedValueOnce(Response.json({ id: "remote-video", status: "queued" }))
+      .mockResolvedValueOnce(Response.json({ id: "remote-video", status: "completed", result: { data: [{ url: "https://media.test/result.mp4" }] } }))
+      .mockResolvedValueOnce(new Response("video-bytes", { headers: { "content-type": "video/mp4" } }));
+    const registration = registerVideoIpc({ ...harness, assets,
+      videoService: new VideoGenerationService([new SeedanceGatewayVideoProvider("seedance-toapis", fetcher)])
+    } as never);
+    try {
+      const bytes = Buffer.from("example-png");
+      const reference = (await assets.saveReferenceImageBytes([{ id: "reference", name: "reference.png", mimeType: "image/png", bytes }]))[0].path;
+      const args = { boardId: input.boardId, generationNodeId: input.generationNodeId,
+        prompt: "镜头缓慢向前", durationSeconds: 4, aspectRatio: "9:16", resolution: "480p" };
+      const start = (value: unknown) => electronMocks.handlers.get("video:start")!({}, value) as Promise<VideoGenerationJob>;
+      let job: VideoGenerationJob;
+      if (surface === "canvas") {
+        job = await start({ ...args, model, useVideoRouting: true, referenceImagePaths: [reference] });
+      } else {
+        const fixture = workspaceFixture();
+        fixture.mocks.getSettings.mockResolvedValue(settings);
+        fixture.mocks.startVideoGeneration.mockImplementation(start);
+        const [tool] = bindTudaAgentMediaTools([{
+          name: "generate_video", label: "视频生成", description: "", parameters: { type: "object", properties: {} },
+          execute: async (_id, request) => ({
+            content: [],
+            details: await fixture.commands.call("generate_video", request as Record<string, unknown>)
+          })
+        }] as Parameters<typeof bindTudaAgentMediaTools>[0], []);
+        const result = await tool.execute("tool-call",
+          { ...args, referenceImagePaths: [assets.toAssetUrl(reference)] }, undefined, undefined, {} as never);
+        job = (result.details as { job: VideoGenerationJob }).job;
+        await expect(start({ ...args, model, useVideoRouting: true,
+          referenceImagePaths: [new AssetStore(root).toAssetUrl(reference)]
+        })).rejects.toThrow("视频参考素材链接已失效");
+      }
+      expect(job).toMatchObject({ providerId: "toapis", model: "seedance-2", remoteTaskId: "remote-video",
+        input: { model, referenceImagePaths: [reference] } });
+      const [[uploadUrl, upload], [submitUrl, submit]] = fetcher.mock.calls;
+      expect(uploadUrl).toBe("https://toapis.test/v1/uploads/images");
+      expect(new Headers(upload?.headers).get("Authorization")).toBe("Bearer fixture-toapis");
+      const file = (upload?.body as FormData).get("file") as File;
+      expect(Buffer.from(await file.arrayBuffer())).toEqual(bytes);
+      expect(submitUrl).toBe("https://toapis.test/v1/videos/generations");
+      expect(JSON.parse(String(submit?.body))).toMatchObject({ model: "seedance-2", duration: 4, aspect_ratio: "9:16",
+        resolution: "480p", image_with_roles: [{ url: "https://media.test/reference.png", role: "reference_image" }] });
+      await vi.waitFor(() => expect(harness.jobs.get(job.id)).toMatchObject({ status: "completed" }));
+      expect(harness.boards.finishVideoGenerationNode).toHaveBeenCalledWith(args.boardId, args.generationNodeId,
+        expect.objectContaining({ jobId: job.id, node: expect.objectContaining({ videoPath: expect.stringMatching(/\.mp4$/) }) }));
+      expect(fetcher).toHaveBeenCalledTimes(4);
+    } finally {
+      registration.dispose();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    { resolution: "720p", rejection: undefined, providers: ["seedance-aipai"], status: "queued" },
+    { resolution: "720p", rejection: new ProviderError("RATE_LIMITED", "rate limit", 429), providers: ["seedance-aipai", "seedance-toapis"], status: "queued" },
+    { resolution: "720p", rejection: new ProviderError("CHANNEL_UNAVAILABLE", "no channel", 503), providers: ["seedance-aipai", "seedance-toapis"], status: "queued" },
+    { resolution: "1080p", rejection: undefined, providers: ["seedance-toapis"], status: "queued" },
+    { resolution: "480p", reference: "/managed/reference.png", rejection: undefined, providers: ["seedance-toapis"], status: "queued" },
+    { resolution: "720p", rejection: new ProviderError("TIMEOUT", "submit timeout"), providers: ["seedance-aipai"], status: "failed" }
+  ])("routes $resolution in configured order ($providers)", async ({ resolution, reference, rejection, providers, status }) => {
+    const harness = makeHarness();
+    const videoProviders: VideoProviderConfig[] = [
+      { id: "aipai", name: "AI派", type: "seedance-aipai", model: "sd-2-5", baseUrl: "https://aipai.test" },
+      { id: "toapis", name: "ToAPIs", type: "seedance-toapis", model: "seedance-2-5", baseUrl: "https://toapis.test" }
+    ];
+    const video = { defaultModel: "Seedance 2.5", models: [
+      { name: "Seedance 2.5", channels: videoProviders.map(({ id, model }) => ({ providerId: id, model })) }
+    ] };
+    harness.settings.getSettings.mockImplementation(() => ({
+      activeVideoProviderId: "aipai", videoProviders, otherModelRouting: { video }
+    }));
+    if (rejection) harness.service.submit.mockRejectedValueOnce(rejection);
+    const registration = registerVideoIpc(harness as never);
+    try {
+      const job = await electronMocks.handlers.get("video:start")!({}, {
+        ...input, useVideoRouting: true, model: "Seedance 2.5", resolution, providerId: undefined,
+        firstFramePath: undefined, lastFramePath: undefined, referenceImagePaths: reference ? [reference] : []
+      }) as VideoGenerationJob;
+      expect(job).toMatchObject({ status, input: { model: "Seedance 2.5" } });
+      expect(harness.service.submit.mock.calls.map(([request, config]) => ({
+        request, config
+      }))).toEqual(providers.map(provider => ({
+        request: expect.objectContaining({ resolution, ratio: "16:9", model: videoProviders.find(item => item.type === provider)?.model }),
+        config: expect.objectContaining({ provider })
+      })));
+      expect(job.providerId).toBe(providers.at(-1) === "seedance-toapis" ? "toapis" : "aipai");
+      if (reference) expect(harness.service.submit).toHaveBeenCalledWith(expect.objectContaining({
+        inputs: [expect.objectContaining({ role: "reference-image", bytes: Buffer.from(reference) })]
+      }), expect.objectContaining({ provider: "seedance-toapis" }));
+      if (status === "failed") expect(job.error).toContain("提交状态未确认");
+    } finally {
+      registration.dispose();
+    }
   });
 
   it("automatically retries a recoverable poll failure using the same remote task", async () => {
@@ -162,7 +284,7 @@ describe("video IPC", () => {
   });
   it("rejects a blank HappyHorse description before creating a task or output node", async () => {
     const harness = makeHarness({ provider: "openrouter" });
-    harness.settings.getSettings().videoProviders[0].models.push("alibaba/happyhorse-1.1");
+    harness.settings.getSettings().videoProviders[0].models!.push("alibaba/happyhorse-1.1");
     const registration = registerVideoIpc(harness as never);
     const start = electronMocks.handlers.get("video:start")!;
     await expect(start({}, { ...input, model: "alibaba/happyhorse-1.1", prompt: "  " }))

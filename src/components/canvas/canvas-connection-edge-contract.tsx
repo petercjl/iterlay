@@ -23,7 +23,7 @@ export interface CanvasConnectionBridge {
 }
 
 export type CanvasConnectionSelectionCommand =
-  | { type: "set-routing-kind"; kind: ConnectionRouteKind }
+  | { type: "set-routing-kind"; kind: Exclude<ConnectionRouteKind, "curved"> }
   | { type: "reset-routing" }
   | { type: "set-style"; style: Partial<BoardConnectionStyle> };
 

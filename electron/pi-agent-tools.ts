@@ -52,6 +52,7 @@ export function createTudaAgentTools(
   options: TudaAgentToolOptions = {},
   callBridge: LocalApiCall = callLocalApi
 ): AgentTool[] {
+  const pendingImages = new Map<string, string>();
   return listWorkspaceTools().map((definition) => {
     const name = stringValue(definition.name);
     const description = stringValue(definition.description);
@@ -67,7 +68,7 @@ export function createTudaAgentTools(
       execute: async (_toolCallId, rawArgs, signal) => {
         let args = isRecord(rawArgs) ? rawArgs : {};
         if (name === "generate_video" && args.textOnly !== true && !args.firstFramePath && !args.lastFramePath
-          && !(Array.isArray(args.referenceImagePaths) && args.referenceImagePaths.length)) {
+          && ![args.referenceImagePaths, args.referenceVideoPaths, args.referenceAudioPaths].some(value => Array.isArray(value) && value.length)) {
           args = { ...args,
             ...(options.referenceImagePaths?.length ? { referenceImagePaths: options.referenceImagePaths } : {}),
             ...(options.referenceNodeIds?.length ? { referenceNodeIds: options.referenceNodeIds } : {}) };
@@ -75,12 +76,31 @@ export function createTudaAgentTools(
         if (["generate_image", "edit_image"].includes(name) && options.conversationId) args = {...args, assistantConversationId: options.conversationId};
         assertBoardScope(name, args, options.boardId);
         const call = () => callBridge(userDataPath, name, options.preserveView ? { ...args, preserveView: true } : args);
-        let result = await call();
+        const signature = name === "generate_image" && args.useImageRouting === true
+          ? JSON.stringify([args.boardId, args.prompt, args.model, args.n, args.size, args.referencePaths])
+          : undefined;
+        if (signature && pendingImages.has(signature)) {
+          const original = pendingImages.get(signature)!;
+          throw new Error(`这个生图请求已提交，请查询原任务（${original}）。`);
+        }
+        if (signature) pendingImages.set(signature, "提交中");
+        let result: unknown;
+        try {
+          result = await call();
+          if (signature && isRecord(result) && typeof result.generationId === "string")
+            pendingImages.set(signature, result.generationId);
+        } catch (error) {
+          if (signature) pendingImages.delete(signature);
+          throw error;
+        }
         // Wait within one tool invocation instead of spending a Pi turn on each poll.
         const deadline = Date.now() + 30_000;
         while (name === "get_generation_status" && isRecord(result) && ["running", "queued"].includes(String(result.status)) && Date.now() < deadline) {
           await delay(1500, undefined, {signal});
           result = await call();
+        }
+        if (name === "get_generation_status" && isRecord(result) && ["failed", "cancelled", "succeeded"].includes(String(result.status))) {
+          for (const [params, id] of pendingImages) if (id === args.generationId) pendingImages.delete(params);
         }
         return {
           content: buildToolContent(result),

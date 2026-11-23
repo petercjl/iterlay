@@ -121,7 +121,7 @@ describe("connection interaction geometry", () => {
     expect(hasConnectionDragIntent({ x: 0, y: 0 }, { x: 3, y: 2 })).toBe(false);
     expect(hasConnectionDragIntent({ x: 0, y: 0 }, { x: 4, y: 0 })).toBe(true);
     expect(connectionBridgePath({ point: { x: 10, y: 20 }, orientation: "horizontal", radius: 4 }))
-      .toBe("M 6 20 Q 10 14.6 14 20");
+      .toBe("M 6 20 L 10 16 L 14 20");
     expect(connectionBridgeGapPath({ point: { x: 10, y: 20 }, orientation: "horizontal", radius: 4 }))
       .toBe("M 6 20 L 14 20");
   });

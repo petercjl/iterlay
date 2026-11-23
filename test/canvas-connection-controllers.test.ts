@@ -25,14 +25,14 @@ function node(id: string, type: string, x: number): Node {
   };
 }
 
-function videoGenerationNode(id = "video-generation", x = 500): Node {
+function videoGenerationNode(id = "video-generation", x = 500, requiresFirstLastFrame = true): Node {
   return {
     id,
     type: "videoGenerationNode",
     position: { x, y: 0 },
     width: 340,
     height: 596,
-    data: {}
+    data: { requiresFirstLastFrame }
   };
 }
 
@@ -89,6 +89,12 @@ afterEach(() => {
 });
 
 describe("free connection gesture lifecycle", () => {
+  it("snaps ordinary videos only to the visible reference inputs", () => {
+    const target = videoGenerationNode("ordinary", 500, false);
+    const source = node("source", "imageNode", 0);
+    expect(resolveVideoGenerationSemanticSnap({ x: 500, y: 126 }, source, "right", target, 36)).toBeUndefined();
+    expect(resolveVideoGenerationSemanticSnap({ x: 500, y: 212 }, source, "right", target, 36)?.handleId).toBe("target-reference");
+  });
   it.each([
     { sourceType: "imageNode", y: 126, handleId: "target-start-frame" },
     { sourceType: "imageNode", y: 169, handleId: "target-end-frame" },
@@ -503,7 +509,7 @@ describe("canvas connection controllers", () => {
     expect(store.ref.current).toHaveLength(2);
     expect(store.ref.current[1].data).toMatchObject({
       kind: "reference",
-      routing: { mode: "auto", kind: "curved", waypoints: [] }
+      routing: { mode: "auto", kind: "orthogonal", waypoints: [] }
     });
     act(() => mounted.root.unmount());
   });

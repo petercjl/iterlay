@@ -15,6 +15,7 @@ import { getImageWorkbenchApi, getWorkbenchErrorMessage } from "@/lib/image-work
 import { cn } from "@/lib/utils";
 import { getProviderModels } from "@shared/provider-models";
 import { formatModelPricing } from "@shared/model-pricing";
+import type { EnterpriseStatus } from "@shared/enterprise";
 import type {
   AppSettings,
   CodexAuthStatus,
@@ -67,6 +68,9 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 export interface ProviderSettingsDialogProps {
   open: boolean;
+  companyAccount?: boolean;
+  accountStatus?: EnterpriseStatus | null;
+  onRoutingSaved?: React.ComponentProps<typeof import("./ModelRoutingSettings").ModelRoutingSettings>["onRoutingSaved"];
   onOpenChange: (open: boolean) => void;
   entryPoint?: "default" | "provider-setup" | "model-management" | "coding-agent" | "assistant-permissions";
   onImportStarterBoard?: () => void;
@@ -157,7 +161,7 @@ export interface ProviderSettingsDialogProps {
   }) => Promise<void> | void;
 }
 
-export type Section = "provider" | "system" | "board" | "ai" | "pi-agent" | "agent";
+export type Section = "provider" | "models" | "system" | "board" | "ai" | "pi-agent" | "agent" | "account";
 
 export type TestState = { ok: boolean; message: string } | null;
 

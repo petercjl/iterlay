@@ -234,7 +234,7 @@ describe("connection routing persistence", () => {
 
   it.each([
     ["straight", "M 0 0 L 100 100"],
-    ["curved", "M 0 0 Q 50 0 100 100"],
+    ["curved", "M 0 0 L 50 0 L 50 100 L 100 100"],
     ["orthogonal", "M 0 0 L 50 0 L 50 100 L 100 100"]
   ] as const)("resolves %s routes", (kind, expectedPath) => {
     const route = resolveConnectionRoute({
@@ -296,7 +296,7 @@ describe("connection waypoint editing", () => {
     expect(deleteConnectionWaypoint(moved, "new").waypoints.map((point) => point.id)).toEqual(["a", "b"]);
   });
 
-  it("materializes a visible manual waypoint when directly dragging an automatic curve", () => {
+  it("keeps a converted automatic route editable as an orthogonal route", () => {
     const curved = resolveConnectionRoute({
       source: { x: 150, y: 390, side: "bottom" },
       target: { x: 340, y: 540, side: "left" },
@@ -309,13 +309,15 @@ describe("connection waypoint editing", () => {
       { x: 184, y: 430 },
       "dragged-curve"
     );
+    const moved = moveConnectionWaypoint(inserted, "dragged-curve", { x: 184, y: 430 });
     const resolved = resolveConnectionRoute({
       source: { x: 150, y: 390, side: "bottom" },
       target: { x: 340, y: 540, side: "left" },
-      routing: inserted
+      routing: moved
     });
 
     expect(inserted.mode).toBe("manual");
+    expect(inserted.kind).toBe("orthogonal");
     expect(inserted.waypoints.some((waypoint) => waypoint.id === "dragged-curve")).toBe(true);
     expect(resolved.path).not.toBe(curved.path);
   });

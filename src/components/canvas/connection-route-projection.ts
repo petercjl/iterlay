@@ -319,7 +319,7 @@ export function migrateLegacyConnectionEdges(
     const descriptor = descriptorById.get(edge.id);
     const data = (edge.data ?? {}) as PersistedCanvasConnectionEdgeData;
     if (!descriptor) return edge;
-    const routing = !data.routing && Number.isFinite(data.routeCoordinate)
+    const routing = data.routing?.kind === "curved" || (!data.routing && Number.isFinite(data.routeCoordinate))
       ? descriptor.route.routing
       : data.routing;
     const labelAnchor = !data.labelAnchor && data.labelProgress === undefined && data.labelPosition

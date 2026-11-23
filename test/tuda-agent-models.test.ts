@@ -2,8 +2,10 @@
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { describe, expect, it, vi } from "vitest";
-import { defaultTudaTextProvider, toapisAgentProvider } from "../shared/tuda-models";
+import { defaultTudaTextProvider, resolveAgentImageProvider } from "../shared/tuda-models";
 import { TextModelPicker } from "../src/components/workbench/TextModelPicker";
+import { assistantTextModelOptions } from "../src/lib/text-provider-readiness";
+import { COMMUNITY_TEXT_PROVIDER } from "../shared/community-providers";
 import { bindTudaAgentMediaTools } from "../electron/agents/media-tools";
 import type { TextProviderConfig, ProviderConfig } from "../shared/types";
 import type { ToolDefinition } from "../electron/agents/coding-runtime";
@@ -35,21 +37,54 @@ describe("Tuda Agent model selection", () => {
       expect(container.textContent).toContain("Claude");
     } finally { await act(async () => root.unmount()); }
   });
-  it("requires a user-selected authorized ToAPIs image model", () => {
-    expect(() => toapisAgentProvider(images, undefined)).toThrow("询问用户");
-    expect(() => toapisAgentProvider(images, "other")).toThrow("授权目录");
-    expect(toapisAgentProvider(images, "doubao-seedream-5-5").id).toBe(images[0].id);
+  it("lists a managed model once under Shanhai and omits the unconfigured built-in provider", async () => {
+    const primary = { ...providers[0], id: "company-text/sync/primary", managed: true };
+    const backup = { ...primary, id: "company-text/sync/backup", model: "backup-upstream" };
+    const personal = { ...providers[2], id: "personal", baseUrl: "https://local.example.com" };
+    const routing = { text: { defaultModel: "公司写作", models: [
+      { name: "公司写作", channels: [primary, backup].map(({ id: providerId, model }) => ({ providerId, model })) }
+    ] } };
+    const keys = { [backup.id]: true, [personal.id]: true };
+    const options = assistantTextModelOptions(routing, [primary, backup, COMMUNITY_TEXT_PROVIDER], keys, backup.id);
+    expect(options.map(({ id }) => id)).toEqual(["text-route/" + encodeURIComponent("公司写作")]);
+    expect(assistantTextModelOptions(routing, [primary, backup, personal], keys, backup.id).map(({ id }) => id))
+      .toEqual([options[0].id, personal.id]);
+    const container = document.body.appendChild(document.createElement("div"));
+    const root = createRoot(container);
+    const select = vi.fn();
+    try {
+      await act(async () => root.render(createElement(TextModelPicker, {
+        providers: options, activeProviderId: options[0].id, onManage: vi.fn(), onSelect: select
+      })));
+      const button = container.querySelector('button')!;
+      expect(button.textContent).toBe("公司写作");
+      await act(async () => button.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })));
+      const group = document.querySelector('[role="group"][aria-label="山海管理"]');
+      const items = [...group!.querySelectorAll<HTMLElement>('[role="menuitem"]')];
+      expect(items.map(item => item.textContent)).toEqual(["公司写作"]);
+      await act(async () => items[0].click());
+      expect(select).toHaveBeenCalledWith(options[0].id);
+    } finally { await act(async () => root.unmount()); container.remove(); }
   });
-  it("routes image calls by conversational model choice and keeps video tools", async () => {
+  it("requires a selected image model and disambiguates models available from multiple services", () => {
+    expect(() => resolveAgentImageProvider(images, undefined)).toThrow("询问用户");
+    expect(() => resolveAgentImageProvider(images, "missing")).toThrow("授权目录");
+    expect(resolveAgentImageProvider(images, "other").id).toBe(images[1].id);
+    expect(resolveAgentImageProvider(images, "doubao-seedream-5-5").id).toBe(images[0].id);
+    const secondService = { ...images[1], model: images[0].model };
+    const sharedModel = [images[0], secondService];
+    expect(() => resolveAgentImageProvider(sharedModel, secondService.model)).toThrow();
+    expect(resolveAgentImageProvider(sharedModel, secondService.model, secondService.id)).toBe(secondService);
+  });
+  it("lets both Agent entry points use configured image and video routing", async () => {
     const execute = vi.fn(async (...args: unknown[]) => { void args; return { content: [{ type: "text", text: "submitted" }], details: {} }; });
     const original = { name: "generate_image", label: "Generate", description: "Generate", parameters: { type: "object", properties: {} }, execute } as unknown as ToolDefinition;
     const video = { ...original, name: "generate_video" };
     const [imageTool, videoTool] = bindTudaAgentMediaTools([original, video], images);
-    expect((imageTool.parameters as { required: string[] }).required).toContain("model");
-    await imageTool.execute("call", { model: "doubao-seedream-5-5", prompt: "用户描述", providerId: "old-ui-choice" }, undefined, undefined, {} as never);
-    expect(execute.mock.calls[0]?.[1]).toEqual({ model: "doubao-seedream-5-5", prompt: "用户描述", providerId: images[0].id });
-    expect(videoTool).toBe(video);
-    await expect(imageTool.execute("bad", { prompt: "missing model" }, undefined, undefined, {} as never)).rejects.toThrow("询问用户");
-    expect(execute).toHaveBeenCalledTimes(1);
+    expect((imageTool.parameters as { required: string[] }).required).not.toContain("model");
+    await imageTool.execute("call", { prompt: "用户描述", providerId: images[0].id }, undefined, undefined, {} as never);
+    expect(execute.mock.calls[0]?.[1]).toEqual({ prompt: "用户描述", useImageRouting: true });
+    await videoTool.execute("video-call", { prompt: "视频描述", model: "Seedance 2.5", providerId: "ignored" }, undefined, undefined, {} as never);
+    expect(execute.mock.calls[1]?.[1]).toEqual({ prompt: "视频描述", model: "Seedance 2.5", useVideoRouting: true });
   });
 });

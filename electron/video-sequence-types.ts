@@ -50,7 +50,7 @@ export interface VideoSequenceTask {
   /** Optional only for reading legacy tasks; new tasks always persist it. */
   inputSnapshot?: VideoSegmentInputSnapshot;
   providerName?: string;
-  remoteProviderType?: "official" | "ark" | "fal" | "openrouter" | "minimax";
+  remoteProviderType?: import("../shared/contracts/providers.js").VideoProviderType;
   remoteTaskId?: string;
   remoteStatusUrl?: string;
   remoteResponseUrl?: string;

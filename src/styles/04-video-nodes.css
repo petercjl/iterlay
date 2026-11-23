@@ -144,7 +144,7 @@
 }
 
 .video-node-placeholder strong { color: white; font-size: 12px; }
-.video-node-placeholder span { max-width: 230px; font-size: 10px; line-height: 1.5; }
+.video-node-placeholder span { max-width: min(100%, 230px); overflow-wrap: anywhere; font-size: 10px; line-height: 1.5; }
 
 .video-node-progress-overlay {
   position: absolute;

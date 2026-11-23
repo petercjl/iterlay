@@ -9,6 +9,7 @@ import { ArkVideoProvider } from "./providers/video-ark.js";
 import { FalVideoProvider } from "./providers/video-fal.js";
 import { MiniMaxVideoProvider } from "./providers/video-minimax.js";
 import { OpenRouterVideoProvider } from "./providers/video-openrouter.js";
+import { SeedanceGatewayVideoProvider } from "./providers/video-seedance-gateway.js";
 import type {
 DownloadedVideo,
 VideoCancelResult,
@@ -49,7 +50,7 @@ export class VideoGenerationService {
   private readonly providers: Map<VideoRemoteTask["provider"], VideoProvider>;
 
   constructor(
-    providers: VideoProvider[] = [new ArkVideoProvider(), new FalVideoProvider(), new OpenRouterVideoProvider(), new MiniMaxVideoProvider()],
+    providers: VideoProvider[] = defaultVideoProviders(),
     private readonly normalizeSubmitInput: VideoSubmitInputNormalizer = (input) => input
   ) {
     this.providers = new Map(providers.map((provider) => [provider.capability.provider, provider]));
@@ -148,7 +149,8 @@ export class VideoGenerationService {
 }
 
 export function defaultVideoProviders(): VideoProvider[] {
-  return [new ArkVideoProvider(), new FalVideoProvider(), new OpenRouterVideoProvider(), new MiniMaxVideoProvider()];
+  return [new ArkVideoProvider(), new FalVideoProvider(), new OpenRouterVideoProvider(), new MiniMaxVideoProvider(),
+    new SeedanceGatewayVideoProvider("seedance-aipai"), new SeedanceGatewayVideoProvider("seedance-toapis")];
 }
 
 function taskError(error: unknown, task: VideoRemoteTask, forceRecoverable = false): VideoTaskServiceError {

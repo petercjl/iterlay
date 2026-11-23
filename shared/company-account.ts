@@ -1,6 +1,7 @@
 /** Public company contract. Credentials belong exclusively to the main process. */
 export type CompanyTextProtocol =
   "anthropic-messages" | "openai-responses" | "openai-chat-completions";
+export type CompanyStorageMode = "hosted" | "nas" | "self-hosted";
 export interface CompanyIdentity {
   avatarUrl?: string;
   id: string;
@@ -8,6 +9,7 @@ export interface CompanyIdentity {
 }
 export interface CompanySession {
   accountKind?: "password";
+  legacyWorkspace?: true;
   contract: 1;
   appId: "tuda";
   sessionId: string;
@@ -77,6 +79,8 @@ export interface CompanyBootstrap {
   };
   storage: {
     enabled: boolean;
+    mode?: CompanyStorageMode;
+    endpoint?: string;
     reason?: string;
     audience?: "tuda-nas";
     scopes?: string[];

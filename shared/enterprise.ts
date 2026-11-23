@@ -1,3 +1,5 @@
+import type { CompanyStorageMode } from "./company-account.js";
+
 export type SpaceKind = "personal" | "enterprise";
 export type EnterpriseRole = "admin" | "editor" | "viewer";
 export interface EnterpriseMember { avatarUrl?: string; id: string; name: string; role: EnterpriseRole }
@@ -9,7 +11,9 @@ export interface EnterprisePresence extends EnterpriseMember {
 }
 export interface EnterpriseStatus {
   accountMode?: "shared";
-  accountKind?: "password";
+  accountProvider?: "omni";
+  enterpriseStorageAuthorized?: boolean;
+  storageSource?: CompanyStorageMode;
   accountNickname?: string;
   storageKind?: "nas" | "local";
   localFolder?: string;

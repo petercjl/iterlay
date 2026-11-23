@@ -165,12 +165,14 @@ export function useCanvasViewportController({
         const bottomInset = getSelectionBottomInset
           ? getSelectionBottomInset()
           : defaultSelectionBottomInset(containerRef.current);
-        void fitView({
-          nodes: [target],
-          padding: resolveCanvasSelectionFitPadding(bottomInset),
-          duration: 500,
-          maxZoom: DEFAULT_CANVAS_CONTENT_ZOOM
-        });
+        const rect = containerRef.current?.getBoundingClientRect();
+        const width = nodeRenderedWidth(target);
+        const height = nodeRenderedHeight(target);
+        const inset = rect?.height ? Math.min(bottomInset, rect.height / 2) : 0;
+        const zoom = rect?.width && rect.height
+          ? Math.min(DEFAULT_CANVAS_CONTENT_ZOOM, 0.88 * rect.width / width, 0.88 * (rect.height - inset) / height)
+          : DEFAULT_CANVAS_CONTENT_ZOOM;
+        void setCenter(target.position.x + width / 2, target.position.y + height / 2 + inset / (2 * zoom), { zoom, duration: 500 });
         return;
       }
       const targetZoom = resolveCanvasFocusZoom(getViewport().zoom);
@@ -183,7 +185,7 @@ export function useCanvasViewportController({
       cancelAnimationFrame(focusFrameRef.current);
       focusFrameRef.current = null;
     };
-  }, [containerRef, fitView, focusKey, focusNonce, getNodes, getSelectionBottomInset, getViewport, setCenter, updateNodes]);
+  }, [containerRef, focusKey, focusNonce, getNodes, getSelectionBottomInset, getViewport, setCenter, updateNodes]);
 
   useEffect(() => {
     const currentSelectionTargetIds = selectionTargetIdsRef.current;

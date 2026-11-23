@@ -3,6 +3,7 @@ import { assertGenerateImageInput } from "../../shared/input-validation.js";
 import { imageProviderCapabilities } from "../../shared/provider-capabilities.js";
 import { createGenerationInputSnapshot } from "../../shared/generation-history.js";
 import { Semaphore } from "../providers/concurrency.js";
+import { agentImageChannels, generateWithImageRouting } from "./agent-image-routing.js";
 
 import { GenerateImageInput, GenerateResponse, GenerationJob, ImageGenerationCancelResult, ProviderConfig, ProviderGenerateInput } from "../../shared/types.js";
 
@@ -11,7 +12,7 @@ import { executionContext } from "../execution-space.js";
 
 import { ManagerProductAnalyticsClient } from "../product-analytics-client.js";
 
-import { normalizeProviderError } from "../providers/errors.js";
+import { ImageSubmissionError, normalizeProviderError } from "../providers/errors.js";
 
 import { AssetStore, decodeImageBase64, MAX_MANAGED_IMAGE_BYTES } from "../storage/asset-store.js";
 
@@ -64,7 +65,7 @@ export function createImageGenerationCommand(dependencies: ImageGenerationDepend
   interface TaskControl { abort: AbortController; submitted: boolean; jobId?: string }
   const concurrency = new Semaphore(3);
   const controls = new Map<string, TaskControl>();
-  const work = async (input: GenerateImageInput, requestHash: string, control: TaskControl): Promise<GenerateResponse> => {
+  const work = async (input: GenerateImageInput, requestHash: string, control: TaskControl, routed = false): Promise<GenerateResponse> => {
     assertGenerateImageInput(input);
     const currentSettings = settings.getSettings();
     if (input.idempotencyKey) {
@@ -124,7 +125,7 @@ export function createImageGenerationCommand(dependencies: ImageGenerationDepend
 
     const references = input.sceneOnly ? [] : await assets.saveReferenceImageBytes(decodedReferences);
     const model =
-      currentProvider.type === "fal" && input.referenceImages.length > 0
+      !routed && currentProvider.type === "fal" && input.referenceImages.length > 0
         ? currentProvider.referenceModel?.trim() || currentProvider.model.trim()
         : input.model.trim() || currentProvider.model.trim();
     const jobBase: GenerationJob = {
@@ -178,7 +179,8 @@ export function createImageGenerationCommand(dependencies: ImageGenerationDepend
 
     try {
       const providerInput: ProviderGenerateInput = {
-        clientRequestId: paidProviderClientRequestId(input) ?? (currentProvider.transport === "toapiscli" ? jobId : undefined),
+        clientRequestId: input.recoverImageSubmission ? input.clientTaskId : paidProviderClientRequestId(input) ?? (currentProvider.transport === "toapiscli" ? jobId : undefined),
+        recoverImageSubmission: input.recoverImageSubmission,
         workflowMode: input.workflowMode,
         useCase: input.useCase,
         prompt: input.prompt,
@@ -203,7 +205,16 @@ export function createImageGenerationCommand(dependencies: ImageGenerationDepend
         // the provider call; once submitted, this controller never claims to stop remote billing.
         if (control.abort.signal.aborted) throw control.abort.signal.reason;
         control.submitted = true;
-        return selectedProvider.generate(providerInput, currentProvider, apiKey);
+        try {
+          return await selectedProvider.generate(providerInput, currentProvider, apiKey);
+        } catch (error) {
+          if (input.recoverImageSubmission && !(error instanceof ImageSubmissionError)) {
+            const normalized = normalizeProviderError(error);
+            if ([400, 401, 402, 403, 404, 413, 415, 422, 429].includes(normalized.status ?? 0))
+              throw new ImageSubmissionError("rejected", normalized.code, normalized.message, normalized.status);
+          }
+          throw error;
+        }
       }, { signal: control.abort.signal });
       const completedAt = new Date().toISOString();
       const sceneResults = input.sceneOnly
@@ -275,7 +286,7 @@ export function createImageGenerationCommand(dependencies: ImageGenerationDepend
     } catch (error) {
       const normalized = normalizeProviderError(error);
       const cancelled = !control.submitted && control.abort.signal.aborted;
-      const unknown = control.submitted && (error instanceof TypeError || normalized.status === undefined);
+      const unknown = control.submitted && (error instanceof ImageSubmissionError ? error.outcome === "unknown" : error instanceof TypeError || normalized.status === undefined);
       const status = cancelled ? "cancelled" : unknown ? "unknown" : "failed";
       const message = cancelled
         ? "已取消排队任务，尚未发送到 Provider。"
@@ -288,7 +299,7 @@ export function createImageGenerationCommand(dependencies: ImageGenerationDepend
         error: message
       };
       if (!input.sceneOnly) await history.updateJob(failedJob);
-      if (!input.sceneOnly && input.boardId && input.generationNodeId) {
+      if (!routed && !input.sceneOnly && input.boardId && input.generationNodeId) {
         await boards.finishGenerationNode(input.boardId, input.generationNodeId, {
           error: message
         });
@@ -301,14 +312,30 @@ export function createImageGenerationCommand(dependencies: ImageGenerationDepend
         content: input.prompt,
         jobId
       });
+      if (error instanceof ImageSubmissionError && !cancelled) throw new ImageSubmissionError(error.outcome, error.code, message, error.status);
       throw Object.assign(new Error(message), { name: cancelled ? "GenerationCancelledError" : unknown ? "GenerationUnknownError" : normalized.name, code: cancelled ? "GENERATION_CANCELLED" : unknown ? "GENERATION_UNKNOWN" : normalized.code });
+    }
+  };
+  const runRouted = async (input: GenerateImageInput, hash: string, control: TaskControl): Promise<GenerateResponse> => {
+    try {
+      const channels = agentImageChannels({ ...settings.getSettings(), providerKeyStatus: settings.getKeyStatus() }, {
+        model: input.model, count: input.n, references: input.referenceImages.length, transparent: input.background === "transparent"
+      });
+      return await generateWithImageRouting(channels, input, attempt => work(attempt, hash, control, true));
+    } catch (error) {
+      await boards.finishGenerationNode(input.boardId!, input.generationNodeId!, { error: normalizeProviderError(error).message });
+      throw error;
     }
   };
   const inFlight = new Map<string, { hash: string; promise: Promise<GenerateResponse> }>();
   const scopedId=(id:string)=>JSON.stringify([executionContext(),id]);
   const command = async (request: GenerateImageInput): Promise<GenerateResponse> => {
     assertGenerateImageInput(request);
-    const input = { ...request, providerId: request.providerId ?? settings.getSettings().activeProviderId };
+    const routed = request.useImageRouting === true;
+    if (routed && (!request.boardId || !request.generationNodeId || request.workflowMode !== "generate" || request.sceneOnly || request.idempotencyKey))
+      throw new Error("仅画板图片生成节点可按模型渠道提交。");
+    const input = { ...request, providerId: routed ? undefined : request.providerId ?? settings.getSettings().activeProviderId,
+      clientTaskId: request.clientTaskId ?? (routed ? crypto.randomUUID() : undefined) };
     if (input.clientTaskId && !/^[a-zA-Z0-9-]{1,100}$/u.test(input.clientTaskId)) throw new Error("任务 ID 无效。");
     const rawKey = input.idempotencyKey ?? input.clientTaskId;
     const key = rawKey ? scopedId(rawKey) : undefined;
@@ -321,7 +348,7 @@ export function createImageGenerationCommand(dependencies: ImageGenerationDepend
     }
     const control: TaskControl = { abort: new AbortController(), submitted: false };
     if (controlKey) controls.set(controlKey, control);
-    const task = work(input, hash, control);
+    const task = routed ? runRouted(input, hash, control) : work(input, hash, control);
     void task.finally(() => {
       if (controlKey && controls.get(controlKey) === control) controls.delete(controlKey);
     }).catch(() => undefined);

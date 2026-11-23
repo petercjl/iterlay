@@ -1,6 +1,31 @@
 import { describe, expect, it, vi } from "vitest";
 import { workspaceFixture } from "./helpers/workspace-fixture";
+import { seedanceGatewayModelOption } from "../shared/video-provider-models";
 describe("typed workspace video commands", () => {
+  it("passes the configured model and preserves chat reference and quality inputs", async () => {
+    const f = workspaceFixture();
+    f.mocks.getSettings.mockResolvedValue({ providerKeyStatus: { aipai: true, toapis: true },
+      otherModelRouting: { video: { defaultModel: "Seedance 2.5", models: [{ name: "Seedance 2.5",
+        channels: [{ providerId: "aipai", model: "sd-2-5" }, { providerId: "toapis", model: "seedance-2-5" }]
+      }] } },
+      videoProviders: [{ id: "aipai", type: "seedance-aipai", model: "sd-2-5", modelOptions: [seedanceGatewayModelOption("seedance-aipai", "sd-2-5")] },
+        { id: "toapis", type: "seedance-toapis", model: "seedance-2-5", modelOptions: [seedanceGatewayModelOption("seedance-toapis", "seedance-2-5")] }] });
+    f.mocks.startVideoGeneration.mockResolvedValue({ id: "video", status: "completed" });
+    await f.commands.call("generate_video", { boardId: "board", prompt: "text only", useVideoRouting: true });
+    expect(f.mocks.startVideoGeneration).toHaveBeenLastCalledWith(expect.objectContaining({
+      useVideoRouting: true, model: "Seedance 2.5", referenceImagePaths: []
+    }));
+    await f.commands.call("generate_video", { boardId: "board", prompt: "animate reference", model: "Seedance 2.5", useVideoRouting: true,
+      referenceImagePaths: ["/managed/source.png"], firstFramePath: "/managed/source.png", lastFramePath: "/managed/other.png" });
+    expect(f.mocks.startVideoGeneration).toHaveBeenLastCalledWith(expect.objectContaining({
+      useVideoRouting: true, model: "Seedance 2.5", referenceImagePaths: ["/managed/source.png", "/managed/other.png"],
+      firstFramePath: undefined, lastFramePath: undefined
+    }));
+    await f.commands.call("generate_video", { boardId: "board", prompt: "HD video", resolution: "1080p", useVideoRouting: true });
+    expect(f.mocks.startVideoGeneration).toHaveBeenLastCalledWith(expect.objectContaining({
+      useVideoRouting: true, model: "Seedance 2.5", resolution: "1080p"
+    }));
+  });
   it("passes typed media references to the video service", async () => {
     const f = workspaceFixture();
     f.mocks.startVideoGeneration.mockResolvedValue({ id: "video", status: "queued" });

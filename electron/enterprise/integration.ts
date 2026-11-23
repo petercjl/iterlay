@@ -10,11 +10,12 @@ import { setCommandRouter } from "../renderer-security.js";
 import { flushWindow } from "../window-lifecycle.js";
 import { ENTERPRISE_ASSET_PREFIX } from "../../shared/enterprise.js";
 import { boardStoragePaths } from "../domain/board-model.js";
-import type { SettingsStore } from "../storage/settings-store.js";
+import { SettingsStore } from "../storage/settings-store.js";
 import type { BoardStore } from "../storage/board-store.js";
 import type { AssetStore } from "../storage/asset-store.js";
 import { buildBoardArchive, parseBoardArchive } from "../board-archive.js";
-import type { BoardData } from "../../shared/types.js";
+import type { AppSettingsPatch, BoardData } from "../../shared/types.js";
+import { isCompanyModelChannel as companyModel } from "../../shared/contracts/providers.js";
 import type { CompanyDesktop } from "../company/desktop.js";
 
 export async function createEnterpriseClient(userData: string) {
@@ -27,19 +28,88 @@ export async function createEnterpriseClient(userData: string) {
   await client.initialize(); return client;
 }
 
-const providerFields = ["providers", "activeProviderId", "textProviders", "activeTextProviderId", "videoProviders", "activeVideoProviderId", "audioProviders", "activeAudioProviderId", "apiKeyByProviderId", "defaultCliBoardId", "memoryEnabled"];
+const providerFields = ["imageRouting", "otherModelRouting", "providers", "activeProviderId", "textProviders", "activeTextProviderId", "videoProviders", "activeVideoProviderId", "audioProviders", "activeAudioProviderId", "apiKeyByProviderId", "defaultCliBoardId", "memoryEnabled"];
 export function enterpriseSettings(local: SettingsStore, client: EnterpriseClient, company?: CompanyDesktop): SettingsStore {
-  const overlay = () => company?.enabled ? company.overlaySettings(local.getSettings()) : client.overlaySettings(local.getSettings());
-  const managed = () => Boolean(company?.enabled && company.account.authenticated);
+  const stores = new Map<string, SettingsStore>();
+  const managed = () => {
+    if (company?.enabled && executionContext().account) company.assertAccount();
+    return Boolean(company?.enabled && company.account.authenticated);
+  };
+  const modelStore = () => {
+    company!.assertAccount();
+    const id = company!.namespace!;
+    let store = stores.get(id);
+    if (!store) {
+      store = new SettingsStore(path.join(company!.userData, "account-models", id));
+      stores.set(id, store);
+    }
+    return store;
+  };
+  const overlay = () => company?.enabled
+    ? company.overlaySettings(local.getSettings(), modelStore().getSettings())
+    : client.overlaySettings(local.getSettings());
   return new Proxy(local, { get(target, property) {
     if (property === "getSettings") return () => managed() || executionSpace() === "enterprise" ? overlay() : target.getSettings();
-    if (property === "getApiKey") return (id?: string) => managed() ? company!.token(id) : executionSpace() === "enterprise" ? company?.enabled ? company.token(id) : client.providerToken(id) : target.getApiKey(id);
-    if (property === "getKeyStatus") return () => managed() ? Object.fromEntries([...overlay().providers,...overlay().textProviders].map(p=>[p.id,Boolean(company!.token(p.id))])) : executionSpace() === "enterprise" ? client.providerKeyStatus() : target.getKeyStatus();
+    if (property === "getApiKey") return (id?: string) => {
+      if (!managed()) return executionSpace() === "enterprise" ? client.providerToken(id) : target.getApiKey(id);
+      const selected = id ?? overlay().activeProviderId;
+      return companyModel(selected) ? company!.token(selected) : modelStore().getApiKey(selected);
+    };
+    if (property === "resolveVideoProviderConnection") return (provider: Parameters<SettingsStore["resolveVideoProviderConnection"]>[0]) => {
+      if (!managed()) return target.resolveVideoProviderConnection(provider);
+      const id = typeof provider === "string" ? provider : provider.id;
+      if (!companyModel(id)) return modelStore().resolveVideoProviderConnection(provider);
+      const channel = company!.account.managedModels?.videoProviders.find(item => item.id === id);
+      if (!channel) throw new Error("当前企业视频渠道不可用，请同步模型配置。");
+      return { baseUrl: channel.baseUrl, apiKey: company!.token(id), connectionProviderId: id };
+    };
+    if (property === "getKeyStatus") return () => {
+      if (!managed()) return executionSpace() === "enterprise" ? client.providerKeyStatus() : target.getKeyStatus();
+      const current = overlay();
+      const keys = modelStore().getKeyStatus();
+      return Object.fromEntries([...current.providers, ...current.textProviders, ...current.videoProviders, ...current.audioProviders ?? []].map(p =>
+        [p.id, companyModel(p.id) ? Boolean(company!.token(p.id)) : Boolean(keys[p.id])]));
+    };
+    if (property === "setApiKey") return (id: string, key: string) => {
+      if (!managed()) return target.setApiKey(id, key);
+      const store = modelStore();
+      const { providers, textProviders, videoProviders, audioProviders } = store.getSettings();
+      if (companyModel(id) || ![...providers, ...textProviders, ...videoProviders, ...audioProviders ?? []].some(p => p.id === id))
+        throw new Error("只能修改本机模型服务的 API Key。");
+      return store.setApiKey(id, key);
+    };
+    if (property === "transaction") return <T>(update: () => T | Promise<T>) => {
+      if (!managed()) return target.transaction(update);
+      const store = modelStore();
+      return target.transaction(() => store.transaction(update));
+    };
     if (property === "hasSavedSettings") return () => managed() || executionSpace() === "enterprise" || target.hasSavedSettings();
     if (property === "saveSettings" || property === "updateSettings") return async (value: Record<string, unknown>) => {
       const next = { ...value };
+      if (managed()) {
+        const store = modelStore();
+        const patch = value as AppSettingsPatch;
+        const image = patch.providers?.filter(p => !companyModel(p.id)).map(p => ({ ...p, transport: undefined }));
+        const text = patch.textProviders?.filter(p => !companyModel(p.id)).map(p => ({ ...p, transport: undefined, managed: undefined }));
+        if ([...(image ?? []), ...(text ?? [])].some(p => p.type === "codex-oauth"))
+          throw new Error("请为本机模型填写服务地址和 API Key。");
+        if (providerFields.some(key => next[key] !== undefined)) {
+          store.updateSettings({
+            ...(image ? { providers: image } : {}),
+            ...(patch.imageRouting !== undefined ? { imageRouting: patch.imageRouting } : {}),
+            ...(patch.otherModelRouting !== undefined ? { otherModelRouting: patch.otherModelRouting } : {}),
+            ...(text ? { textProviders: text } : {}),
+            ...(typeof patch.activeProviderId === "string" && !companyModel(patch.activeProviderId) ? { activeProviderId: patch.activeProviderId } : {}),
+            ...(typeof patch.activeTextProviderId === "string" && !companyModel(patch.activeTextProviderId) ? { activeTextProviderId: patch.activeTextProviderId } : {}),
+            ...(patch.videoProviders !== undefined ? { videoProviders: patch.videoProviders.filter(p => !companyModel(p.id)) } : {}),
+            ...(patch.activeVideoProviderId !== undefined && !companyModel(patch.activeVideoProviderId) ? { activeVideoProviderId: patch.activeVideoProviderId } : {}),
+            ...(patch.audioProviders !== undefined ? { audioProviders: patch.audioProviders.filter(p => !companyModel(p.id)) } : {}),
+            ...(patch.activeAudioProviderId !== undefined && !companyModel(patch.activeAudioProviderId) ? { activeAudioProviderId: patch.activeAudioProviderId } : {}),
+          });
+          await company!.selectModels(value);
+        }
+      }
       if (managed() || executionSpace() === "enterprise") {
-        if(company?.enabled) await company.selectModels(value);
         const original = target.getSettings() as unknown as Record<string, unknown>;
         for (const key of providerFields) if (key in next) { if (property === "saveSettings") next[key] = original[key]; else delete next[key]; }
       }
@@ -57,7 +127,7 @@ function remapPaths(value: unknown, mapping: Map<string, string>): unknown {
   return value;
 }
 
-export function registerEnterprise(client: EnterpriseClient, localBoards: BoardStore, assets: AssetStore, settings: SettingsStore, company?: CompanyDesktop) {
+export function registerEnterprise(client: EnterpriseClient, localBoards: BoardStore, assets: AssetStore, settings: SettingsStore, company?: CompanyDesktop, foreground?: () => void) {
   // CompanyDesktop publishes the composed identity + NAS state. Raw NAS events
   // must not replace the company session consumed by the global login gate.
   const publishLegacyState = (value: import("../../shared/enterprise.js").EnterpriseStatus) => {
@@ -69,14 +139,37 @@ export function registerEnterprise(client: EnterpriseClient, localBoards: BoardS
   ipcMain.handle("enterprise:profile", (_event, nickname: unknown) => { if (!company?.enabled) throw new Error("请先登录公司账号。"); return company.updateProfile(nickname); });
   ipcMain.handle("enterprise:status", () => company?.status ?? client.status);
   ipcMain.handle("enterprise:configure", (_event, url: string) => company ? company.configure(url) : client.configure(url));
-  ipcMain.handle("enterprise:login", async (_event, options?: {refreshProfile?: boolean; username?: string; password?: string}) => {
-    if (options?.username !== undefined || options?.password !== undefined) {
-      if (!company || typeof options.username !== "string" || typeof options.password !== "string" || options.username.length > 64 || options.password.length > 128) throw new Error("账号或密码格式无效。");
-      await company.passwordLogin(options.username, options.password); return { expiresAt: new Date().toISOString() };
+  ipcMain.handle("enterprise:login", async (_event, options?: { refreshProfile?: boolean; useBrowser?: boolean }) => {
+    if (options !== undefined && (!options || typeof options !== "object" || Array.isArray(options)
+      || Object.entries(options).some(([key, value]) => !["refreshProfile", "useBrowser"].includes(key) || typeof value !== "boolean")
+      || (options.useBrowser && options.refreshProfile)))
+      throw new Error("请通过山海授权登录。");
+    if (!company) throw new Error("山海账号服务尚未配置，请联系管理员。");
+    if (options?.useBrowser) {
+      await shell.openExternal(company.account.pendingBrowserAuthorization());
+      return { surface: "browser" as const };
     }
-    const login = await (company?.beginLogin(options?.refreshProfile === true) ?? client.beginLogin()); await shell.openExternal(login.authorizeUrl); return { expiresAt: login.expiresAt };
+    const login = await company.beginLogin(options?.refreshProfile === true);
+    const scheme = app.isPackaged ? "shanhai-omni" : "shanhai-omni-dev";
+    const desktopUrl = `${scheme}://authorize?request=${encodeURIComponent(login.requestId)}`;
+    try {
+      if (app.getApplicationNameForProtocol(desktopUrl)) {
+        await shell.openExternal(desktopUrl);
+        return { expiresAt: login.expiresAt, userCode: login.userCode, surface: "desktop" as const };
+      }
+    } catch {
+      // The same pending request can still be approved in the browser.
+    }
+    await shell.openExternal(login.authorizeUrl);
+    return { expiresAt: login.expiresAt, userCode: login.userCode, surface: "browser" as const };
   });
-  ipcMain.handle("enterprise:loginPoll", () => company?.pollLogin() ?? client.pollLogin());
+  ipcMain.handle("enterprise:loginPoll", async () => {
+    if (!company) throw new Error("请先发起山海账号登录。");
+    const result = await company.pollLogin();
+    if (result.status === "authorized") foreground?.();
+    return result;
+  });
+  ipcMain.handle("enterprise:loginCancel", () => company?.cancelLogin() ?? false);
   ipcMain.handle("enterprise:logout", () => company?.logout() ?? client.logout());
   ipcMain.handle("enterprise:selectSpace", (_event, space) => company?.selectSpace(space) ?? client.selectSpace(space));
   ipcMain.handle("enterprise:localFolder", (_event,reuseExisting?:boolean) => {if(!company?.enabled) throw new Error("请先配置公司账号服务。");return company.chooseFolder(true,reuseExisting===true);});
@@ -91,6 +184,7 @@ export function registerEnterprise(client: EnterpriseClient, localBoards: BoardS
   ipcMain.handle("enterprise:retrySync", () => client.replayPending());
   const copy = async (id: string) => {
     if (executionSpace() !== "personal") throw new Error("请在个人空间选择要复制的画板。");
+    if (company?.enabled) company.assertNasAccess();
     const board = await localBoards.getBoard(id); if (!board) throw new Error("个人画板不存在。");
     await client.refreshIdentity();
     const mapping = new Map<string, string>();
@@ -104,14 +198,16 @@ export function registerEnterprise(client: EnterpriseClient, localBoards: BoardS
   ipcMain.handle("enterprise:copyBoard", (_event, id: string) => copy(id));
   const routed = new Set(["boards:library:get", "boards:library:update", "boards:list", "boards:get", "boards:create", "boards:createComicDramaProject", "boards:save", "boards:rename", "boards:duplicate", "boards:delete", "boards:trash:list", "boards:trash:restore", "boards:trash:delete", "boards:trash:empty", "boards:images:move", "boards:images:resize", "boards:images:arrange", "boards:images:duplicate", "boards:images:setVersion", "boards:images:trash:list", "boards:images:trash:move", "boards:images:trash:restore", "boards:images:trash:delete", "boards:images:trash:empty", "boards:appendNodes", "boards:appendVersions", "boards:canvas:write", "boards:getState", "boards:setLastOpened", "asset:importUpload", "asset:readDataUrl", "asset:thumbnail", "image:generate", "image:cancel", "history:list", "history:scenes", "history:page", "assets:library", "assets:detail", "assets:jobPrompt"]);
   const dispose = setCommandRouter(async (_event, channel, args, next) => {
-    if (company && !companyLoginCommandAllowed(channel, company.enabled && company.account.authenticated))
-      throw new Error("COMPANY_LOGIN_REQUIRED: 请先使用公司钉钉账号登录 Tuda。");
+    if (company && !companyLoginCommandAllowed(channel, company.enabled && company.readyForWorkspace))
+      throw new Error("COMPANY_LOGIN_REQUIRED: 请先登录 Tuda。");
     if (channel.startsWith("enterprise:")) return next();
     if(company?.changingSpace && /^(boards:|asset:|image:generate)/.test(channel))throw new Error("正在切换空间，请等待画板重新打开。");
     if(company?.enabled){
       if(executionSpace()==="enterprise"){
-        company.assertAccount();
-        if (["settings:configureProvider", "provider:testConnection", "provider:listModels", "textProvider:testConnection", "textProvider:listModels", "videoProvider:testConnection", "videoProvider:listModels"].includes(channel)) throw new Error("公司模型由统一账号服务下发，请刷新模型授权。");
+        company.assertNasAccess();
+        if (["provider:testConnection", "provider:listModels"].includes(channel)
+          || (channel === "settings:configureProvider" && (args[0] as { kind?: string } | undefined)?.kind === "audio")) return next();
+        if (["settings:configureProvider", "videoProvider:testConnection", "videoProvider:listModels"].includes(channel)) throw new Error("公司模型由统一账号服务下发，请刷新模型授权。");
       }
       if(!company.usesNas||executionSpace()!=="enterprise"||/^(image|history|assistantConversation|assistant|textProvider):/.test(channel)) return next();
       // Auxiliary reads/recovery use account-scoped stores and the authorized

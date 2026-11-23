@@ -79,6 +79,8 @@ export interface GenerateImageInput {
   workflowMode: ImageWorkflowMode;
   /** 由画布生成节点发起时记录节点 ID，供主进程在渲染层重载后原子回写结果。 */
   generationNodeId?: string;
+  /** Resolve this canvas model through the locally configured channel order. */
+  useImageRouting?: boolean;
   /** Stable output identities shared with the enterprise worker. */
   outputNodeIds?: string[];
   /** Explicit target for a version edit; independent of the current UI selection. */
@@ -103,6 +105,8 @@ export interface GenerateImageInput {
   boardId?: string;
   /** 由 AI 助手确认发起时，记录来源会话，供图片详情回到该次创作记录。 */
   assistantConversationId?: string;
+  /** Agent 的渠道提交使用服务端幂等键或可查询业务 ID。 */
+  recoverImageSubmission?: boolean;
   /** 本次生成使用的 provider id；缺省时主进程用 activeProviderId。 */
   providerId?: string;
   /** 场景详情页独立生成：不进入画板、素材库或全局生成历史。 */
@@ -161,6 +165,7 @@ export interface GenerateResponse {
 
 export interface ProviderGenerateInput {
   clientRequestId?: string;
+  recoverImageSubmission?: boolean;
   workflowMode: ImageWorkflowMode;
   useCase?: GptImageUseCase;
   prompt: string;

@@ -150,8 +150,10 @@ export function createWorkbenchClient(transport: WorkbenchTransport) {
     chooseCompanyNas: (url:string) => transport.invoke("enterprise:nasStorage",url) as Promise<import("./enterprise.js").EnterpriseStatus>,
     refreshCompanyModels: () => transport.invoke("enterprise:refreshModels") as Promise<import("./enterprise.js").EnterpriseStatus>,
     configureEnterprise: (url: string) => transport.invoke("enterprise:configure", url) as Promise<import("./enterprise.js").EnterpriseStatus>,
-    beginEnterpriseLogin: (options?: {refreshProfile?: boolean; username?: string; password?: string}) => transport.invoke("enterprise:login", options) as Promise<{ expiresAt: string }>,
+    beginEnterpriseLogin: (options?: {refreshProfile?: boolean}) => transport.invoke("enterprise:login", options) as Promise<{ expiresAt: string; userCode?: string; surface: "desktop" | "browser" }>,
+    openEnterpriseLoginInBrowser: () => transport.invoke("enterprise:login", { useBrowser: true }) as Promise<{ surface: "browser" }>,
     pollEnterpriseLogin: () => transport.invoke("enterprise:loginPoll") as Promise<{ status: "pending" | "authorized" }>,
+    cancelEnterpriseLogin: () => transport.invoke("enterprise:loginCancel") as Promise<boolean>,
     enterpriseLogout: () => transport.invoke("enterprise:logout") as Promise<import("./enterprise.js").EnterpriseStatus>,
     selectSpace: (space: import("./enterprise.js").SpaceKind) => transport.invoke("enterprise:selectSpace", space) as Promise<import("./enterprise.js").EnterpriseStatus>,
     enterprisePresence: (presence: { boardId?: string; cursor?: { x: number; y: number }; selectedNodeIds?: string[] }) => transport.invoke("enterprise:presence", presence) as Promise<void>,
@@ -263,6 +265,10 @@ export function createWorkbenchClient(transport: WorkbenchTransport) {
   saveSettings: (settings: AppSettings & { apiKeyByProviderId?: Record<string, string> }) =>
     transport.invoke("settings:save", settings) as Promise<{ ok: boolean }>,
   updateSettings: (patch: AppSettingsPatch) => transport.invoke("settings:update", patch) as Promise<{ ok: boolean }>,
+  saveModelRouting: (input: import("./contracts/settings.js").SaveModelRoutingInput) =>
+    transport.invoke(WORKBENCH_COMMANDS.saveModelRouting, input) as Promise<{ ok: boolean }>,
+  revealLocalModelChannelKey: (kind: import("./contracts/settings.js").NewModelChannel["kind"], providerId: string) =>
+    transport.invoke("settings:revealLocalModelChannelKey", kind, providerId) as Promise<string>,
   getCodingAgentStatus: () => transport.invoke("agent:status") as Promise<CodingAgentIntegrationStatus>,
   handoffCommentsToAgent: (input: import("./agent-integration.js").CommentAgentHandoffInput) =>
     transport.invoke("agent:comments:handoff", input) as Promise<import("./agent-integration.js").CommentAgentHandoffResult>,
@@ -514,6 +520,8 @@ export function createWorkbenchClient(transport: WorkbenchTransport) {
     transport.invoke(WORKBENCH_COMMANDS.importVideo, data, mimeType) as Promise<{ path: string; mimeType: string; videoUrl: string }>,
   importAudio: (data: ArrayBuffer, mimeType: string) =>
     transport.invoke("audio:import", data, mimeType) as Promise<{ path: string; mimeType: string; audioUrl: string }>,
+  synthesizeAudio: (input: { text: string; model?: string }) =>
+    transport.invoke(WORKBENCH_COMMANDS.synthesizeAudio, input) as Promise<{ path: string; mimeType: string; audioUrl: string }>,
   getVideoCapabilities: () =>
     transport.invoke("video:capabilities") as Promise<VideoProviderCapabilities>,
   startVideoGeneration: (input: VideoGenerationInput) =>

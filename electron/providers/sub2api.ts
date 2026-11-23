@@ -4,8 +4,9 @@ import type {
   ProviderGenerateInput,
   ProviderModelOption
 } from "../../shared/types.js";
-import { ProviderError } from "./errors.js";
+import { ImageSubmissionError, ProviderError } from "./errors.js";
 import { mapWithConcurrency, Semaphore } from "./concurrency.js";
+import { setTimeout as delay } from "node:timers/promises";
 
 type FetchLike = typeof fetch;
 
@@ -24,6 +25,18 @@ interface OpenAIResponsePayload {
   output?: OpenAIResponsesOutputItem[];
   result?: string;
 }
+
+interface ImageTaskPayload {
+  object?: string;
+  id?: string;
+  status?: string;
+  result?: { data?: OpenAIImageItem[] };
+  task_id?: string;
+  response?: OpenAIResponsePayload;
+  error?: unknown;
+}
+
+const IMAGE_TASK_POLL_MS = 5_000;
 
 interface OpenAIModelsPayload {
   data?: unknown;
@@ -63,26 +76,26 @@ export class Sub2ApiImageProvider {
       return this.generateWithResponses(input, config, apiKey);
     }
 
-    const response = await this.fetchWithTimeout(joinUrl(config.baseUrl, config.generationEndpoint), {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        prompt: input.prompt,
-        model: input.model || config.model,
-        size: input.size,
-        n: input.n,
-        quality: input.quality || undefined,
-        style: input.style || undefined,
-        background: input.background === "auto" ? undefined : input.background,
-        output_format: input.outputFormat ?? "png",
-        response_format: config.compatResponseFormat || undefined
-      })
+    const endpoint = joinUrl(config.baseUrl, config.generationEndpoint);
+    const body = {
+      prompt: input.prompt,
+      model: input.model || config.model,
+      size: input.size,
+      n: input.n,
+      quality: input.quality || undefined,
+      style: input.style || undefined,
+      background: input.background === "auto" ? undefined : input.background,
+      output_format: input.outputFormat ?? "png",
+      response_format: config.compatResponseFormat || undefined
+    };
+    if (input.recoverImageSubmission && input.clientRequestId)
+      return withRequestedCountWarning(await this.submitRecoverableImage(endpoint, apiKey, body, input.clientRequestId), input.n);
+    const response = await this.fetchWithTimeout(endpoint, {
+      method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body)
     });
 
-    return withRequestedCountWarning(await this.parseResponse(response), input.n);
+    return withRequestedCountWarning(await this.parseGenerationResponse(response, endpoint, apiKey), input.n);
   }
 
   async testConnection(config: ProviderConfig, apiKey: string): Promise<void> {
@@ -232,6 +245,111 @@ export class Sub2ApiImageProvider {
     return parseOpenAIImageResponse(response, (input, init) => this.fetchWithTimeout(input, init));
   }
 
+  private async submitRecoverableImage(endpoint: string, apiKey: string, body: Record<string, unknown>, requestId: string): Promise<GenerationResult> {
+    const url = new URL(endpoint);
+    const directImages = /^\/v1\/images\/generations\/?$/.test(url.pathname);
+    const aiPai = directImages && url.origin === "https://aipaiai.cn";
+    const toApis = directImages && ["https://toapis.cn", "https://toapis.com"].includes(url.origin);
+    if (aiPai) url.pathname = "/v1/images/generations/tasks";
+    const headers = { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json",
+      ...(aiPai ? { "Idempotency-Key": requestId } : {}) };
+    const encoded = JSON.stringify({
+      ...body,
+      ...(aiPai ? { response_format: body.response_format || "url" } : {}),
+      ...(toApis ? { client_business_id: requestId, ...(body.size === "auto" ? { size: "1:1" } : {}) } : {})
+    });
+    const submit = () => this.fetchWithTimeout(url.href, { method: "POST", headers, body: encoded, redirect: "error" },
+      aiPai || toApis ? Math.min(this.timeoutMs, 20_000) : this.timeoutMs);
+    const uncertain = () => new ImageSubmissionError("unknown", "IMAGE_SUBMISSION_UNKNOWN",
+      `服务端受理状态待确认（本次请求 ${requestId}）。请核对原渠道任务。`);
+    let response = await submit().catch(() => undefined);
+    if (!response || response.status >= 500 || response.status === 408) {
+      await response?.body?.cancel().catch(() => undefined);
+      if (aiPai) {
+        // This endpoint uses the identical key and payload to rediscover the original task.
+        response = await submit().catch(() => undefined);
+        // A rejection of a recovery request cannot prove the first submission failed.
+        if (!response?.ok) throw uncertain();
+      } else if (toApis) {
+        return this.waitForImageTask(url.href, apiKey, requestId, {}, true);
+      } else {
+        throw uncertain();
+      }
+    }
+    if (!response.ok) {
+      const status = response.status;
+      const info = await response.text().catch(() => "");
+      if (isImageContentBlocked(info))
+        throw new ImageSubmissionError("blocked", "IMAGE_CONTENT_BLOCKED", "图片请求未通过服务端内容审核。", status);
+      if (/submission_unknown/i.test(info) || ![400, 401, 402, 403, 404, 422, 429].includes(status)) throw uncertain();
+      throw new ImageSubmissionError("rejected", "IMAGE_SUBMISSION_REJECTED", `服务端拒绝提交（HTTP ${status}）。`, status);
+    }
+    const payload = await readResponsePayload(response).catch(() => { throw uncertain(); });
+    const task = payload as ImageTaskPayload;
+    if (toApis && task.object === "generation.task" && task.id) return this.waitForImageTask(url.href, apiKey, task.id, task);
+    if (aiPai && task.task_id) return this.waitForImageTask(url.href, apiKey, task.task_id, task);
+    if (aiPai || toApis) {
+      if (!getImageItems(payload).length) {
+        if (toApis) return this.waitForImageTask(url.href, apiKey, requestId, {}, true);
+        throw uncertain();
+      }
+    }
+    return decodeOpenAIImageItems(getImageItems(payload), input => this.fetchWithTimeout(input));
+  }
+
+  private async parseGenerationResponse(response: Response, endpoint: string, apiKey: string): Promise<GenerationResult> {
+    if (!response.ok) await throwProviderError(response);
+    const payload = await readResponsePayload(response);
+    const task: ImageTaskPayload = payload as ImageTaskPayload;
+    const fetchImage = (url: string) => this.fetchWithTimeout(url);
+    if (task.object !== "generation.task" || typeof task.id !== "string" || !task.id) {
+      return decodeOpenAIImageItems(getImageItems(payload), fetchImage);
+    }
+    return this.waitForImageTask(endpoint, apiKey, task.id, task);
+  }
+
+  private async waitForImageTask(endpoint: string, apiKey: string, id: string, initial: ImageTaskPayload, discover = false): Promise<GenerationResult> {
+    const unknown = () => new ImageSubmissionError("unknown", "IMAGE_TASK_UNKNOWN",
+      `图片任务状态待确认（任务或业务 ID ${id}）。请核对原渠道任务。`);
+    if (!/^[\w-]{1,200}$/.test(id)) throw new ProviderError("INVALID_RESPONSE", "图片服务返回了无效的任务 ID。");
+    const taskUrl = new URL(endpoint);
+    taskUrl.pathname = taskUrl.pathname.replace(/\/$/, "") + "/" + encodeURIComponent(id);
+    const deadline = Date.now() + this.timeoutMs;
+    let current = initial;
+    let pollDelay = discover ? 0 : IMAGE_TASK_POLL_MS;
+    let missing = 0;
+    for (;;) {
+      if (current.status === "completed") {
+        const items = getImageItems(current.response ?? { data: current.result?.data });
+        return decodeOpenAIImageItems(items, url => this.fetchWithTimeout(url)).catch(() => { throw unknown(); });
+      }
+      if (current.status === "failed" || current.status === "cancelled") {
+        const blocked = isImageContentBlocked(JSON.stringify(current.error ?? ""));
+        throw new ImageSubmissionError(blocked ? "blocked" : "failed", "IMAGE_TASK_FAILED", extractErrorValue(current.error) || `图片任务未完成（任务 ID ${id}）。`);
+      }
+      if (current.status === "submission_unknown") throw unknown();
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) throw unknown();
+      if (pollDelay) await delay(Math.min(pollDelay, remaining));
+      const timeLeft = deadline - Date.now();
+      if (timeLeft <= 0) throw unknown();
+      pollDelay = IMAGE_TASK_POLL_MS;
+      const poll = await this.fetchWithTimeout(taskUrl.href, { headers: { Authorization: `Bearer ${apiKey}` }, redirect: "error" },
+        Math.min(timeLeft, 15_000)).catch(() => undefined);
+      if (!poll) continue;
+      if (!poll.ok) {
+        const retryAfter = Number(poll.headers.get("retry-after"));
+        await poll.body?.cancel();
+        if (poll.status === 429) pollDelay = Math.max(IMAGE_TASK_POLL_MS, retryAfter * 1000 || 0);
+        else if (poll.status === 404 && ++missing >= 3) throw unknown();
+        else if (poll.status !== 404 && poll.status < 500) throw unknown();
+        continue;
+      }
+      current = await poll.json().catch(() => ({})) as ImageTaskPayload;
+      if (current.status) missing = 0;
+    }
+  }
+
   private async fetchWithTimeout(
     input: string,
     init: RequestInit = {},
@@ -258,43 +376,41 @@ export async function parseOpenAIImageResponse(
   response: Response,
   fetchImage: (input: string, init?: RequestInit) => Promise<Response> = fetch
 ): Promise<GenerationResult> {
-    if (!response.ok) {
-      await throwProviderError(response);
-    }
+  if (!response.ok) await throwProviderError(response);
+  return decodeOpenAIImageItems(getImageItems(await readResponsePayload(response)), fetchImage);
+}
 
-    const payload = await readResponsePayload(response);
-    const imageItems = getImageItems(payload);
-    if (imageItems.length === 0) {
-      throw new ProviderError("EMPTY_RESPONSE", "Provider 未返回图片。");
-    }
+async function decodeOpenAIImageItems(
+  imageItems: OpenAIImageItem[],
+  fetchImage: (input: string) => Promise<Response>
+): Promise<GenerationResult> {
+  if (imageItems.length === 0) {
+    throw new ProviderError("EMPTY_RESPONSE", "Provider 未返回图片。");
+  }
 
-    const images = await Promise.all(
-      imageItems.map(async (item): Promise<{ bytes: Buffer; mimeType: string }> => {
-        if (item.b64_json) {
-          return {
-            bytes: Buffer.from(item.b64_json, "base64"),
-            mimeType: "image/png"
-          };
-        }
+  const images = await Promise.all(
+    imageItems.map(async (item): Promise<{ bytes: Buffer; mimeType: string }> => {
+      if (item.b64_json) {
+        return {
+          bytes: Buffer.from(item.b64_json, "base64"),
+          mimeType: "image/png"
+        };
+      }
 
-        if (item.url) {
-          if (item.url.startsWith("data:")) return decodeDataUrl(item.url);
-          const imageResponse = await fetchImage(item.url);
-          if (!imageResponse.ok) {
-            await throwProviderError(imageResponse);
-          }
-          const buffer = Buffer.from(await imageResponse.arrayBuffer());
-          return {
-            bytes: buffer,
-            mimeType: imageResponse.headers.get("content-type") || "image/png"
-          };
-        }
+      if (item.url) {
+        if (item.url.startsWith("data:")) return decodeDataUrl(item.url);
+        const imageResponse = await fetchImage(item.url);
+        if (!imageResponse.ok) await throwProviderError(imageResponse);
+        return {
+          bytes: Buffer.from(await imageResponse.arrayBuffer()),
+          mimeType: imageResponse.headers.get("content-type") || "image/png"
+        };
+      }
 
-        throw new ProviderError("INVALID_RESPONSE", "Provider 返回了无法识别的图片格式。");
-      })
-    );
-
-    return { images };
+      throw new ProviderError("INVALID_RESPONSE", "Provider 返回了无法识别的图片格式。");
+    })
+  );
+  return { images };
 }
 
 // 一些中转站会忽略/不支持 n>1，只回 1 张——补一条警告让 UI 能解释占位符为什么消失。
@@ -481,6 +597,8 @@ function extractErrorValue(value: unknown): string {
 function joinUrl(baseUrl: string, endpoint: string): string {
   const trimmedBase = baseUrl.replace(/\/+$/, "");
   const normalizedEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  if (trimmedBase.endsWith("/v1") && normalizedEndpoint.startsWith("/v1/"))
+    return trimmedBase + normalizedEndpoint.slice(3);
   return `${trimmedBase}${normalizedEndpoint}`;
 }
 
@@ -528,6 +646,8 @@ function decodeDataUrl(value: string): { bytes: Buffer; mimeType: string } {
 async function throwProviderError(response: Response): Promise<never> {
   const text = await response.text().catch(() => "");
   const message = extractErrorMessage(text) || response.statusText || "Provider request failed";
+  if (isImageContentBlocked(text))
+    throw new ImageSubmissionError("blocked", "IMAGE_CONTENT_BLOCKED", message, response.status);
   if (message.includes("Images API is not supported for this platform")) {
     throw new ProviderError(
       "IMAGES_API_UNSUPPORTED",
@@ -543,12 +663,19 @@ async function throwProviderError(response: Response): Promise<never> {
     );
   }
   if (response.status === 401 || response.status === 403) {
+    if (/pre_consume_token_quota_failed|insufficient_quota/.test(text)) {
+      throw new ProviderError("INSUFFICIENT_QUOTA", "当前 API Key 的可用额度不足，请检查令牌额度。", response.status);
+    }
     throw new ProviderError("UNAUTHORIZED", "Provider 鉴权失败，请检查 API Key。", response.status);
   }
   if (response.status === 408 || response.status === 429 || response.status >= 500) {
     throw new ProviderError("PROVIDER_UNAVAILABLE", message, response.status);
   }
   throw new ProviderError("PROVIDER_ERROR", message, response.status);
+}
+
+function isImageContentBlocked(value: string): boolean {
+  return /content_policy|safety|moderation|违规|内容安全|未通过审核/i.test(value);
 }
 
 function extractErrorMessage(text: string): string {

@@ -3,8 +3,13 @@ export interface ConnectionPathPoint {
   y: number;
 }
 
-export interface ConnectionPathProjection {
+interface ConnectionPathLocation {
   point: ConnectionPathPoint;
+  side: "above" | "left";
+  alongPathAlignment: -100 | -50 | 0;
+}
+
+export interface ConnectionPathProjection extends ConnectionPathLocation {
   progress: number;
 }
 
@@ -88,37 +93,94 @@ function pathLengths(points: ConnectionPathPoint[]): { cumulative: number[]; tot
   return { cumulative, total };
 }
 
+function labelAlignment(start: ConnectionPathPoint, end: ConnectionPathPoint): Omit<ConnectionPathLocation, "point"> {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const side = Math.abs(dy) > Math.abs(dx) ? "left" : "above";
+  // On a slope, extend the label in the direction where the line moves away from it.
+  const alongPathAlignment = dx === 0 || dy === 0 ? -50 : Math.sign(dx) === Math.sign(dy) ? 0 : -100;
+  return { side, alongPathAlignment };
+}
+
+export function connectionPathLocationAtProgress(
+  points: ConnectionPathPoint[],
+  progress: number
+): ConnectionPathLocation {
+  const first = points[0] ?? { x: 0, y: 0 };
+  const { cumulative, total } = pathLengths(points);
+  if (total === 0) return { point: first, side: "above", alongPathAlignment: -50 };
+  const target = total * clampProgress(progress);
+  for (let index = 1; index < points.length; index += 1) {
+    if (cumulative[index] < target) continue;
+    const start = points[index - 1];
+    const end = points[index];
+    const segmentLength = cumulative[index] - cumulative[index - 1];
+    const segmentProgress = segmentLength === 0 ? 0 : (target - cumulative[index - 1]) / segmentLength;
+    return {
+      point: {
+        x: start.x + (end.x - start.x) * segmentProgress,
+        y: start.y + (end.y - start.y) * segmentProgress
+      },
+      ...labelAlignment(start, end)
+    };
+  }
+  const last = points[points.length - 1];
+  return { point: last, ...labelAlignment(points[points.length - 2], last) };
+}
+
 export function pointAtConnectionPathProgress(
   points: ConnectionPathPoint[],
   progress: number
 ): ConnectionPathPoint {
-  if (points.length === 0) return { x: 0, y: 0 };
-  if (points.length === 1) return points[0];
-  const { cumulative, total } = pathLengths(points);
-  if (total === 0) return points[0];
-  const target = total * clampProgress(progress);
-  for (let index = 1; index < points.length; index += 1) {
-    if (cumulative[index] < target) continue;
-    const segmentLength = cumulative[index] - cumulative[index - 1];
-    const segmentProgress = segmentLength === 0 ? 0 : (target - cumulative[index - 1]) / segmentLength;
-    return {
-      x: points[index - 1].x + (points[index].x - points[index - 1].x) * segmentProgress,
-      y: points[index - 1].y + (points[index].y - points[index - 1].y) * segmentProgress
-    };
+  return connectionPathLocationAtProgress(points, progress).point;
+}
+
+/** Centers the label on the visible path and clears its footprint on sloped sections. */
+export function centeredConnectionLabelLocation(
+  points: ConnectionPathPoint[],
+  size: { width: number; height: number }
+): ConnectionPathLocation {
+  const middle = connectionPathLocationAtProgress(points, 0.5);
+  const { point } = middle;
+  const startPoint = points[0] ?? point;
+  const endPoint = points.at(-1) ?? point;
+  const side = samePoint(startPoint, endPoint) ? middle.side : labelAlignment(startPoint, endPoint).side;
+  const along = side === "above" ? "x" : "y";
+  const across = side === "above" ? "y" : "x";
+  const halfSize = (side === "above" ? size.width : size.height) / 2;
+  const min = point[along] - halfSize;
+  const max = point[along] + halfSize;
+  let clearanceEdge = point[across];
+
+  for (let i = 1; i < points.length; i += 1) {
+    const start = points[i - 1];
+    const end = points[i];
+    const from = Math.max(min, Math.min(start[along], end[along]));
+    const to = Math.min(max, Math.max(start[along], end[along]));
+    if (from > to) continue;
+    const span = end[along] - start[along];
+    if (span === 0) {
+      clearanceEdge = Math.min(clearanceEdge, start[across], end[across]);
+      continue;
+    }
+    const acrossAt = (position: number) => start[across] + (end[across] - start[across]) * (position - start[along]) / span;
+    clearanceEdge = Math.min(clearanceEdge, acrossAt(from), acrossAt(to));
   }
-  return points[points.length - 1];
+
+  return { point: { ...point, [across]: clearanceEdge }, side, alongPathAlignment: -50 };
 }
 
 export function projectPointToConnectionPath(
   points: ConnectionPathPoint[],
   target: ConnectionPathPoint
 ): ConnectionPathProjection {
-  if (points.length === 0) return { point: target, progress: 0.5 };
-  if (points.length === 1) return { point: points[0], progress: 0 };
+  if (points.length === 0) return { point: target, progress: 0.5, side: "above", alongPathAlignment: -50 };
+  if (points.length === 1) return { point: points[0], progress: 0, side: "above", alongPathAlignment: -50 };
   const { cumulative, total } = pathLengths(points);
   let closestPoint = points[0];
   let closestDistanceSquared = Number.POSITIVE_INFINITY;
   let closestLength = 0;
+  let alignment = labelAlignment(points[0], points[1]);
 
   for (let index = 1; index < points.length; index += 1) {
     const start = points[index - 1];
@@ -138,10 +200,12 @@ export function projectPointToConnectionPath(
     closestDistanceSquared = distanceSquared;
     closestPoint = point;
     closestLength = cumulative[index - 1] + Math.sqrt(segmentLengthSquared) * segmentProgress;
+    alignment = labelAlignment(start, end);
   }
 
   return {
     point: closestPoint,
-    progress: total === 0 ? 0 : clampProgress(closestLength / total)
+    progress: total === 0 ? 0 : clampProgress(closestLength / total),
+    ...alignment
   };
 }

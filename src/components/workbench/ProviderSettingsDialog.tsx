@@ -2,6 +2,8 @@ import { ONLINE_SHARING_AVAILABLE } from "@shared/sharing-availability";
 import { AiSettingsNavigation, isAiSettingsSection, type AiSettingsSection } from "./settings/AiSettingsNavigation";
 import "./settings/settings-navigation.css";
 import { SettingsPageHeader } from "./settings/SettingsPrimitives";
+import { AccountSettingsPanel } from "./settings/AccountSettingsPanel";
+import { ModelRoutingSettings } from "./settings/ModelRoutingSettings";
 import appIconDefault from "@/assets/app-icon-default.png";
 import appIconMascot from "@/assets/app-icon-mascot.png";
 import { Button } from "@/components/ui/button";
@@ -40,12 +42,14 @@ import {
   FolderOpen,
   Languages,
   LayoutDashboard,
+  ListTree,
   Loader2,
   Plug,
   RotateCcw,
   Settings2,
   Sparkles,
-  Trash2
+  Trash2,
+  UserRound
 } from "lucide-react";
 import { useEffect,  useId, useRef, useState } from "react";
 import {
@@ -68,6 +72,9 @@ export { addVideoProviderModel, makeVideoProviderModelDefault, removeVideoProvid
 export function ProviderSettingsDialog({
   open,
   onOpenChange,
+  companyAccount,
+  accountStatus,
+  onRoutingSaved,
   entryPoint = "default",
   onImportStarterBoard,
   onOpenStarterBoards,
@@ -183,7 +190,7 @@ export function ProviderSettingsDialog({
   const [assistantSkillError, setAssistantSkillError] = useState<string | null>(null);
   const [contentReady, setContentReady] = useState(false);
   const modelSettingsRef = useRef<AiModelsSettingsHandle>(null);
-  const lastAiSectionRef = useRef<AiSettingsSection>("provider");
+  const lastAiSectionRef = useRef<AiSettingsSection>("ai");
   const aiPanelId = useId();
   const aiSection = isAiSettingsSection(section);
   const dialogOpenRef = useRef(false);
@@ -211,7 +218,8 @@ export function ProviderSettingsDialog({
     }
     if (dialogOpenRef.current) return;
     dialogOpenRef.current = true;
-    setSection(entryPoint === "assistant-permissions" ? "pi-agent" : entryPoint === "coding-agent" ? "agent" : entryPoint === "default" ? "board" : "provider");
+    setSection(entryPoint === "assistant-permissions" ? "pi-agent" : entryPoint === "coding-agent" ? "agent"
+      : entryPoint === "model-management" ? "models" : entryPoint === "provider-setup" ? "provider" : "board");
     setDirectoryDraft(downloadDirectory);
     setDirectoryError(null);
     setCacheClearResult(null);
@@ -498,6 +506,12 @@ export function ProviderSettingsDialog({
   }
 
   const PageContainer = section === "pi-agent" || section === "agent" ? "div" : ScrollArea;
+  const sectionTitle = section === "provider" ? uiText("服务设置") : section === "models" ? uiText("模型设置")
+    : section === "ai" ? uiText("创作助手") : section === "pi-agent" ? uiText("助手能力") : section === "agent" ? "Coding Agent"
+      : section === "system" ? t("settings.system.title") : section === "account" ? uiText("账号设置") : uiText(boardPage);
+  const sectionDescription = section === "account" ? uiText("管理你的 Tuda 昵称与登录账号。")
+    : section === "ai" ? uiText("管理助手的交互方式、编辑建议和本地记忆。")
+      : section === "system" ? uiText("管理外观、存储、通知和应用更新。") : undefined;
 
   return (
     <Dialog open={open} onOpenChange={requestOpenChange}>
@@ -513,7 +527,7 @@ export function ProviderSettingsDialog({
         className="workbench-settings-dialog max-w-none gap-0 overflow-hidden border p-0 outline-none data-[state=open]:duration-150 data-[state=open]:zoom-in-95"
         data-section={section}
       >
-        <DialogTitle className="sr-only">{section === "provider" ? uiText("模型与服务") : section === "ai" ? uiText("创作助手") : section === "pi-agent" ? uiText("助手能力") : section === "agent" ? "Coding Agent" : section === "system" ? t("settings.system.title") : uiText(boardPage)}</DialogTitle>
+        <DialogTitle className="sr-only">{sectionTitle}</DialogTitle>
         <DialogDescription className="sr-only">{t("settings.categories")}</DialogDescription>
         <div className="settings-frame">
           {/* 左栏：一级分类与当前分类的二级配置页。 */}
@@ -523,10 +537,13 @@ export function ProviderSettingsDialog({
               <span className="text-foreground">{t("settings.title")}</span>
             </div>
             <nav className="settings-navigation" aria-label={t("settings.categories")}>
+              {accountStatus?.authenticated && <NavItem icon={UserRound} label={uiText("账号设置")} active={section === "account"} onClick={() => requestSection("account")} />}
               <NavItem icon={LayoutDashboard} label={t("settings.board.title")} active={section === "board"} onClick={() => requestSection("board")} />
               {section === "board" ? <div className="settings-subnavigation" role="group" aria-label={t("settings.board.title")}>
                 {boardPages.map((page) => <button key={page} type="button" aria-current={boardPage === page ? "page" : undefined} onClick={() => setBoardPage(page)}>{uiText(page)}</button>)}
               </div> : null}
+              <NavItem icon={ListTree} label={uiText("模型设置")} active={section === "models"} onClick={() => requestSection("models")} />
+              <NavItem icon={Plug} label={uiText("服务设置")} active={section === "provider"} onClick={() => requestSection("provider")} />
               <NavItem icon={Sparkles} label={uiText("AI 设置")} active={aiSection} onClick={() => requestSection(lastAiSectionRef.current)} />
               {aiSection ? <AiSettingsNavigation value={section} panelId={aiPanelId} onChange={requestSection} /> : null}
               <NavItem icon={Plug} label={uiText("Coding Agent")} active={section === "agent"} onClick={() => requestSection("agent")} />
@@ -538,10 +555,11 @@ export function ProviderSettingsDialog({
 
           {/* 右栏：当前 Provider 配置或其他设置内容。 */}
           <section className="settings-workspace">
-            <div className="settings-content-panel" id={aiPanelId} role="region" aria-label={aiSection ? uiText(section === "provider" ? "模型与服务" : section === "ai" ? "创作助手" : "助手能力") : section === "board" ? uiText(boardPage) : undefined}>
+            <div className="settings-content-panel" id={aiPanelId} role="region" aria-label={sectionTitle}>
             {!contentReady ? null : section === "provider" ? (
               <AiModelsSettings
                 ref={modelSettingsRef}
+                companyAccount={companyAccount}
                 embedded
                 entryPoint={entryPoint}
                 providers={providers}
@@ -558,15 +576,20 @@ export function ProviderSettingsDialog({
             ) : (
               <>
                 {section !== "pi-agent" && section !== "agent" ? <SettingsPageHeader
-                  title={section === "ai" ? uiText("创作助手") : section === "system" ? t("settings.system.title") : uiText(boardPage)}
-                  description={section === "board" ? undefined : uiText(section === "ai" ? "管理助手的交互方式、编辑建议和本地记忆。" : "管理外观、存储、通知和应用更新。")}
+                  title={sectionTitle}
+                  description={sectionDescription}
                 /> : null}
                 <PageContainer key={section === "board" ? boardPage : section} className={cn("min-h-0 flex-1", (section === "pi-agent" || section === "agent") && "flex flex-col overflow-hidden")}>
                   <div className={cn(
                     "flex w-full flex-col",
                     section === "pi-agent" || section === "agent" ? "flex min-h-0 flex-1 flex-col overflow-hidden" : "settings-page-body"
                   )}>
-                  {section === "pi-agent" ? (
+                  {section === "models" ? (
+                    <ModelRoutingSettings providers={providers} activeProviderId={activeProviderId}
+                      onRoutingSaved={onRoutingSaved} />
+                  ) : section === "account" ? (
+                    accountStatus?.authenticated && <AccountSettingsPanel status={accountStatus} />
+                  ) : section === "pi-agent" ? (
                   <PiAgentSettingsPanel
                   key={entryPoint}
                   initialTab={entryPoint === "assistant-permissions" ? "permissions" : undefined}

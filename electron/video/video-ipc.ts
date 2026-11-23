@@ -1,3 +1,4 @@
+import { isSeedanceGateway } from "../../shared/contracts/providers.js";
 import { dialog, ipcMain, net, shell } from "electron";
 
 import path from "node:path";
@@ -5,17 +6,19 @@ import path from "node:path";
 import { getProviderModels } from "../../shared/provider-models.js";
 
 import { isBoardVideoGenerationNode, isBoardVideoNode, VideoGenerationInput, VideoGenerationJob } from "../../shared/types.js";
-import { resolveVideoModelCapability, validateVideoParameters } from "../../shared/video-provider-models.js";
+import { findVideoModelRoute, resolveVideoModelCapability, validateVideoParameters, videoRouteChannels } from "../../shared/video-provider-models.js";
 
 import { PaidMediaQuoteService } from "../paid-media-quote.js";
 
-import { normalizeProviderError, ProviderError } from "../providers/errors.js";
+import { isRetryableTextChannelRejection, normalizeProviderError, ProviderError } from "../providers/errors.js";
 
 import { normalizeFalVideoPrompt } from "../providers/video-fal.js";
+import { generateSpeech } from "../providers/audio-speech.js";
 
 import type { VideoProviderConfig as RuntimeVideoProviderConfig, VideoRemoteStatus, VideoRemoteTask } from "../providers/video-types.js";
 
 import {
+  ASSET_PROTOCOL,
   AssetStore,
   audioMimeFromExtension,
   extensionFromMime,
@@ -35,7 +38,7 @@ import { VideoGenerationService, VideoTaskServiceError } from "../video-generati
 
 interface VideoIpcDependencies {
   settings: Pick<SettingsStore, "getSettings" | "getApiKey" | "resolveVideoProviderConnection">;
-  assets: Pick<AssetStore, "exportAsset" | "readManagedBytes" | "saveAudioUploadBytes" | "saveVideoOutput" | "saveVideoUploadBytes" | "saveImportedImage" | "toAssetUrl">;
+  assets: Pick<AssetStore, "exportAsset" | "readManagedBytes" | "resolveAssetUrl" | "saveAudioUploadBytes" | "saveVideoOutput" | "saveVideoUploadBytes" | "saveImportedImage" | "toAssetUrl">;
   boards: Pick<BoardStore, "getBoard" | "startVideoGenerationNode" | "finishVideoGenerationNode" | "finishVideoGenerationNodeVersion">;
   videoTasks: Pick<VideoTaskStore, "addJob" | "updateJob" | "listJobs" | "listRecoverableJobs" | "getJob" | "clearJobsByBoard">;
   videoService: VideoGenerationService;
@@ -59,6 +62,13 @@ export function registerVideoIpc({
 }: VideoIpcDependencies): VideoIpcRegistration {
   const activeRuns = new Map<string, { controller: AbortController; promise: Promise<void> }>();
   const activeSubmissions = new Set<string>();
+
+  function localMediaPath(reference: string): string {
+    if (!reference.startsWith(`${ASSET_PROTOCOL}:`)) return reference;
+    const filePath = assets.resolveAssetUrl(reference);
+    if (!filePath) throw new ProviderError("INVALID_REQUEST", "视频参考素材链接已失效，请从当前画板重新选择素材。");
+    return filePath;
+  }
 
   function providerConfig(input: VideoGenerationInput): { config: RuntimeVideoProviderConfig; providerId: string; providerName: string } {
     const current = settings.getSettings();
@@ -96,7 +106,7 @@ export function registerVideoIpc({
             ? "failed"
             : "running";
     const configuredType = settings.getSettings().videoProviders.find((candidate) => candidate.id === job.providerId)?.type;
-    const provider = configuredType === "ark" || configuredType === "fal" || configuredType === "openrouter" || configuredType === "minimax" ? configuredType : "ark";
+    const provider = configuredType === "ark" || configuredType === "fal" || configuredType === "openrouter" || configuredType === "minimax" || isSeedanceGateway(configuredType) ? configuredType : "ark";
     return {
       provider,
       id: job.remoteTaskId,
@@ -301,6 +311,13 @@ export function registerVideoIpc({
     const audioPath = await assets.saveAudioUploadBytes(Buffer.from(data), mimeType);
     return { path: audioPath, mimeType, audioUrl: assets.toAssetUrl(audioPath) };
   });
+  ipcMain.handle("audio:synthesize", async (_event, input: { text: string; model?: string }) => {
+    const current = settings.getSettings();
+    const output = await generateSpeech(input, current.otherModelRouting?.audio, current.audioProviders ?? [],
+      id => settings.getApiKey(id));
+    const file = await assets.saveAudioUploadBytes(output.bytes, output.mimeType);
+    return { path: file, mimeType: output.mimeType, audioUrl: assets.toAssetUrl(file) };
+  });
 
   ipcMain.handle("video:capabilities", () => videoService.capability("ark"));
   ipcMain.handle("video:list", async (_event, boardId?: string) => {
@@ -310,56 +327,82 @@ export function registerVideoIpc({
   ipcMain.handle("video:clear", (_event, boardId: string) => videoTasks.clearJobsByBoard(boardId));
   ipcMain.handle("video:get", (_event, jobId: string) => videoTasks.getJob(jobId));
   const pendingVideoStarts = new Map<string, Promise<VideoGenerationJob>>();
-  const startVideo = async (_event: unknown, input: VideoGenerationInput): Promise<VideoGenerationJob> => {
+  const startVideo = async (_event: unknown, submission: VideoGenerationInput): Promise<VideoGenerationJob> => {
     const hasMediaInput = Boolean(
-      input?.firstFramePath
-      || input?.lastFramePath
-      || input?.sourceVideoPath
-      || input?.referenceImagePaths?.length
-      || input?.referenceVideoPaths?.length
-      || input?.referenceAudioPaths?.length
+      submission?.firstFramePath
+      || submission?.lastFramePath
+      || submission?.sourceVideoPath
+      || submission?.referenceImagePaths?.length
+      || submission?.referenceVideoPaths?.length
+      || submission?.referenceAudioPaths?.length
     );
-    if (!input || typeof input !== "object" || !Array.isArray(input.referenceImagePaths) || (!input.prompt?.trim() && !hasMediaInput)) {
+    if (!submission || typeof submission !== "object" || !Array.isArray(submission.referenceImagePaths) || (!submission.prompt?.trim() && !hasMediaInput)) {
       throw new ProviderError("INVALID_REQUEST", "请输入视频描述或添加媒体参考。");
     }
-    if (input.idempotencyKey) {
-      const existing = (await videoTasks.listJobs()).find((job) => job.input.idempotencyKey === input.idempotencyKey);
+    if (submission.idempotencyKey) {
+      const existing = (await videoTasks.listJobs()).find((job) => job.input.idempotencyKey === submission.idempotencyKey);
       if (existing) return existing;
     }
-    const resolved = providerConfig(input);
-    const option = await videoService.modelOption(resolved.config);
-    if (input.requireFirstLastFrameCapability) {
-      if (!input.firstFramePath || !input.lastFramePath) {
-        throw new ProviderError("INVALID_REQUEST", "漫剧视频必须连接已采用的首帧和尾帧。");
-      }
-      const capability = resolveVideoModelCapability(option, "first-last-frame");
-      if (capability !== "supported") {
-        throw new ProviderError(
-          "UNSUPPORTED_MODEL_CAPABILITY",
-          capability === "unknown"
-            ? "当前模型的首尾帧能力未知，请切换模型或检查 Provider 配置。"
-            : "当前模型不支持首尾帧生成，请切换模型。"
-        );
-      }
-    }
+    const input = {
+      ...submission,
+      firstFramePath: submission.firstFramePath && localMediaPath(submission.firstFramePath),
+      lastFramePath: submission.lastFramePath && localMediaPath(submission.lastFramePath),
+      sourceVideoPath: submission.sourceVideoPath && localMediaPath(submission.sourceVideoPath),
+      referenceImagePaths: [...new Set(submission.referenceImagePaths.map(localMediaPath))],
+      referenceVideoPaths: submission.referenceVideoPaths && [...new Set(submission.referenceVideoPaths.map(localMediaPath))],
+      referenceAudioPaths: submission.referenceAudioPaths && [...new Set(submission.referenceAudioPaths.map(localMediaPath))]
+    };
     const hasImageInput = Boolean(input.firstFramePath || input.lastFramePath || input.referenceImagePaths.length);
-    const effectivePrompt = resolved.config.provider === "fal"
-      ? normalizeFalVideoPrompt(input.prompt, resolved.config.model, hasImageInput)
-      : input.prompt.trim();
-    const parameterError = validateVideoParameters({
-      prompt: effectivePrompt,
-      durationSeconds: input.durationSeconds,
-      aspectRatio: input.aspectRatio,
-      resolution: input.resolution,
-      generateAudio: input.generateAudio,
-      firstFrame: Boolean(input.firstFramePath),
-      lastFrame: Boolean(input.lastFramePath),
-      images: input.referenceImagePaths.length + Number(Boolean(input.firstFramePath)) + Number(Boolean(input.lastFramePath)),
-      videos: new Set([input.sourceVideoPath, ...(input.referenceVideoPaths ?? [])].filter(Boolean)).size,
-      audios: input.referenceAudioPaths?.length ?? 0,
-      ...(input.mode === "remix" || input.mode === "extend" ? { mode: input.mode } : {})
-    }, option);
-    if (parameterError) throw new ProviderError("INVALID_REQUEST", parameterError);
+    const current = settings.getSettings();
+    const route = input.useVideoRouting ? findVideoModelRoute(current.otherModelRouting?.video, input.model) : undefined;
+    if (input.useVideoRouting && !route) throw new ProviderError("INVALID_CONFIG", "所选视频模型未在模型设置中配置。");
+    const validateChannel = (resolved: ReturnType<typeof providerConfig>, option: Awaited<ReturnType<VideoGenerationService["modelOption"]>>) => {
+      if (input.requireFirstLastFrameCapability) {
+        if (!input.firstFramePath || !input.lastFramePath) {
+          throw new ProviderError("INVALID_REQUEST", "漫剧视频必须连接已采用的首帧和尾帧。");
+        }
+        const capability = resolveVideoModelCapability(option, "first-last-frame");
+        if (capability !== "supported") {
+          throw new ProviderError("UNSUPPORTED_MODEL_CAPABILITY", capability === "unknown"
+            ? "当前模型的首尾帧能力未知，请切换模型或检查 Provider 配置。"
+            : "当前模型不支持首尾帧生成，请切换模型。");
+        }
+      }
+      const prompt = resolved.config.provider === "fal"
+        ? normalizeFalVideoPrompt(input.prompt, resolved.config.model, hasImageInput)
+        : input.prompt.trim();
+      const error = validateVideoParameters({
+        prompt, durationSeconds: input.durationSeconds, aspectRatio: input.aspectRatio,
+        resolution: input.resolution, generateAudio: input.generateAudio,
+        firstFrame: Boolean(input.firstFramePath), lastFrame: Boolean(input.lastFramePath),
+        images: input.referenceImagePaths.length + Number(Boolean(input.firstFramePath)) + Number(Boolean(input.lastFramePath)),
+        videos: new Set([input.sourceVideoPath, ...(input.referenceVideoPaths ?? [])].filter(Boolean)).size,
+        audios: input.referenceAudioPaths?.length ?? 0,
+        ...(input.mode === "remix" || input.mode === "extend" ? { mode: input.mode } : {})
+      }, option);
+      if (error) throw new ProviderError("INVALID_REQUEST", error);
+      return { ...resolved, prompt };
+    };
+    const candidates: ReturnType<typeof validateChannel>[] = [];
+    if (route) {
+      let channelError: unknown;
+      for (const channel of videoRouteChannels(route, current.videoProviders)) {
+        if (hasMediaInput && channel.provider.type === "seedance-aipai") continue;
+        try {
+          const resolved = providerConfig({ ...input, providerId: channel.providerId, model: channel.model });
+          if (resolved.config.provider === "official" || !resolved.config.apiKey) continue;
+          candidates.push(validateChannel(resolved, channel.option));
+        } catch (error) {
+          channelError ??= error;
+        }
+      }
+      if (!candidates.length) throw channelError ?? new ProviderError("INVALID_CONFIG", hasMediaInput
+        ? "该视频模型没有可用的本地参考素材渠道。" : "该视频模型没有配置可用渠道。");
+    } else {
+      const resolved = providerConfig(input);
+      candidates.push(validateChannel(resolved, await videoService.modelOption(resolved.config)));
+    }
+    const first = candidates[0];
     if (input.boardId && input.generationNodeId) {
       const board = await boards.getBoard(input.boardId);
       if (!board?.nodes.some((node) => node.id === input.generationNodeId && isBoardVideoGenerationNode(node))) {
@@ -375,11 +418,12 @@ export function registerVideoIpc({
       id: crypto.randomUUID(),
       status: "submitting",
       createdAt: new Date().toISOString(),
-      input: { ...input, prompt: effectivePrompt, providerId: resolved.providerId },
-      providerId: resolved.providerId,
-      providerName: resolved.providerName,
-      model: resolved.config.model
+      input: { ...input, prompt: first.prompt, providerId: route ? undefined : first.providerId },
+      providerId: first.providerId,
+      providerName: first.providerName,
+      model: first.config.model
     };
+    let submitting = created;
     activeSubmissions.add(created.id);
     try {
       await videoTasks.addJob(created);
@@ -428,32 +472,54 @@ export function registerVideoIpc({
         name: path.basename(audioPath),
         bytes: await assets.readManagedBytes(audioPath)
       })));
-      const task = await videoService.submit({
-        clientRequestId: input.generationAttemptId ?? input.idempotencyKey,
-        prompt: effectivePrompt,
-        mode: input.mode,
-        model: input.model,
-        ratio: input.aspectRatio,
-        resolution: input.resolution,
-        durationSeconds: input.durationSeconds,
-        generateAudio: input.generateAudio,
-        watermark: input.watermark,
-        inputs: [...frameInputs, ...referenceInputs, ...videoInputs, ...audioInputs]
-      }, resolved.config);
-      const queued: VideoGenerationJob = {
-        ...created,
-        status: jobStatus(task.status),
-        remoteTaskId: task.id,
-        remoteStatusUrl: task.statusUrl,
-        remoteResponseUrl: task.responseUrl,
-        remoteCancelUrl: task.cancelUrl
-      };
-      await videoTasks.updateJob(queued);
-      startBackgroundRun(queued, task, resolved.config);
-      return queued;
+      for (const [index, candidate] of candidates.entries()) {
+        if (index > 0) {
+          submitting = {
+            ...created, providerId: candidate.providerId, providerName: candidate.providerName, model: candidate.config.model
+          };
+          await videoTasks.updateJob(submitting);
+        }
+        let task: VideoRemoteTask;
+        try {
+          task = await videoService.submit({
+            clientRequestId: input.generationAttemptId ?? input.idempotencyKey ?? (route ? created.id : undefined),
+            prompt: candidate.prompt,
+            mode: input.mode,
+            model: candidate.config.model,
+            ratio: input.aspectRatio,
+            resolution: input.resolution,
+            durationSeconds: input.durationSeconds,
+            generateAudio: input.generateAudio,
+            watermark: input.watermark,
+            inputs: [...frameInputs, ...referenceInputs, ...videoInputs, ...audioInputs]
+          }, candidate.config);
+        } catch (error) {
+          const normalized = normalizeProviderError(error);
+          if (index < candidates.length - 1 && (normalized.code === "CHANNEL_UNAVAILABLE"
+            || isRetryableTextChannelRejection(normalized.status))) continue;
+          throw error;
+        }
+        const queued: VideoGenerationJob = {
+          ...submitting,
+          status: jobStatus(task.status),
+          remoteTaskId: task.id,
+          remoteStatusUrl: task.statusUrl,
+          remoteResponseUrl: task.responseUrl,
+          remoteCancelUrl: task.cancelUrl
+        };
+        await videoTasks.updateJob(queued);
+        startBackgroundRun(queued, task, candidate.config);
+        return queued;
+      }
+      throw new ProviderError("INVALID_CONFIG", "该视频模型没有配置可用渠道。");
     } catch (error) {
       const normalized = normalizeProviderError(error);
-      return await finishFailedJob(created, normalized.message);
+      const unknown = route && normalized.code !== "CHANNEL_UNAVAILABLE"
+        && (["TIMEOUT", "NETWORK_ERROR", "INVALID_RESPONSE"].includes(normalized.code)
+        || (normalized.status ?? 0) >= 500);
+      return await finishFailedJob(submitting, unknown
+        ? "视频提交状态未确认。请先核对原渠道的任务记录，再决定是否重试。"
+        : normalized.message);
     } finally {
       activeSubmissions.delete(created.id);
     }

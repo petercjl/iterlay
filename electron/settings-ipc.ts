@@ -4,7 +4,9 @@ import { CodexOAuthService } from "./auth/codex-oauth.js";
 import { OnboardingStore } from "./storage/onboarding-store.js";
 import { SettingsStore } from "./storage/settings-store.js";
 
-import { configureProvider } from "./provider-settings.js";
+import { assertManagedModelRouting, configureProvider, revealLocalModelChannelKey, saveLocalModelRouting } from "./provider-settings.js";
+import type { NewModelChannel, SaveModelRoutingInput } from "../shared/contracts/settings.js";
+import { isCompanyModelChannel } from "../shared/contracts/providers.js";
 
 type SettingsPayload = AppSettings & { apiKeyByProviderId?: Record<string, string> };
 
@@ -12,6 +14,7 @@ interface SettingsIpcDependencies {
   settings: SettingsStore;
   onboarding: OnboardingStore;
   codexAuth: CodexOAuthService;
+  isCompanyAccount?: () => boolean;
   onOnboardingCompleted: (key: string) => void;
   onBoardTrashRetentionChanged: () => void;
   onThemeChanged: (event: IpcMainInvokeEvent, theme: AppSettings["theme"]) => void;
@@ -22,12 +25,19 @@ export function registerSettingsIpc({
   settings,
   onboarding,
   codexAuth,
+  isCompanyAccount,
   onOnboardingCompleted,
   onBoardTrashRetentionChanged,
   onThemeChanged,
   trackSettingsUpdated
 }: SettingsIpcDependencies): void {
   ipcMain.handle("settings:configureProvider", (_event, input: Record<string, unknown>) => configureProvider(settings, input));
+  ipcMain.handle("settings:saveModelRouting", async (_event, input: SaveModelRoutingInput) => {
+    await saveLocalModelRouting(settings, input);
+    return { ok: true };
+  });
+  ipcMain.handle("settings:revealLocalModelChannelKey", (_event, kind: NewModelChannel["kind"], providerId: string) =>
+    revealLocalModelChannelKey(settings, kind, providerId));
   ipcMain.handle("settings:get", () => {
     const current = settings.getSettings();
     const providerKeyStatus = settings.getKeyStatus();
@@ -47,6 +57,18 @@ export function registerSettingsIpc({
     }
     return {
       ...current,
+      providers: current.providers.map(provider => isCompanyModelChannel(provider.id)
+        ? { ...provider, ...(provider.id.includes("/sync/") ? { name: "山海管理" } : {}),
+          baseUrl: "", generationEndpoint: "", referenceEndpoint: undefined, apiMode: undefined }
+        : provider),
+      textProviders: current.textProviders.map(provider => isCompanyModelChannel(provider.id)
+        ? { ...provider, ...(provider.id.includes("/sync/") ? { name: "山海管理" } : {}),
+          baseUrl: "", protocol: undefined, connectionName: undefined }
+        : provider),
+      videoProviders: current.videoProviders.map(provider => isCompanyModelChannel(provider.id)
+        ? { ...provider, ...(provider.id.includes("/sync/") ? { name: "山海管理" } : {}), baseUrl: "", connectionProviderId: undefined } : provider),
+      audioProviders: current.audioProviders?.map(provider => isCompanyModelChannel(provider.id)
+        ? { ...provider, ...(provider.id.includes("/sync/") ? { name: "山海管理" } : {}), baseUrl: "", speechEndpoint: "", voice: "" } : provider),
       providerKeyStatus,
       codexAuthStatusByProviderId,
       setupComplete: settings.hasSavedSettings()
@@ -64,10 +86,20 @@ export function registerSettingsIpc({
   ipcMain.handle("onboarding:clear", (_event, key: string) => onboarding.clearSeen(key));
 
   ipcMain.handle("settings:save", async (event, payload: SettingsPayload) => {
-    await settings.transaction(() => {
-    settings.saveSettings({
+    await settings.transaction(async () => {
+    const current = settings.getSettings();
+    const personal = current.personalModelRouting;
+    const unchangedProjection = <T>(requested: T, projected: T) => JSON.stringify(requested) === JSON.stringify(projected);
+    const imageRouting = personal && unchangedProjection(payload.imageRouting, current.imageRouting)
+      ? personal.image : payload.imageRouting;
+    const otherModelRouting = personal && unchangedProjection(payload.otherModelRouting, current.otherModelRouting)
+      ? personal.other : payload.otherModelRouting;
+    assertManagedModelRouting(current, { imageRouting, otherModelRouting });
+    await settings.saveSettings({
       providers: payload.providers,
       activeProviderId: payload.activeProviderId,
+      imageRouting,
+      otherModelRouting,
       textProviders: payload.textProviders,
       activeTextProviderId: payload.activeTextProviderId,
       videoProviders: payload.videoProviders,
@@ -119,7 +151,7 @@ export function registerSettingsIpc({
     if (payload.boardTrashRetentionDays !== undefined) onBoardTrashRetentionChanged();
     trackSettingsUpdated();
     onThemeChanged(event, payload.theme);
-    codexAuth.retainProviders(new Set(
+    if (!isCompanyAccount?.()) codexAuth.retainProviders(new Set(
       [
         ...payload.providers
           .filter((providerConfig) => providerConfig.type === "codex-oauth")
@@ -133,7 +165,10 @@ export function registerSettingsIpc({
   });
 
   ipcMain.handle("settings:update", async (event, patch: AppSettingsPatch) => {
-    await settings.transaction(() => settings.updateSettings(patch));
+    await settings.transaction(() => {
+      assertManagedModelRouting(settings.getSettings(), patch);
+      return settings.updateSettings(patch);
+    });
     if (patch.boardTrashRetentionDays !== undefined) onBoardTrashRetentionChanged();
     if (patch.theme) onThemeChanged(event, patch.theme);
     return { ok: true };

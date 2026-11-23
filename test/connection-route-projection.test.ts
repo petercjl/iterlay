@@ -94,12 +94,26 @@ describe("connection route projection", () => {
       ...orthogonal.data,
       routing: { mode: "auto", kind: "orthogonal", waypoints: [] }
     };
-    const curved = edge("curved");
-    const initial = descriptors([source, target, blocker], [orthogonal, curved]);
-    const moved = descriptors([{ ...blocker, position: { x: 360, y: 260 } }, source, target], [orthogonal, curved]);
+    const straight = edge("straight");
+    straight.data = { ...straight.data, routing: { mode: "auto", kind: "straight", waypoints: [] } };
+    const initial = descriptors([source, target, blocker], [orthogonal, straight]);
+    const moved = descriptors([{ ...blocker, position: { x: 360, y: 260 } }, source, target], [orthogonal, straight]);
 
     expect(moved[0].signature).not.toBe(initial[0].signature);
     expect(moved[1].signature).toBe(initial[1].signature);
+  });
+
+  it("migrates saved curves to orthogonal routing while retaining manual waypoints", () => {
+    const connection = edge("legacy");
+    const waypoints = [{ id: "bend", x: 480, y: 160 }];
+    connection.data = { ...connection.data, routing: { mode: "manual", kind: "curved", waypoints } };
+    const nodes = [node("source", 0), node("target", 700)];
+    const routeDescriptors = descriptors(nodes, [connection]);
+    const migrated = migrateLegacyConnectionEdges([connection], routeDescriptors);
+
+    expect(migrated.changed).toBe(true);
+    expect(migrated.edges[0].data?.routing).toEqual({ mode: "manual", kind: "orthogonal", waypoints });
+    expect(migrateLegacyConnectionEdges(migrated.edges, routeDescriptors).changed).toBe(false);
   });
 
   it("fans automatic reference targets out deterministically without persisting anchors", () => {

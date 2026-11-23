@@ -14,7 +14,7 @@ function edgeWithData(data: Record<string, unknown>): Edge {
 }
 
 describe("connection history persistence boundary", () => {
-  it("renders locked comic dependencies as curved non-deletable edges", () => {
+  it("saves legacy locked comic dependencies as orthogonal, non-deletable edges", () => {
     const edge = edgeFromConnection({
       id: "setting-character",
       source: "setting",
@@ -35,7 +35,7 @@ describe("connection history persistence boundary", () => {
     });
     expect(boardConnectionFromEdge(edge)).toMatchObject({
       locked: true,
-      routing: { mode: "auto", kind: "curved" }
+      routing: { mode: "auto", kind: "orthogonal" }
     });
   });
 

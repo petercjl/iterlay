@@ -964,7 +964,7 @@ export class BoardStore {
           label: "生成结果",
           sourceAnchor: { side: "right", ratio: 0.5, mode: "pinned" },
           targetAnchor: { side: "left", ratio: 0.5, mode: "pinned" },
-          routing: { mode: "auto", kind: "curved", waypoints: [] }
+          routing: { mode: "auto", kind: "orthogonal", waypoints: [] }
         });
       }
       const nodes = reflowGenerationOutputNodes(
@@ -1039,7 +1039,7 @@ export class BoardStore {
               target: placeholderId,
               sourceAnchor: { side: "right" as const, ratio: 0.5, mode: "pinned" as const },
               targetAnchor: { side: "left" as const, ratio: 0.5, mode: "pinned" as const },
-              routing: { mode: "auto" as const, kind: "curved" as const, waypoints: [] }
+              routing: { mode: "auto" as const, kind: "orthogonal" as const, waypoints: [] }
             }
           : connection
       ));
@@ -1049,7 +1049,7 @@ export class BoardStore {
           sourceHandle: "source-right", targetHandle: "target-left", kind: "visual", label: "生成结果",
           sourceAnchor: { side: "right", ratio: 0.5, mode: "pinned" },
           targetAnchor: { side: "left", ratio: 0.5, mode: "pinned" },
-          routing: { mode: "auto", kind: "curved", waypoints: [] }
+          routing: { mode: "auto", kind: "orthogonal", waypoints: [] }
         });
       }
       await this.saveBoardUnlocked({
@@ -1138,7 +1138,7 @@ export class BoardStore {
           label: "生成结果",
           sourceAnchor: { side: "right", ratio: 0.5, mode: "pinned" },
           targetAnchor: { side: "left", ratio: 0.5, mode: "pinned" },
-          routing: { mode: "auto", kind: "curved", waypoints: [] }
+          routing: { mode: "auto", kind: "orthogonal", waypoints: [] }
         });
       }
       await this.saveBoardUnlocked({

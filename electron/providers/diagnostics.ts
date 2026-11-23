@@ -4,6 +4,7 @@ import type {
 } from "../../shared/types.js";
 import { imageDimensionsFromHeader } from "../media/image-metadata.js";
 import { openRouterVideoApiRoot } from "./video-openrouter.js";
+import { textProviderHeaders } from "./native-text.js";
 
 type DiagnosticConfig = ProviderConfig | TextProviderConfig | VideoProviderConfig;
 const untested = (message: string): ProviderCheck => ({ status: "not-tested", message });
@@ -52,7 +53,9 @@ export async function checkProviderConnection(
   try {
     const response = await fetchImpl(probe.url, {
       method: "GET",
-      headers: { Authorization: `${config.type === "fal" ? "Key" : "Bearer"} ${apiKey}` },
+      headers: kind === "text"
+        ? textProviderHeaders(config as TextProviderConfig, apiKey)
+        : { Authorization: `${config.type === "fal" ? "Key" : "Bearer"} ${apiKey}` },
       signal: controller.signal
     });
     result.checks.network = { status: "passed", message: `服务已响应（HTTP ${response.status}）。` };

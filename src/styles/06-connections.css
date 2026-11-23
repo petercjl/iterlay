@@ -1,6 +1,6 @@
 .canvas-connection-result-flow {
   fill: none;
-  stroke: var(--canvas-connection-color, hsl(var(--canvas-ai-accent)));
+  stroke: hsl(var(--canvas-ai-accent));
   stroke-width: calc(var(--canvas-connection-width, 1.5px) + 0.5px);
   stroke-dasharray: 2 12;
   stroke-linecap: round;
@@ -21,7 +21,7 @@
 }
 
 .canvas-connection-marker-fill {
-  fill: var(--canvas-connection-color, hsl(var(--primary)));
+  fill: hsl(var(--canvas-ai-accent));
   stroke: hsl(var(--card));
   stroke-width: 1.15;
   stroke-linejoin: round;
@@ -47,8 +47,7 @@
 .figma-canvas .react-flow__edge:hover .canvas-connection-edge,
 .figma-canvas .react-flow__edge.selected .canvas-connection-edge,
 .figma-canvas .canvas-connection-edge.is-selected {
-  stroke: var(--canvas-connection-color, hsl(var(--primary)));
-  filter: drop-shadow(0 0 1.5px hsl(var(--primary) / 0.64));
+  filter: drop-shadow(0 0 1.5px hsl(var(--canvas-ai-accent) / 0.64));
 }
 
 .canvas-connection-bridge-gap,
@@ -65,7 +64,7 @@
 }
 
 .canvas-connection-bridge-stroke {
-  stroke: var(--canvas-connection-color, hsl(var(--primary)));
+  stroke: hsl(var(--canvas-ai-accent));
   stroke-width: var(--canvas-connection-width, 1.5px);
 }
 
@@ -225,39 +224,6 @@
   background: transparent;
   color: hsl(var(--muted-foreground));
   cursor: pointer;
-}
-
-.canvas-connection-color {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.canvas-connection-color:hover,
-.canvas-connection-color:focus-within {
-  background: hsl(var(--accent));
-}
-
-.canvas-connection-color input {
-  width: 16px;
-  height: 16px;
-  padding: 0;
-  border: 1px solid hsl(var(--border));
-  border-radius: 3px;
-  background: transparent;
-  cursor: pointer;
-}
-
-.canvas-connection-color input::-webkit-color-swatch-wrapper {
-  padding: 1px;
-}
-
-.canvas-connection-color input::-webkit-color-swatch {
-  border: 0;
-  border-radius: 1px;
 }
 
 .canvas-connection-marker-size {

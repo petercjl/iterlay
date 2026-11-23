@@ -13,15 +13,21 @@ it("packages only validated deployment defaults and rejects missing or sensitive
   const run = (input?: string) => spawnSync(process.execPath, [script, "--staging-root", output, ...(input ? ["--source", input] : [])], { encoding: "utf8", env });
   try {
     expect(run().status).not.toBe(0);
-    const values = { accountOrigin: "https://company.example/", nasUrl: "http://nas.example:18473/" };
+    const values = { omniOrigin: "https://omni.example/", accountOrigin: "https://company.example/", nasUrl: "http://nas.example:18473/" };
     await writeFile(source, JSON.stringify(values), { flag: "wx", mode: 0o600 });
     const result = run(source);
     expect(result.status, result.stderr).toBe(0);
     const prepared = JSON.parse(result.stdout);
-    expect(JSON.parse(await readFile(prepared.file, "utf8"))).toEqual({ accountOrigin: "https://company.example", nasUrl: "http://nas.example:18473" });
+    expect(JSON.parse(await readFile(prepared.file, "utf8"))).toEqual({ omniOrigin: "https://omni.example", accountOrigin: "https://company.example", nasUrl: "http://nas.example:18473" });
     expect(result.stdout).not.toContain("company.example");
     expect(prepared.sha256).toMatch(/^[a-f0-9]{64}$/);
-    for (const [index, patch] of [{ nasUrl: "" }, { password: "private-fixture" }, { accountOrigin: "http://company.example" }, { nasUrl: "http://user:private-fixture@nas.example" }].entries()) {
+    const omniSource = path.join(root, "omni-defaults.json");
+    const omni = { omniOrigin: "https://omni.example", legacyWorkspaceOrigin: "https://company.example" };
+    await writeFile(omniSource, JSON.stringify(omni), { flag: "wx", mode: 0o600 });
+    const omniResult = run(omniSource);
+    expect(omniResult.status, omniResult.stderr).toBe(0);
+    expect(JSON.parse(await readFile(JSON.parse(omniResult.stdout).file, "utf8"))).toEqual(omni);
+    for (const [index, patch] of [{ omniOrigin: undefined }, { nasUrl: "" }, { password: "private-fixture" }, { accountOrigin: "http://company.example" }, { nasUrl: "http://user:private-fixture@nas.example" }].entries()) {
       const before = await readdir(output);
       const invalid = path.join(root, `invalid-${index}.json`);
       await writeFile(invalid, JSON.stringify({ ...values, ...patch }), { flag: "wx" });

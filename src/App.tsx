@@ -96,12 +96,13 @@ markTourSeen
 } from "@/lib/onboarding";
 import { sceneAssistantFieldsToPrompt } from "@/lib/prompt-assistant";
 import { getProviderMaxImageCount } from "@/lib/provider-image-count";
+import { canvasImageModel, findTextModelRoute, resolveImageRouting, resolveTextModelChannels, type ImageModelRouting } from "@shared/image-routing";
 
 import { startSceneCollaborationStream } from "@/lib/scene-collaboration-stream";
 import { isSendEnter } from "@/lib/send-on-enter";
 import { resolveEditSmartSuggestionsEnabled } from "@/lib/smart-suggestions";
 import { generateTemplateVerification } from "@/lib/template-verification";
-import { canUseTextAgent,resolveTextProviderReadiness } from "@/lib/text-provider-readiness";
+import { assistantTextModelOptions, canUseTextAgent, resolveTextProviderReadiness } from "@/lib/text-provider-readiness";
 import { reconcileRecoveredVideoCanvas } from "@/lib/video-generation-recovery";
 import { notifyVideoJob as showVideoJobNotification } from "@/lib/video-job-notification";
 import { promoteRecentlyUsedBoard,sortBoardsByRecentUse } from "@shared/board-order";
@@ -620,6 +621,21 @@ export default function App(): React.ReactElement {
     () => typeof window !== "undefined" && window.matchMedia("(min-width: 701px)").matches
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [savedImageRouting, setSavedImageRouting] = useState<ImageModelRouting>();
+  const [textRouting, setTextRouting] = useState<import("@shared/image-routing").OtherModelRouting>();
+  const acceptRoutingSettings = useCallback((fresh: Awaited<ReturnType<ReturnType<typeof getImageWorkbenchApi>["getSettings"]>>) => {
+    setSavedImageRouting(fresh.imageRouting);
+    setTextRouting(fresh.otherModelRouting);
+    setProviders(fresh.providers);
+    setActiveProviderId(fresh.activeProviderId);
+    setTextProviders(fresh.textProviders);
+    setActiveTextProviderId(fresh.activeTextProviderId);
+    setVideoProviders(fresh.videoProviders);
+    setActiveVideoProviderId(fresh.activeVideoProviderId);
+    setProviderKeyStatus(fresh.providerKeyStatus);
+    setSetupComplete(fresh.setupComplete);
+  }, [setProviders, setActiveProviderId, setTextProviders, setActiveTextProviderId, setVideoProviders, setActiveVideoProviderId, setProviderKeyStatus, setSetupComplete]);
+  const imageRouting = useMemo(() => resolveImageRouting(savedImageRouting, providers, activeProviderId), [savedImageRouting, providers, activeProviderId]);
   const [settingsDialogMounted, setSettingsDialogMounted] = useState(false);
   const [settingsEntryPoint, setSettingsEntryPoint] = useState<"default" | "provider-setup" | "model-management" | "coding-agent" | "assistant-permissions">("default");
   useEffect(() => {
@@ -764,6 +780,11 @@ export default function App(): React.ReactElement {
     };
   }, []);
 
+  const openWorkbenchSettings = useCallback((): void => {
+    setSettingsEntryPoint("default");
+    setSettingsOpen(true);
+  }, []);
+
   const openProviderSetup = useCallback((): void => {
     setSettingsEntryPoint("provider-setup");
     setSettingsOpen(true);
@@ -819,8 +840,17 @@ export default function App(): React.ReactElement {
   const activeHasKey = Boolean(providerKeyStatus[activeProvider.id]);
   const isOfficialProvider = false;
   const activeTextProvider = useMemo(
-    () => textProviders.find((p) => p.id === activeTextProviderId) ?? textProviders[0],
-    [textProviders, activeTextProviderId]
+    () => {
+      const route = findTextModelRoute(textRouting, activeTextProviderId);
+      return route
+        ? resolveTextModelChannels(route, textProviders, provider => Boolean(providerKeyStatus[provider.id]))[0]
+        : textProviders.find((p) => p.id === activeTextProviderId) ?? textProviders[0];
+    },
+    [textProviders, activeTextProviderId, textRouting, providerKeyStatus]
+  );
+  const assistantTextProviders = useMemo(
+    () => assistantTextModelOptions(textRouting, textProviders, providerKeyStatus, activeTextProviderId),
+    [textRouting, textProviders, providerKeyStatus, activeTextProviderId]
   );
   const textProviderReadiness = resolveTextProviderReadiness(
     activeTextProvider,
@@ -1760,6 +1790,8 @@ export default function App(): React.ReactElement {
         void refreshHistory();
 
         const settings = await settingsPromise;
+        setSavedImageRouting(settings.imageRouting);
+        setTextRouting(settings.otherModelRouting);
         setProviders(settings.providers);
         setActiveProviderId(settings.activeProviderId);
         setTextProviders(settings.textProviders);
@@ -1884,16 +1916,19 @@ export default function App(): React.ReactElement {
     if (!api) return;
     let active = true;
 
-    if(enterpriseStatus?.accountMode === "shared" && enterpriseStatus.authenticated && enterpriseStatus.configVersion){
+    const refreshModelSettings = () => {
       void api.getSettings().then(settings=>{
         if(!active)return;
-        setProviders(settings.providers);setActiveProviderId(settings.activeProviderId);
-        setTextProviders(settings.textProviders);setActiveTextProviderId(settings.activeTextProviderId);
-        setProviderKeyStatus(settings.providerKeyStatus);
+        acceptRoutingSettings(settings);
       }).catch(reportWorkbenchError);
-    }
-    return ()=>{active=false;};
-  },[startupLoading,enterpriseStatus?.accountMode,enterpriseStatus?.authenticated,enterpriseStatus?.configVersion,enterpriseStatus?.imageConfigured,getWorkbenchApi,reportWorkbenchError,setProviders,setActiveProviderId,setTextProviders,setActiveTextProviderId,setProviderKeyStatus]);
+    };
+    if (enterpriseStatus?.accountMode === "shared" && enterpriseStatus.authenticated && enterpriseStatus.configVersion)
+      refreshModelSettings();
+    const unsubscribe = api.onWorkbenchEvent(event => {
+      if (event.type === "model-providers-updated") refreshModelSettings();
+    });
+    return () => { active = false; unsubscribe(); };
+  },[startupLoading,enterpriseStatus?.accountMode,enterpriseStatus?.authenticated,enterpriseStatus?.configVersion,enterpriseStatus?.imageConfigured,getWorkbenchApi,reportWorkbenchError,acceptRoutingSettings]);
 
   useEffect(() => {
     if (startupLoading) return;
@@ -2172,7 +2207,10 @@ export default function App(): React.ReactElement {
       if (!prompt) throw new Error("Pi Agent 没有提供可执行的生成方案。");
       const videoProvider = plan.mediaType === "video"
         ? videoProviders.find((provider) => provider.id === activeVideoProviderId) ?? videoProviders[0] : undefined;
-      if (plan.mediaType === "video" && !videoProvider) throw new Error("尚未配置视频模型，请在设置中添加视频服务后重试。");
+      const videoRouteName = textRouting?.video?.defaultModel;
+      const videoModel = videoRouteName || videoProvider?.model;
+      const videoProviderId = videoRouteName ? undefined : videoProvider?.id;
+      if (plan.mediaType === "video" && !videoModel) throw new Error("尚未配置视频模型，请在设置中添加视频服务后重试。");
       const targetBoardId = plan.targetBoardId;
       let target: Pick<BoardSummary, "id" | "name"> | undefined =
         targetBoardId ? boards.find((board) => board.id === targetBoardId) : undefined;
@@ -2208,7 +2246,7 @@ export default function App(): React.ReactElement {
         resetPromptDraft: !targetBoardId,
         suppressLoadingScreen: true
       });
-      if (plan.mediaType === "video" && videoProvider) {
+      if (plan.mediaType === "video" && videoModel) {
         // Use the same durable board node + video task pipeline as the canvas.
         const nodeId = crypto.randomUUID();
         const referencePaths = plan.referencePaths?.length ? plan.referencePaths
@@ -2220,7 +2258,7 @@ export default function App(): React.ReactElement {
         const position = nextAutomaticVideoPosition();
         const node: BoardVideoGenerationNode = {
           id: nodeId, type: "video-generation", title: "视频生成", ...position,
-          prompt, model: videoProvider.model, providerId: videoProvider.id,
+          prompt, model: videoModel, providerId: videoProviderId,
           duration: plan.videoSettings?.durationSeconds ?? 5,
           aspectRatio: plan.videoSettings?.aspectRatio ?? "16:9",
           resolution: plan.videoSettings?.resolution ?? "720p", status: "draft"
@@ -2237,7 +2275,7 @@ export default function App(): React.ReactElement {
         await flushBoardSave();
         plan.onProgress?.("正在提交视频任务…");
         let job = await api.startVideoGeneration({
-          prompt, model: videoProvider.model, providerId: videoProvider.id,
+          prompt, model: videoModel, providerId: videoProviderId, useVideoRouting: Boolean(videoRouteName),
           durationSeconds: plan.videoSettings?.durationSeconds ?? 5,
           aspectRatio: plan.videoSettings?.aspectRatio ?? "16:9",
           resolution: plan.videoSettings?.resolution ?? "720p",
@@ -2603,6 +2641,7 @@ export default function App(): React.ReactElement {
       y: position.y
     };
     const videoProvider = videoProviders.find((provider) => provider.id === activeVideoProviderId) ?? videoProviders[0];
+    const defaultVideoModel = textRouting?.video?.defaultModel;
     const node: CanvasPersistedNode = type === "canvas"
       ? { ...base, type: "canvas", title: "Canvas", framework: initial?.framework ?? "html", code: initial?.code ?? CANVAS_STARTERS[initial?.framework ?? "html"] }
       : type === "text"
@@ -2612,7 +2651,7 @@ export default function App(): React.ReactElement {
           type: "generation",
           title: "图片生成",
           prompt: initial?.prompt ?? "",
-          model: initial?.model ?? activeProvider.model,
+          model: initial?.model ?? imageRouting.defaultModel,
           size: initial?.size ?? inputRef.current.size,
           count: initial?.count ?? 1,
           status: "idle"
@@ -2621,8 +2660,8 @@ export default function App(): React.ReactElement {
           type: "video-generation",
           title: "视频生成",
           prompt: initial?.prompt ?? "",
-          providerId: videoProvider?.id,
-          model: initial?.model ?? videoProvider?.model ?? "doubao-seedance-1-5-pro-250528",
+          providerId: defaultVideoModel && !initial?.model ? undefined : videoProvider?.id,
+          model: initial?.model ?? (defaultVideoModel || videoProvider?.model) ?? "doubao-seedance-1-5-pro-250528",
           duration: initial?.duration ?? 5,
           aspectRatio: initial?.aspectRatio ?? "16:9",
           resolution: initial?.resolution ?? "720p",
@@ -2800,14 +2839,15 @@ export default function App(): React.ReactElement {
     if (paidSubmissionInFlightRef.current.has(node.id)) return [];
     paidSubmissionInFlightRef.current.add(node.id);
     try {
-      const selectedImageProvider = providers.find((provider) => provider.id === (node.providerId ?? activeProvider.id)) ?? activeProvider;
-      const model = node.model?.trim() || selectedImageProvider.model;
-      const count = Math.min(Math.max(1, node.count ?? 1), getProviderMaxImageCount(selectedImageProvider));
+      const model = canvasImageModel(imageRouting, node.model, node.providerId);
+      if (!imageRouting.models.some(item => item.name === model && item.channels.length))
+        throw new Error(uiText("请为此图片模型配置至少一个渠道。"));
+      const count = Math.min(8, Math.max(1, node.count ?? 1));
       const metadata: Partial<GenerateImageInput> = {};
       const costLabel = metadata.priceSnapshot?.amount ? metadata.priceSnapshot.amount + " Credit" : "由 Provider 计费";
       const confirmed = await requestGenerationConfirmation({
         title: node.comicFrameRole === "first-frame" ? "确认生成首帧" : node.comicFrameRole === "last-frame" ? "确认生成尾帧" : "确认生成图片",
-        providerLabel: selectedImageProvider.name,
+        providerLabel: uiText("按模型渠道顺序"),
         model,
         totalCostLabel: costLabel,
         items: [{ id: node.id, label: node.title || "图片生成", task: `生成 ${count} 张图片`, costLabel, quoteId: metadata.quoteId, quoteExpiresAt: metadata.quoteExpiresAt }],
@@ -2835,6 +2875,7 @@ export default function App(): React.ReactElement {
         ...(adoptedFirstFrame ? { adoptedFirstFrame: { nodeId: adoptedFirstFrame.id, versionId: adoptedFirstFrame.jobId } } : {})
       } : undefined;
       if (node.comicFrameRole === "last-frame" && !adoptedFirstFrame) throw new Error("尾帧生成必须先采用并固定首帧版本。");
+      let generationError: string | undefined;
       const outputs = await generate(undefined, {
         boardId: originBoardId,
         workflowMode: "generate",
@@ -2845,12 +2886,18 @@ export default function App(): React.ReactElement {
         size: node.size || "auto",
         n: count,
         referenceImages: references,
-        providerId: selectedImageProvider.id,
+        useImageRouting: true,
+        providerId: undefined,
         ...metadata
-      }, { preservePrompt: true, placementAnchorId: node.id, preserveModelOverride: true });
+      }, {
+        preservePrompt: true,
+        placementAnchorId: node.id,
+        preserveModelOverride: true,
+        onFailure: (message) => { generationError = message; }
+      });
       const completionPatch: Partial<BoardGenerationNode> = outputs.length > 0
         ? { status: "succeeded", ...(node.comicFrameRole ? { latestGenerationId: outputs[0].jobId } : { lastGenerationId: outputs[0].jobId }), error: undefined }
-        : { status: "failed", error: "未生成可用图片" };
+        : { status: "failed", error: generationError ?? "未生成可用图片" };
       if (!originBoardId || activeBoardRef.current?.id === originBoardId) {
         updateWorkflowNode(node.id, completionPatch);
       } else {
@@ -2866,7 +2913,7 @@ export default function App(): React.ReactElement {
             targetHandle: "target-left",
             kind: "visual",
             label: "生成结果",
-            routing: { mode: "auto", kind: "curved", waypoints: [] }
+            routing: { mode: "auto", kind: "orthogonal", waypoints: [] }
           }));
           await api.saveBoard({
             id: originBoardId,
@@ -2892,7 +2939,7 @@ export default function App(): React.ReactElement {
   }
 
   const { runVideoGenerationNode, stopVideoPolling, resumeVideoPolling } = createVideoGenerationController({
-    activeBoardRef, getWorkbenchApi, videoProviders, activeVideoProviderId, updateWorkflowNode,
+    activeBoardRef, getWorkbenchApi, videoProviders, activeVideoProviderId, videoRouting: textRouting?.video, updateWorkflowNode,
     paidSubmissionInFlightRef, requestGenerationConfirmation, workflowNodesRef, canvasStateRef,
     setWorkflowNodes, setCanvasConnectionsVersion, scheduleBoardSave, flushBoardSave, videoPollingStoppedRef,
     refreshHistory, boardDetailCacheRef, openBoard, notifyVideoJob
@@ -3400,17 +3447,15 @@ export default function App(): React.ReactElement {
   );
 
   const selectAgentTextProvider = useCallback(async (id: string): Promise<void> => {
-    if (!textProviders.some((provider) => provider.id === id)) return;
+    if (!assistantTextProviders.some((provider) => provider.id === id)) return;
     try {
       const api = getWorkbenchApi();
       if (!api) throw new Error("工作台连接不可用。");
       await api.updateSettings({ activeTextProviderId: id });
       const fresh = await api.getSettings();
-      setTextProviders(fresh.textProviders);
-      setActiveTextProviderId(fresh.activeTextProviderId);
-      setProviderKeyStatus(fresh.providerKeyStatus);
+      acceptRoutingSettings(fresh);
     } catch (error) { reportWorkbenchError(error); }
-  }, [textProviders, getWorkbenchApi, reportWorkbenchError, setTextProviders, setActiveTextProviderId, setProviderKeyStatus]);
+  }, [assistantTextProviders, getWorkbenchApi, reportWorkbenchError, acceptRoutingSettings]);
 
   const interpretCreateChat = useCallback(
     async (request: CollaborateSceneRequest, stream?: import("@/components/workbench/CreationAssistantPage").CreationAssistantStreamOptions): Promise<CollaborateSceneResult> => {
@@ -5206,6 +5251,7 @@ export default function App(): React.ReactElement {
 
   function getBlockedGenerateMessage(targetInput: GenerateImageInput = inputRef.current): string | null {
     if (bridgeError) return bridgeError;
+    if (targetInput.useImageRouting) return targetInput.prompt.trim() ? null : "请先填写 Prompt。";
     if (isOfficialProvider && creditLoading) return "正在读取官方 Provider 余额，请稍候。";
     if (isOfficialProvider && !creditStatus?.providerAvailable) return creditError || "官方 Provider 暂时不可用。";
     if (!isOfficialProvider && !setupComplete) return "请先在设置中添加并保存 Provider。";
@@ -5449,7 +5495,10 @@ export default function App(): React.ReactElement {
         workflowNodes={BOARD_ONLY_MODE ? workflowNodes.filter(node => node.type === "text") : workflowNodes}
         videoUrls={videoUrls}
         activeImageProvider={activeProvider}
+        imageProviders={providers}
+        imageRouting={imageRouting}
         videoProviders={videoProviders}
+        videoModelRouting={textRouting?.video}
         activeVideoProviderId={activeVideoProviderId}
         goldBeanBalance={creditStatus?.goldBeans?.balance}
         goldBeanLoading={creditLoading}
@@ -5625,10 +5674,101 @@ export default function App(): React.ReactElement {
       <Toaster theme={effectiveTheme} position="top-center" />
     </div>;
   }
+  const workbenchSettingsDialog = settingsOpen || settingsDialogMounted ? (
+        <Suspense fallback={null}>
+          <ProviderSettingsDialog
+            open={settingsOpen}
+            accountStatus={enterpriseStatus}
+            onRoutingSaved={acceptRoutingSettings}
+            companyAccount={enterpriseStatus?.accountMode === "shared" && enterpriseStatus.authenticated}
+            onOpenChange={setSettingsOpen}
+            entryPoint={settingsEntryPoint}
+            onImportStarterBoard={() => void importBoardFromDialog()}
+            onOpenStarterBoards={() => openLibrary("boards")}
+            providers={providers}
+            activeProviderId={activeProviderId}
+            textProviders={textProviders}
+            activeTextProviderId={activeTextProviderId}
+            videoProviders={videoProviders}
+            activeVideoProviderId={activeVideoProviderId}
+            providerKeyStatus={providerKeyStatus}
+            bridgeError={bridgeError}
+            language={language}
+            onLanguageChange={changeLanguage}
+            theme={theme}
+            onThemeChange={changeTheme}
+            promptDockAutoCollapse={promptDockAutoCollapse}
+            onPromptDockAutoCollapseChange={changePromptDockAutoCollapse}
+            advancedVideoModesEnabled={advancedVideoModesEnabled}
+            onAdvancedVideoModesEnabledChange={changeAdvancedVideoModesEnabled}
+            canvasThumbnailPreview={canvasThumbnailPreview}
+            onCanvasThumbnailPreviewChange={changeCanvasThumbnailPreview}
+            canvasMinimapVisible={canvasMinimapVisible}
+            boardCommentsEnabled={boardCommentsEnabled}
+            onBoardCommentsEnabledChange={changeBoardCommentsEnabled}
+            boardGalleryEnabled={boardGalleryEnabled}
+            onBoardGalleryEnabledChange={changeBoardGalleryEnabled}
+            onCanvasMinimapVisibleChange={changeCanvasMinimapVisible}
+            canvasImageToolbarOnHover={canvasImageToolbarOnHover}
+            onCanvasImageToolbarOnHoverChange={changeCanvasImageToolbarOnHover}
+            canvasRelationshipHoverHighlight={canvasRelationshipHoverHighlight}
+            onCanvasRelationshipHoverHighlightChange={changeCanvasRelationshipHoverHighlight}
+            wechatStickerExportEnabled={wechatStickerExportEnabled}
+            onWechatStickerExportEnabledChange={changeWechatStickerExportEnabled}
+            onlineImageSharingEnabled={onlineImageSharingEnabled}
+            onOnlineImageSharingEnabledChange={changeOnlineImageSharingEnabled}
+            copyImageFormat={copyImageFormat}
+            onCopyImageFormatChange={changeCopyImageFormat}
+            boardSmartSuggestionsEnabled={boardSmartSuggestionsEnabled}
+            onBoardSmartSuggestionsEnabledChange={changeBoardSmartSuggestionsEnabled}
+             boardAssistantEnabled={boardAssistantEnabled}
+             onBoardAssistantEnabledChange={changeBoardAssistantEnabled}
+             boardAssistantAgentModeEnabled={boardAssistantAgentModeEnabled}
+             boardAssistantAgentModeAvailable={canUseTextAgent(activeTextProvider, providerKeyStatus)}
+             boardAssistantAgentModeModel={activeTextProvider?.model}
+             onBoardAssistantAgentModeEnabledChange={changeBoardAssistantAgentModeEnabled}
+             piAgentBuiltinTools={piAgentBuiltinTools ?? []}
+             onPiAgentBuiltinToolsChange={changePiAgentBuiltinTools}
+             piAgentTudaTools={piAgentTudaTools}
+             onPiAgentTudaToolsChange={changePiAgentTudaTools}
+             piAgentSkillPaths={piAgentSkillPaths}
+             onPiAgentSkillPathsChange={changePiAgentSkillPaths}
+             piAgentExtensionPaths={piAgentExtensionPaths}
+             onPiAgentExtensionPathsChange={changePiAgentExtensionPaths}
+             piAgentCustomSkillPaths={piAgentCustomSkillPaths}
+             onPiAgentCustomSkillPathsChange={changePiAgentCustomSkillPaths}
+             piAgentCustomExtensionPaths={piAgentCustomExtensionPaths}
+             onPiAgentCustomExtensionPathsChange={changePiAgentCustomExtensionPaths}
+             piAgentMaxTurns={piAgentMaxTurns}
+             onPiAgentMaxTurnsChange={changePiAgentMaxTurns}
+             piAgentWebSearchMaxResults={piAgentWebSearchMaxResults}
+             onPiAgentWebSearchMaxResultsChange={changePiAgentWebSearchMaxResults}
+            editSmartSuggestionsEnabled={editSmartSuggestionsEnabled}
+            editSmartSuggestionsAvailable={editSmartSuggestionsAvailable}
+            onEditSmartSuggestionsEnabledChange={changeEditSmartSuggestionsEnabled}
+            memoryEnabled={memoryEnabled}
+            onMemoryEnabledChange={changeMemoryEnabled}
+            memoryUsageLevel={memoryUsageLevel}
+            onMemoryUsageLevelChange={changeMemoryUsageLevel}
+            editInfoMode={editInfoMode}
+            onEditInfoModeChange={changeEditInfoMode}
+            imageDoubleClickAction={imageDoubleClickAction}
+            onImageDoubleClickActionChange={changeImageDoubleClickAction}
+            versionSeparationMode={versionSeparationMode}
+            onVersionSeparationModeChange={changeVersionSeparationMode}
+            generateButtonStyle={generateButtonStyle}
+            onGenerateButtonStyleChange={changeGenerateButtonStyle}
+            downloadDirectory={downloadDirectory}
+            onDownloadDirectoryChange={setDownloadDirectory}
+            onSaved={persistProviders}
+          />
+        </Suspense>
+      ) : null;
+
   if (activeBoard?.kind === "comic-drama" && comicDramaSnapshot) {
     return (
       <div className="workspace-surface relative h-screen w-screen overflow-hidden text-foreground">
-      {!libraryOpen && !galleryOpen && !settingsOpen && <GlobalAccountMenu compact floating />}
+      {!libraryOpen && !galleryOpen && !settingsOpen && <GlobalAccountMenu compact floating onOpenSettings={openWorkbenchSettings} />}
         <Suspense fallback={<StartupLoading />}>
           <CanvasRoot>
             <ComicDramaWorkspace
@@ -5649,13 +5789,14 @@ export default function App(): React.ReactElement {
           onConfirm={confirmGenerationSubmission}
         />
         {coverDialog}
+        {workbenchSettingsDialog}
       <Toaster theme={effectiveTheme} position="top-center" />
       </div>
     );
   }
   return (
     <div className="workspace-surface relative h-screen w-screen overflow-hidden text-foreground">
-      {!libraryOpen && !galleryOpen && !settingsOpen && <GlobalAccountMenu compact floating />}
+      {!libraryOpen && !galleryOpen && !settingsOpen && <GlobalAccountMenu compact floating onOpenSettings={openWorkbenchSettings} />}
       <Suspense fallback={<StartupLoading />}>
       <CanvasRoot>
         {/* 进入全屏画廊时让画板退到背景；只动透明度，避免缩放 React Flow 触发额外栅格化。 */}
@@ -5970,7 +6111,7 @@ export default function App(): React.ReactElement {
           creditLoading={creditLoading}
           officialRequiredCredits={Math.max(1, input.n) * IMAGE_CREDIT_COST}
           onSelectProvider={selectActiveProvider}
-          textProviders={textProviders}
+          textProviders={assistantTextProviders}
           activeTextProviderId={activeTextProviderId}
           onSelectTextProvider={(id) => void selectAgentTextProvider(id)}
           comicDramaSnapshot={comicDramaSnapshot}
@@ -6102,8 +6243,9 @@ export default function App(): React.ReactElement {
           {libraryOpen ? (
             <Suspense key="library" fallback={null}>
               <LibraryShell
+                authenticated={enterpriseStatus?.authenticated}
                 onChooseBoardCover={id => void chooseBoardCover(id)} onBoardCoverSaved={acceptBoardCover}
-                textProviders={textProviders}
+                textProviders={assistantTextProviders}
                 activeTextProviderId={activeTextProviderId}
                 onSelectTextProvider={(id) => void selectAgentTextProvider(id)}
                 initialTab={libraryInitialTab}
@@ -6189,7 +6331,7 @@ export default function App(): React.ReactElement {
                 loadSceneThumbnail={loadHistoryThumbnail}
                 onLocateOnlineShare={(boardId, nodeIds) => void locateOnlineShare(boardId, nodeIds)}
                 onOpenReferralInvite={() => setReferralInviteOpen(true)}
-                onOpenSettings={() => setSettingsOpen(true)}
+                onOpenSettings={openWorkbenchSettings}
                 onClose={() => setLibraryOpen(false)}
               />
             </Suspense>
@@ -6257,93 +6399,7 @@ export default function App(): React.ReactElement {
         </Suspense>
       ) : null}
 
-      {settingsOpen || settingsDialogMounted ? (
-        <Suspense fallback={null}>
-          <ProviderSettingsDialog
-            open={settingsOpen}
-            onOpenChange={setSettingsOpen}
-            entryPoint={settingsEntryPoint}
-            onImportStarterBoard={() => void importBoardFromDialog()}
-            onOpenStarterBoards={() => openLibrary("boards")}
-            providers={providers}
-            activeProviderId={activeProviderId}
-            textProviders={textProviders}
-            activeTextProviderId={activeTextProviderId}
-            videoProviders={videoProviders}
-            activeVideoProviderId={activeVideoProviderId}
-            providerKeyStatus={providerKeyStatus}
-            bridgeError={bridgeError}
-            language={language}
-            onLanguageChange={changeLanguage}
-            theme={theme}
-            onThemeChange={changeTheme}
-            promptDockAutoCollapse={promptDockAutoCollapse}
-            onPromptDockAutoCollapseChange={changePromptDockAutoCollapse}
-            advancedVideoModesEnabled={advancedVideoModesEnabled}
-            onAdvancedVideoModesEnabledChange={changeAdvancedVideoModesEnabled}
-            canvasThumbnailPreview={canvasThumbnailPreview}
-            onCanvasThumbnailPreviewChange={changeCanvasThumbnailPreview}
-            canvasMinimapVisible={canvasMinimapVisible}
-            boardCommentsEnabled={boardCommentsEnabled}
-            onBoardCommentsEnabledChange={changeBoardCommentsEnabled}
-            boardGalleryEnabled={boardGalleryEnabled}
-            onBoardGalleryEnabledChange={changeBoardGalleryEnabled}
-            onCanvasMinimapVisibleChange={changeCanvasMinimapVisible}
-            canvasImageToolbarOnHover={canvasImageToolbarOnHover}
-            onCanvasImageToolbarOnHoverChange={changeCanvasImageToolbarOnHover}
-            canvasRelationshipHoverHighlight={canvasRelationshipHoverHighlight}
-            onCanvasRelationshipHoverHighlightChange={changeCanvasRelationshipHoverHighlight}
-            wechatStickerExportEnabled={wechatStickerExportEnabled}
-            onWechatStickerExportEnabledChange={changeWechatStickerExportEnabled}
-            onlineImageSharingEnabled={onlineImageSharingEnabled}
-            onOnlineImageSharingEnabledChange={changeOnlineImageSharingEnabled}
-            copyImageFormat={copyImageFormat}
-            onCopyImageFormatChange={changeCopyImageFormat}
-            boardSmartSuggestionsEnabled={boardSmartSuggestionsEnabled}
-            onBoardSmartSuggestionsEnabledChange={changeBoardSmartSuggestionsEnabled}
-             boardAssistantEnabled={boardAssistantEnabled}
-             onBoardAssistantEnabledChange={changeBoardAssistantEnabled}
-             boardAssistantAgentModeEnabled={boardAssistantAgentModeEnabled}
-             boardAssistantAgentModeAvailable={canUseTextAgent(activeTextProvider, providerKeyStatus)}
-             boardAssistantAgentModeModel={activeTextProvider?.model}
-             onBoardAssistantAgentModeEnabledChange={changeBoardAssistantAgentModeEnabled}
-             piAgentBuiltinTools={piAgentBuiltinTools ?? []}
-             onPiAgentBuiltinToolsChange={changePiAgentBuiltinTools}
-             piAgentTudaTools={piAgentTudaTools}
-             onPiAgentTudaToolsChange={changePiAgentTudaTools}
-             piAgentSkillPaths={piAgentSkillPaths}
-             onPiAgentSkillPathsChange={changePiAgentSkillPaths}
-             piAgentExtensionPaths={piAgentExtensionPaths}
-             onPiAgentExtensionPathsChange={changePiAgentExtensionPaths}
-             piAgentCustomSkillPaths={piAgentCustomSkillPaths}
-             onPiAgentCustomSkillPathsChange={changePiAgentCustomSkillPaths}
-             piAgentCustomExtensionPaths={piAgentCustomExtensionPaths}
-             onPiAgentCustomExtensionPathsChange={changePiAgentCustomExtensionPaths}
-             piAgentMaxTurns={piAgentMaxTurns}
-             onPiAgentMaxTurnsChange={changePiAgentMaxTurns}
-             piAgentWebSearchMaxResults={piAgentWebSearchMaxResults}
-             onPiAgentWebSearchMaxResultsChange={changePiAgentWebSearchMaxResults}
-            editSmartSuggestionsEnabled={editSmartSuggestionsEnabled}
-            editSmartSuggestionsAvailable={editSmartSuggestionsAvailable}
-            onEditSmartSuggestionsEnabledChange={changeEditSmartSuggestionsEnabled}
-            memoryEnabled={memoryEnabled}
-            onMemoryEnabledChange={changeMemoryEnabled}
-            memoryUsageLevel={memoryUsageLevel}
-            onMemoryUsageLevelChange={changeMemoryUsageLevel}
-            editInfoMode={editInfoMode}
-            onEditInfoModeChange={changeEditInfoMode}
-            imageDoubleClickAction={imageDoubleClickAction}
-            onImageDoubleClickActionChange={changeImageDoubleClickAction}
-            versionSeparationMode={versionSeparationMode}
-            onVersionSeparationModeChange={changeVersionSeparationMode}
-            generateButtonStyle={generateButtonStyle}
-            onGenerateButtonStyleChange={changeGenerateButtonStyle}
-            downloadDirectory={downloadDirectory}
-            onDownloadDirectoryChange={setDownloadDirectory}
-            onSaved={persistProviders}
-          />
-        </Suspense>
-      ) : null}
+      {workbenchSettingsDialog}
 
       {commentMode ? (
         <div className="pointer-events-none fixed left-1/2 top-16 z-40 -translate-x-1/2 rounded-full border border-border bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-lg backdrop-blur">

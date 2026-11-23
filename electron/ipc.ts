@@ -147,7 +147,7 @@ import { ManagerProductAnalyticsClient } from "./product-analytics-client.js";
 import { ArkImageProvider } from "./providers/ark.js";
 import { BailianImageProvider } from "./providers/bailian.js";
 import { CodexOAuthImageProvider, CodexOAuthTextTransport } from "./providers/codex-oauth.js";
-import { normalizeProviderError, ProviderError } from "./providers/errors.js";
+import { isRetryableTextChannelRejection, normalizeProviderError, ProviderError } from "./providers/errors.js";
 import { FalImageProvider } from "./providers/fal.js";
 import { Sub2ApiImageProvider } from "./providers/sub2api.js";
 import {
@@ -168,6 +168,8 @@ import { OpenRouterVideoProvider } from "./providers/video-openrouter.js";
 import { ManagerPublicShareClient } from "./public-share-client.js";
 import { buildSceneArchive, parseSceneArchive } from "./scene-archive.js";
 import { registerSettingsIpc } from "./settings-ipc.js";
+import { findTextModelRoute, resolveTextModelChannels } from "../shared/image-routing.js";
+import { isCompanyModelChannel } from "../shared/contracts/providers.js";
 import { registerSharingIpc } from "./sharing-ipc.js";
 import { AssetMetaStore } from "./storage/asset-meta-store.js";
 import { AssetStore, decodeImageDataUrl, MAX_MANAGED_IMAGE_BYTES, mimeFromExtension } from "./storage/asset-store.js";
@@ -395,19 +397,31 @@ export function registerIpc({
     )
   });
   /** 智能辅助统一走文本 Provider；官方类型由 Credit 与签名请求把关，其余需要本地授权与 API Key。 */
+  const textRouteAlternates = new WeakMap<TextProviderConfig, TextProviderConfig[]>();
   const resolveTextProvider = (requestedId: string | undefined, capability: "generate" | "edit"): TextProviderConfig => {
     const currentSettings = settings.getSettings();
     const id = requestedId?.trim() || currentSettings.activeTextProviderId;
-    const textProvider = currentSettings.textProviders.find((p) => p.id === id) ?? currentSettings.textProviders[0];
+    const route = findTextModelRoute(currentSettings.otherModelRouting, id);
+    license.assertCapability(capability);
+    if (route) {
+      const [primary, ...alternates] = resolveTextModelChannels(route, currentSettings.textProviders, provider => {
+        if (provider.type !== "codex-oauth") return Boolean(settings.getApiKey(provider.id));
+        const status = codexAuth.getStatus(provider.authProviderId || provider.id);
+        return status.state === "connected" || status.state === "refreshing";
+      });
+      if (!primary) throw new ProviderError("INVALID_CONFIG", "此文本模型没有可用渠道，请在模型设置中检查配置。");
+      const selected = { ...primary };
+      textRouteAlternates.set(selected, alternates);
+      return selected;
+    }
+    const textProvider = currentSettings.textProviders.find((p) => p.id === id)
+      ?? (requestedId?.trim() ? undefined : currentSettings.textProviders[0]);
     if (!textProvider) {
       throw new ProviderError("INVALID_CONFIG", "请先在设置中配置文本 Provider。");
     }
-    {
-      license.assertCapability(capability);
-    }
     return textProvider;
   };
-  const getTextTransport = (config: TextProviderConfig): TextTransport => {
+  const createTextTransport = (config: TextProviderConfig): TextTransport => {
 
     if (config.type === "codex-oauth") {
       return new CodexOAuthTextTransport(codexAuth, config.authProviderId || config.id, config.model);
@@ -415,6 +429,31 @@ export function registerIpc({
     if (config.transport === "company-direct" && !company) throw new Error("公司直连授权服务尚未准备好。");
     return new OpenAICompatibleTextTransport(config, settings.getApiKey(config.id),
       config.transport === "company-direct" ? company!.account.textFetch(config) : undefined);
+  };
+  const getTextTransport = (config: TextProviderConfig): TextTransport => {
+    const transport = createTextTransport(config);
+    const alternatives = textRouteAlternates.get(config) ?? [];
+    if (!alternatives.length) return transport;
+    const transports = [transport, ...alternatives.map(createTextTransport)];
+    async function tryChannels(call: (channel: TextTransport) => Promise<string>, signal?: AbortSignal): Promise<string> {
+      for (const [index, channel] of transports.entries()) {
+        try {
+          return await call(channel);
+        } catch (error) {
+          if (index === transports.length - 1 || signal?.aborted || !(error instanceof ProviderError)
+            || !isRetryableTextChannelRejection(error.status)) throw error;
+        }
+      }
+      throw new ProviderError("INVALID_CONFIG", "此文本模型没有可用渠道。");
+    }
+    return {
+      getAgentConnection: () => ({
+        ...transport.getAgentConnection!(),
+        fallbacks: transports.slice(1).map(channel => channel.getAgentConnection!())
+      }),
+      complete: (messages, options, signal) => tryChannels(channel => channel.complete(messages, options, signal), signal),
+      completeStream: (messages, options, onRaw, signal) => tryChannels(channel => channel.completeStream(messages, options, onRaw, signal), signal)
+    };
   };
   const authorizeScreenCapture = createScreenAccessService({
     getPolicy: () => settings.getSettings().assistantScreenAccess,
@@ -502,7 +541,14 @@ export function registerIpc({
       ...uiCallbacks,
       ...(request.assistantSurface !== "comic-drama" ? {
         captureScreen: (reason: string, signal?: AbortSignal) => authorizeScreenCapture({ reason,
-          providerLabel: uiCallbacks.providerLabel ?? (() => { const current = settings.getSettings(); const provider = current.textProviders?.find((item) => item.id === (request.textProviderId || current.activeTextProviderId)); return provider ? `${provider.name} · ${provider.model}` : "当前对话模型"; })(),
+          providerLabel: uiCallbacks.providerLabel ?? (() => {
+            const current = settings.getSettings();
+            const id = request.textProviderId || current.activeTextProviderId;
+            const route = findTextModelRoute(current.otherModelRouting, id);
+            if (route) return route.name;
+            const provider = current.textProviders.find(item => item.id === id);
+            return provider ? `${provider.name} · ${provider.model}` : "当前对话模型";
+          })(),
           presentInteraction: uiCallbacks.presentInteraction, signal })
       } : {})
     };
@@ -970,6 +1016,7 @@ export function registerIpc({
     settings,
     onboarding,
     codexAuth,
+    isCompanyAccount: () => Boolean(company?.enabled),
     onOnboardingCompleted: (key) => {
       void analytics.track("onboarding.completed", { step: key.slice(0, 40) });
     },
@@ -1395,6 +1442,7 @@ export function registerIpc({
     "provider:testConnection",
     async (_event, config: ProviderConfig, apiKeyOverride?: string, options?: ProviderTestOptions): Promise<ProviderTestResult> => {
       try {
+        if (isCompanyModelChannel(config.id)) throw new Error("山海管理的渠道由企业管理员配置。");
         const apiKey = apiKeyOverride?.trim() || settings.getApiKey(config.id);
         if (options?.mode === "generation") {
           return await checkImageGeneration(config, options.acknowledgeCharges === true,
@@ -1417,6 +1465,7 @@ export function registerIpc({
     "textProvider:testConnection",
     async (_event, config: TextProviderConfig, apiKeyOverride?: string): Promise<ProviderTestResult> => {
       try {
+        if (isCompanyModelChannel(config.id)) throw new Error("山海管理的渠道由企业管理员配置。");
         if (config.type === "codex-oauth") {
           await codexAuth.getAccess(config.authProviderId || config.id);
           return localCredentialCheck();
@@ -1435,6 +1484,7 @@ export function registerIpc({
     "videoProvider:testConnection",
     async (_event, config: VideoProviderConfig, apiKeyOverride?: string): Promise<ProviderTestResult> => {
       try {
+        if (isCompanyModelChannel(config.id) || isCompanyModelChannel(config.connectionProviderId)) throw new Error("山海管理的渠道由企业管理员配置。");
         const connection = settings.resolveVideoProviderConnection(config);
         const apiKey = apiKeyOverride?.trim() || connection.apiKey;
         return checkProviderConnection({ ...config, baseUrl: connection.baseUrl }, apiKey, "video", (input, init) => net.fetch(input instanceof URL ? input.toString() : input, init));
@@ -1450,9 +1500,16 @@ export function registerIpc({
     "videoProvider:listModels",
     async (_event, config: VideoProviderConfig, apiKeyOverride?: string): Promise<VideoProviderModelOption[]> => {
       try {
+        if (isCompanyModelChannel(config.id)) {
+          return settings.getSettings().videoProviders.find(provider => provider.id === config.id)?.modelOptions ?? [];
+        }
+        if (isCompanyModelChannel(config.connectionProviderId)) throw new Error("山海管理的渠道由企业管理员配置。");
         const connection = settings.resolveVideoProviderConnection(config);
         const apiKey = apiKeyOverride?.trim() || connection.apiKey;
         const models = getProviderModels(config);
+        if (config.type === "seedance-aipai" || config.type === "seedance-toapis") {
+          return models.flatMap(model => config.modelOptions?.find(option => option.id === model) ?? []);
+        }
         if (config.type !== "openrouter" && config.type !== "minimax") {
           const capability = videoService.capability(config.type);
           return models.map((model) => videoProviderModelOptionFromCapability(model, capability));
@@ -1481,6 +1538,7 @@ export function registerIpc({
     "textProvider:listModels",
     async (_event, config: TextProviderConfig, apiKeyOverride?: string): Promise<ProviderModelOption[]> => {
       try {
+        if (isCompanyModelChannel(config.id)) throw new Error("山海管理的渠道由企业管理员配置。");
         if (config.type === "codex-oauth") {
           return await new CodexOAuthTextTransport(
             codexAuth,
@@ -1500,6 +1558,7 @@ export function registerIpc({
     "provider:listModels",
     async (_event, config: ProviderConfig, apiKeyOverride?: string): Promise<ProviderModelOption[]> => {
       try {
+        if (isCompanyModelChannel(config.id)) throw new Error("山海管理的渠道由企业管理员配置。");
         const apiKey = apiKeyOverride?.trim() || settings.getApiKey(config.id);
         return config.type === "codex-oauth"
           ? await codexProvider.listModels(config, apiKey)
@@ -1530,6 +1589,7 @@ export function registerIpc({
         throw new Error("不支持的 fal.ai 模型分类。");
       }
       try {
+        if (isCompanyModelChannel(providerId)) throw new Error("山海管理的渠道由企业管理员配置。");
         const apiKey = apiKeyOverride?.trim() || (providerId ? settings.getApiKey(providerId) : "");
         return await falProvider.listModels(category, typeof query === "string" ? query : "", apiKey);
       } catch (error) {

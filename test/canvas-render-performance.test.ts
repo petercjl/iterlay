@@ -218,7 +218,7 @@ describe("canvas render performance guards", () => {
     expect(connectionSelectionCommandChanges({}, { type: "set-routing-kind", kind: "orthogonal" })).toBe(false);
     expect(connectionSelectionCommandChanges(manual, { type: "set-routing-kind", kind: "orthogonal" })).toBe(false);
     expect(connectionSelectionCommandChanges(manual, { type: "set-style", style: { color: "#2563eb" } })).toBe(false);
-    expect(connectionSelectionCommandChanges(manual, { type: "set-routing-kind", kind: "curved" })).toBe(true);
+    expect(connectionSelectionCommandChanges(manual, { type: "set-routing-kind", kind: "straight" })).toBe(true);
     expect(connectionSelectionCommandChanges(manual, { type: "reset-routing" })).toBe(true);
     expect(connectionSelectionCommandChanges({ routeCoordinate: 40 }, { type: "reset-routing" })).toBe(true);
   });

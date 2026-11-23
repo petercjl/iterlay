@@ -36,12 +36,15 @@ export {
 export const GENERATION_NODE_MAX_HEIGHT = 560;
 export const GENERATION_PROMPT_MAX_LENGTH = 2000;
 
+import { canvasImageModel, resolveImageRouting, type ImageModelRouting } from "@shared/image-routing";
+
 type CanvasNodeSide = "top" | "right" | "bottom" | "left";
 export type GenerationNodeStatus = "idle" | "queued" | "running" | "succeeded" | "failed";
 
 export interface GenerationNodeConfig {
   prompt: string;
   model: string;
+  providerId?: string;
   size: string;
   count: number;
 }
@@ -49,6 +52,8 @@ export interface GenerationNodeConfig {
 export interface GenerationNodeData extends GenerationNodeConfig, ConnectionTargetPresentation {
   title?: string;
   provider?: ProviderConfig;
+  providers?: ProviderConfig[];
+  imageRouting?: ImageModelRouting;
   status?: GenerationNodeStatus;
   lastGenerationId?: string;
   latestGenerationId?: string;
@@ -104,6 +109,9 @@ function GenerationNodeComponent({ id, data, selected }: NodeProps): React.React
   upstreamPrompt = "",
   referenceImages = [],
   provider,
+  providerId,
+  providers,
+  imageRouting,
   displayHeight = GENERATION_NODE_HEIGHT,
   heightMode = "auto",
   onBeforeChange,
@@ -131,6 +139,11 @@ function GenerationNodeComponent({ id, data, selected }: NodeProps): React.React
   const minimumHeightRef = useRef(GENERATION_NODE_HEIGHT);
   const resizeRef = useRef<{ pointerId: number; startY: number; startHeight: number } | null>(null);
   const busy = BUSY_STATUSES.has(status);
+  const availableProviders = providers ?? (provider ? [provider] : []);
+  const routing = imageRouting ?? resolveImageRouting(undefined, availableProviders, provider?.id ?? "");
+  const selectedModel = canvasImageModel(routing, draft.model, draft.providerId);
+  const modelProviders = (routing.models.find(item => item.name === selectedModel)?.channels ?? [])
+    .map(channel => availableProviders.find(item => item.id === channel.providerId && item.type !== "official"));
   const { schedule, flush, finish, cancel } = useDebouncedNodeCommit(
     (config: GenerationNodeConfig) => onChange?.(id, config),
     undefined,
@@ -140,8 +153,8 @@ function GenerationNodeComponent({ id, data, selected }: NodeProps): React.React
 
   useEffect(() => {
     cancel();
-    setDraft(configFromData({ prompt, model, size, count }));
-  }, [cancel, prompt, model, size, count]);
+    setDraft(configFromData({ prompt, model, providerId, size, count }));
+  }, [cancel, prompt, model, providerId, size, count]);
 
   useEffect(() => {
     if (resizeRef.current) return;
@@ -330,19 +343,28 @@ function GenerationNodeComponent({ id, data, selected }: NodeProps): React.React
           ) : null}
         </div>
         <div className="canvas-generation-settings">
-          <input
-            aria-label={uiText("生成模型")}
-            value={draft.model}
-            disabled={busy}
-            className="canvas-generation-setting canvas-generation-setting--model"
-            onChange={(event) => update({ model: event.target.value })}
-            onBlur={finish}
-          />
+          <select
+            aria-label={uiText("选择生图模型")}
+            value={selectedModel}
+            disabled={busy || !routing.models.length}
+            className="canvas-generation-setting canvas-generation-setting--model nodrag nowheel"
+            onChange={event => {
+              const next = { ...draft, model: event.target.value, providerId: undefined };
+              setDraft(next);
+              schedule(next);
+              finish();
+            }}
+          >
+            {!routing.models.some(item => item.name === selectedModel) ? <option value={selectedModel} disabled>
+              {selectedModel || uiText("选择生图模型")}
+            </option> : null}
+            {routing.models.map(item => <option key={item.name} value={item.name}>{item.name}</option>)}
+          </select>
           <GenerationNodeSettingsPicker
             size={draft.size}
             count={draft.count}
-            maxCount={Math.min(8, getProviderMaxImageCount(provider))}
-            provider={provider}
+            maxCount={Math.min(8, Math.max(1, ...modelProviders.map(getProviderMaxImageCount)))}
+            provider={modelProviders.find(Boolean)}
             disabled={busy}
             onChange={update}
           />
@@ -630,6 +652,7 @@ function configFromData(data: GenerationNodeData): GenerationNodeConfig {
   return {
     prompt: data.prompt ?? "",
     model: data.model ?? "",
+    ...(data.providerId ? { providerId: data.providerId } : {}),
     size: data.size ?? "1024x1024",
     count: clampCount(data.count)
   };

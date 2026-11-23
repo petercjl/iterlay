@@ -1,4 +1,19 @@
 import type { TextProviderConfig } from "../../shared/types.js";
+
+export function textProviderHeaders(config: TextProviderConfig, apiKey: string): Record<string, string> {
+  if (config.protocol === "anthropic-messages" && !config.managed)
+    return { "x-api-key": apiKey, "anthropic-version": "2023-06-01" };
+  return {
+    Authorization: `Bearer ${apiKey}`,
+    ...(config.protocol === "anthropic-messages" ? { "anthropic-version": "2023-06-01" } : {}),
+    ...(config.managed && config.transport !== "company-direct" ? { "X-Company-App-Id": "tuda" } : {})
+  };
+}
+
+export function nativeTextApiRoot(config: TextProviderConfig): string {
+  const base = config.baseUrl.trim().replace(/\/+$/, "");
+  return config.managed || base.endsWith("/v1") ? base : base + "/v1";
+}
 import type { TextCompletionOptions } from "./text-assistant.js";
 
 type Message = {
@@ -60,7 +75,7 @@ export function nativeTextRequest(
     .map((m) => ({ role: m.role, content: blocks(m.content, m.role) }));
   return {
     url:
-      config.baseUrl.replace(/\/$/, "") +
+      nativeTextApiRoot(config) +
       (anthropic ? "/messages" : "/responses"),
     body: anthropic
       ? {

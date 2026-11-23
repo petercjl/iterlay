@@ -117,25 +117,34 @@ export function createImageGenerationController(dependencies: GenerationControll
       createDerivedEditNode?: boolean;
       placementAnchorId?: string;
       preserveModelOverride?: boolean;
+      onFailure?: (message: string) => void;
     }
   ): Promise<GeneratedImage[]> {
     let generationInput: GenerateImageInput = { ...inputRef.current, ...inputOverride };
     const blockedMessage = getBlockedGenerateMessage(generationInput);
     if (blockedMessage) {
       const message = blockedMessage;
+      options?.onFailure?.(message);
       setStatus(message);
       toast.error(message);
       return [];
     }
     const api = getWorkbenchApi();
-    if (!api) return [];
+    if (!api) {
+      options?.onFailure?.(translateSourceText("无法连接工作台。"));
+      return [];
+    }
     const originBoard = activeBoardRef.current;
     if (!originBoard) {
-      toast.error(translateSourceText("请先打开一个画板。"));
+      const message = translateSourceText("请先打开一个画板。");
+      options?.onFailure?.(message);
+      toast.error(message);
       return [];
     }
     if (inputOverride?.boardId && inputOverride.boardId !== originBoard.id) {
-      toast.error(translateSourceText("画板已切换，请回到原画板重新发起生成。"));
+      const message = translateSourceText("画板已切换，请回到原画板重新发起生成。");
+      options?.onFailure?.(message);
+      toast.error(message);
       return [];
     }
     const originBoardSequence = boardOpenSequenceRef.current;
@@ -149,7 +158,7 @@ export function createImageGenerationController(dependencies: GenerationControll
         && (!fixedEditSource?.boardId || fixedEditSource.boardId === originBoard.id)
         ? (imagesRef.current.find((image) => image.id === targetNodeId) ?? null)
         : null;
-    if (!providerSupportsTransparentBackground(activeProvider)) {
+    if (!generationInput.useImageRouting && !providerSupportsTransparentBackground(activeProvider)) {
       generationInput = { ...generationInput, background: "auto", outputFormat: "png" };
     }
 
@@ -181,7 +190,9 @@ export function createImageGenerationController(dependencies: GenerationControll
       }
     }
     if ((editTargetImage || fixedEditSource) && !editReferencePayload) {
-      toast.error(translateSourceText("无法读取目标图片，请重试。"));
+      const message = translateSourceText("无法读取目标图片，请重试。");
+      options?.onFailure?.(message);
+      toast.error(message);
       return [];
     }
     if (editTargetImage && !fixedEditSource) {
@@ -198,7 +209,9 @@ export function createImageGenerationController(dependencies: GenerationControll
     // Reference reads can yield while the user switches boards.
     // Never insert placeholders or clear the composer in a different board.
     if (!isOriginBoardCurrent()) {
-      toast.error(translateSourceText("画板已切换，本次生成尚未提交，请回到原画板重试。"));
+      const message = translateSourceText("画板已切换，本次生成尚未提交，请回到原画板重试。");
+      options?.onFailure?.(message);
+      toast.error(message);
       return [];
     }
 
@@ -377,7 +390,7 @@ export function createImageGenerationController(dependencies: GenerationControll
         background: generationInput.background,
         outputFormat: generationInput.outputFormat,
         boardId: originBoard.id,
-        providerId: activeProviderId,
+        providerId: generationInput.useImageRouting ? undefined : activeProviderId,
         // 编辑源图在发起时固定；还原任务使用存档副本，不跟随当前激活版本。
         referenceImages: editReferencePayload
           ? [editReferencePayload, ...generationInput.referenceImages.filter((reference) => reference !== editReferencePayload)]
@@ -581,6 +594,7 @@ export function createImageGenerationController(dependencies: GenerationControll
     } catch (error) {
       const cancelledBeforeSubmission = error instanceof GenerationQueueCancelledError;
       const message = getWorkbenchErrorMessage(error, "生成失败。");
+      options?.onFailure?.(message);
       if (isEditSession && activeBoardRef.current?.id === originBoard.id) {
         setImages((current) =>
           current.map((image) =>

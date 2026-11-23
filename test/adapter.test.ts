@@ -68,6 +68,28 @@ describe("OpenAICompatibleTextTransport function calling probe", () => {
 });
 
 describe("Sub2ApiImageProvider", () => {
+  it("polls an asynchronous image task with the chosen relay's credentials and downloads the result without them", async () => {
+    const img = "https://cdn.example.com/test.png";
+    const endpoint = "https://relay.example.com/v1/images/generations";
+    const fetchImage = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(Response.json({ object: "generation.task", id: "task_1", status: "queued" }))
+      .mockResolvedValueOnce(Response.json({ status: "completed", result: { data: [{ url: img }] } }))
+      .mockResolvedValueOnce(new Response("image-bytes", { headers: { "Content-Type": "image/png" } }));
+    const provider = new Sub2ApiImageProvider(fetchImage);
+    const result = await provider.generate(
+      { workflowMode: "generate", prompt: "Test image", model: "shared-image", size: "1024x1024", n: 1, referenceImages: [] },
+      { id: "relay", name: "Relay", baseUrl: "https://relay.example.com/v1", type: "openai-compatible",
+        generationEndpoint: "/v1/images/generations", model: "shared-image", supportsReferenceImages: false },
+      "dedicated-key"
+    );
+    expect(result.images[0]).toEqual({ bytes: Buffer.from("image-bytes"), mimeType: "image/png" });
+    expect(fetchImage.mock.calls.map(([url, init]) => [url, new Headers(init?.headers).get("Authorization")])).toEqual([
+      [endpoint, "Bearer dedicated-key"],
+      [endpoint + "/task_1", "Bearer dedicated-key"],
+      [img, null]
+    ]);
+  }, 10_000);
+
   it("only exposes template fields after each streamed field object is complete", () => {
     const incomplete = '{"message":"正在提取","fields":[{"label":"保留·视觉系统","value":"深色背景';
     expect(extractStreamingSceneFields(incomplete)).toEqual([]);

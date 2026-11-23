@@ -43,6 +43,7 @@ export interface VideoGenerationInput {
   mode?: "generate" | "remix" | "extend";
   prompt: string;
   model: string;
+  useVideoRouting?: boolean;
   aspectRatio: string;
   resolution: string;
   durationSeconds: number;
@@ -115,7 +116,7 @@ export interface VideoSequenceTask {
   /** Frames/config frozen before the durable task is created. */
   inputSnapshot?: VideoSegmentInputSnapshot;
   providerName?: string;
-  remoteProviderType?: "official" | "ark" | "fal" | "openrouter" | "minimax";
+  remoteProviderType?: import("./providers.js").VideoProviderType;
   remoteTaskId?: string;
   remoteStatusUrl?: string;
   remoteResponseUrl?: string;
@@ -157,7 +158,7 @@ export interface VideoGenerationJobV2 extends VideoGenerationJob {
   inputFingerprint?: string;
   attempt: number;
   taskStatus: VideoTaskStatus;
-  remoteProviderType?: "official" | "ark" | "fal" | "openrouter" | "minimax";
+  remoteProviderType?: import("./providers.js").VideoProviderType;
   remoteOutputs?: VideoRemoteOutputSnapshot[];
   processingCheckpoint?: "remote-complete" | "downloaded" | "validated" | "published";
   errorDetail?: VideoTaskError;

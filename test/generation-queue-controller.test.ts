@@ -1,7 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { GenerationQueue } from "../src/lib/generation-queue";
 import type { ActiveBoardGeneration } from "../src/lib/active-board-generation";
 import { generationHarness } from "./helpers/generation-fixture";
+
+it("reports the provider's failure reason to the generation node", async () => {
+  const h = generationHarness(false);
+  const onFailure = vi.fn();
+  const message = "生成的图片未通过审核。";
+  h.generateImage.mockRejectedValueOnce(new Error(message));
+  await expect(h.generate(undefined, { generationNodeId: "node" }, { onFailure })).resolves.toEqual([]);
+  expect(onFailure.mock.calls).toEqual([[message]]);
+});
 
 describe("queued image task cancellation", () => {
   it("cancels before submission and settles local state without sending or charging a provider request", async () => {

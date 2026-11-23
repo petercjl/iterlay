@@ -1,4 +1,33 @@
 import type { CreditStatus, TextProviderConfig } from "@shared/types";
+import { isCompanyModelChannel } from "@shared/contracts/providers";
+import { resolveTextModelChannels, textModelRouteId, type OtherModelRouting } from "@shared/image-routing";
+
+export function assistantTextModelOptions(
+  routing: OtherModelRouting | undefined,
+  providers: TextProviderConfig[],
+  keyStatus: Record<string, boolean>,
+  activeProviderId: string,
+): TextProviderConfig[] {
+  const routes = routing?.text?.models ?? [];
+  const managedChannelIds = new Set(
+    routes.flatMap(route => route.channels.map(channel => channel.providerId)).filter(isCompanyModelChannel)
+  );
+  const ready = (provider: TextProviderConfig) => canUseTextAgent(provider, keyStatus);
+  return [
+    ...routes.flatMap(route => {
+      const provider = resolveTextModelChannels(route, providers, ready)[0];
+      return provider ? [{
+        ...provider,
+        id: textModelRouteId(route.name),
+        name: route.name,
+        model: route.name,
+        connectionName: isCompanyModelChannel(provider.id) ? "山海管理" : undefined,
+      }] : [];
+    }),
+    ...providers.filter(provider => ready(provider) && !managedChannelIds.has(provider.id) &&
+      (provider.id === activeProviderId || !provider.id.startsWith("local-channel-"))),
+  ];
+}
 
 export type TextProviderReadinessStatus = "ready" | "checking" | "unavailable" | "unconfigured";
 
@@ -23,7 +52,7 @@ export function resolveTextProviderReadiness(
     return creditError ? "unavailable" : "checking";
   }
 
-  if (provider.type === "codex-oauth") {
+  if (provider.type === "codex-oauth" || isCompanyModelChannel(provider.id)) {
     return provider.model.trim() && providerKeyStatus[provider.id] ? "ready" : "unconfigured";
   }
 

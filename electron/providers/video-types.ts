@@ -21,7 +21,7 @@ export interface VideoMediaInput {
 }
 
 export interface VideoProviderCapability {
-  provider: "official" | "ark" | "fal" | "openrouter" | "minimax";
+  provider: import("../../shared/contracts/providers.js").VideoProviderType;
   modes: Array<"text-to-video" | "image-to-video" | "first-last-frame" | "multi-reference" | "remix" | "extend">;
   maxInputs: { images: number; videos: number; audios: number };
   supportsCancel: boolean;
@@ -88,13 +88,22 @@ export type VideoProviderConfig =
   | ArkVideoProviderConfig
   | FalVideoProviderConfig
   | OpenRouterVideoProviderConfig
-  | MiniMaxVideoProviderConfig;
+  | MiniMaxVideoProviderConfig
+  | SeedanceGatewayVideoConfig;
+
+export interface SeedanceGatewayVideoConfig {
+  provider: import("../../shared/contracts/providers.js").SeedanceGatewayType;
+  baseUrl?: string;
+  apiKey: string;
+  model: string;
+  requestTimeoutMs?: number;
+}
 
 export type VideoRemoteStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled" | "expired";
 
 /** Serializable remote identity. It deliberately contains no API key or local polling state. */
 export interface VideoRemoteTask {
-  provider: "official" | "ark" | "fal" | "openrouter" | "minimax";
+  provider: import("../../shared/contracts/providers.js").VideoProviderType;
   id: string;
   model: string;
   status: VideoRemoteStatus;

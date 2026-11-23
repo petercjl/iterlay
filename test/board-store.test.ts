@@ -519,7 +519,7 @@ describe("BoardStore", () => {
       label: "生成结果",
       sourceAnchor: { side: "right", ratio: 0.5, mode: "pinned" },
       targetAnchor: { side: "left", ratio: 0.5, mode: "pinned" },
-      routing: { mode: "auto", kind: "curved", waypoints: [] }
+      routing: { mode: "auto", kind: "orthogonal", waypoints: [] }
     });
   });
 
@@ -737,7 +737,7 @@ describe("BoardStore", () => {
       target: "video-output-real-job",
       sourceAnchor: { side: "right", ratio: 0.5, mode: "pinned" },
       targetAnchor: { side: "left", ratio: 0.5, mode: "pinned" },
-      routing: { mode: "auto", kind: "curved", waypoints: [] }
+      routing: { mode: "auto", kind: "orthogonal", waypoints: [] }
     }]);
   });
 

@@ -5,19 +5,23 @@ import { fileURLToPath } from "node:url";
 
 export function parseCompanyDefaults(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)
-    || Object.keys(value).some((key) => !["accountOrigin", "nasUrl"].includes(key))) {
-    throw new Error("公司部署默认值仅接受 accountOrigin 和 nasUrl 两个连接地址。");
+    || Object.keys(value).some((key) => !["accountOrigin", "omniOrigin", "legacyWorkspaceOrigin", "nasUrl"].includes(key))) {
+    throw new Error("公司部署默认值仅接受 accountOrigin、omniOrigin、legacyWorkspaceOrigin 和 nasUrl。");
   }
   const result = {};
-  for (const key of ["accountOrigin", "nasUrl"]) {
-    if (typeof value[key] !== "string" || !value[key].trim()) throw new Error("正式安装包必须配置公司账号服务和 NAS 默认地址。");
+  const keys = ["omniOrigin"];
+  if (value.nasUrl !== undefined) keys.push("nasUrl");
+  if (value.accountOrigin !== undefined) keys.push("accountOrigin");
+  if (value.legacyWorkspaceOrigin !== undefined) keys.push("legacyWorkspaceOrigin");
+  for (const key of keys) {
+    if (typeof value[key] !== "string" || !value[key].trim()) throw new Error(`公司部署配置缺少有效的 ${key}。`);
     const url = new URL(value[key].trim());
     const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
     if (!["https:", "http:"].includes(url.protocol) || url.username || url.password || url.search || url.hash
-      || (key === "accountOrigin" && (url.pathname !== "/" || (url.protocol !== "https:" && !local)))) {
+      || (key !== "nasUrl" && (url.pathname !== "/" || (url.protocol !== "https:" && !local)))) {
       throw new Error("公司部署默认连接地址格式无效。");
     }
-    result[key] = key === "accountOrigin" ? url.origin : url.href.replace(/\/$/, "");
+    result[key] = key === "nasUrl" ? url.href.replace(/\/$/, "") : url.origin;
   }
   return result;
 }

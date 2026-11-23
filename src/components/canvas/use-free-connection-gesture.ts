@@ -16,6 +16,7 @@ import {
 import type { ConnectionTargetPresentation } from "./connection-target-presentation";
 import {
   VIDEO_GENERATION_TARGET_HANDLE_Y,
+  isHiddenVideoFrameTarget,
   videoGenerationTargetHandleAnchorRatio
 } from "./canvas-node-layout";
 import { connectionEndpointGapPx } from "./connection-routing";
@@ -35,6 +36,7 @@ export function resolveVideoGenerationSemanticSnap(
 ): { handleId: string; ratio: number; point: { x: number; y: number } } | undefined {
   if (targetNode.type !== "videoGenerationNode") return undefined;
   const compatible = Object.keys(VIDEO_GENERATION_TARGET_HANDLE_Y)
+    .filter(handleId => !isHiddenVideoFrameTarget(targetNode, handleId))
     .filter((handleId) => canvasPortsCompatible(
       sourceNode.type,
       `source-${sourceSide}`,
@@ -130,7 +132,7 @@ export function useFreeConnectionGesture({
         source.type,
         sourceHandle,
         target.type
-      );
+      ).filter(handleId => !isHiddenVideoFrameTarget(target, handleId));
       return compatibleConnectionHandles.length > 0
         ? [{ target, compatibleConnectionHandles }]
         : [];

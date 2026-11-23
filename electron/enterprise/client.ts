@@ -2,7 +2,6 @@ import { EventEmitter } from "node:events";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { safeStorage } from "electron";
 import { WebSocket } from "ws";
 import * as Y from "yjs";
 import { BoardSaveCausality } from "../../shared/enterprise-causality.js";
@@ -11,7 +10,7 @@ import { type EnterpriseSession, type EnterpriseStatus, type SpaceKind } from ".
 import type { BoardSavePayload } from "../../shared/types.js";
 import { createAssetResponse } from "../asset-response.js";
 
-interface Configuration { version: 1; serverUrl: string; activeSpace: SpaceKind; encryptedSession?: string }
+interface Configuration { version: 1; serverUrl: string; activeSpace: SpaceKind }
 interface PendingWrite { requestId: string; channel: string; args: unknown[]; serverUrl: string; organizationId: string; userId: string }
 const uuid = /^[0-9a-f-]{36}$/i;
 
@@ -27,7 +26,6 @@ export class EnterpriseClient extends EventEmitter {
   private stopped = false;
   private peers: EnterpriseStatus["peers"] = [];
   private connectionId = "";
-  private login?: { loginId: string; verifier: string; expiresAt: string };
   private pendingCount = 0;
   private saveCausality = new BoardSaveCausality();
   private acceptedWrites = new Map<string, unknown>();
@@ -93,18 +91,9 @@ export class EnterpriseClient extends EventEmitter {
     try {
       const saved = JSON.parse(await readFile(this.configFile, "utf8"));
       if (saved.version !== 1) throw new Error("企业空间配置版本不兼容。");
-      this.config = saved;
-      if (saved.encryptedSession && safeStorage.isEncryptionAvailable()) {
-        const session = JSON.parse(safeStorage.decryptString(Buffer.from(saved.encryptedSession, "base64")));
-        if (session.serverUrl === saved.serverUrl && Date.parse(session.value.expiresAt) > Date.now()) this.session = session.value;
-      }
+      this.config = { version: 1, serverUrl: saved.serverUrl, activeSpace: "personal" };
     } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") this.error = "无法恢复企业登录，请重新登录。"; }
     if (!this.config.serverUrl && process.env.TUDA_ENTERPRISE_URL) this.config.serverUrl = this.validateUrl(process.env.TUDA_ENTERPRISE_URL);
-    if (this.session) {
-      try { await this.refreshIdentity(); await this.replayPending(); }
-      catch (error) { this.error = error instanceof Error ? error.message : "企业服务连接失败。"; }
-      if (this.session) this.connect();
-    }
     this.changed();
   }
   private validateUrl(input: string) {
@@ -139,24 +128,6 @@ export class EnterpriseClient extends EventEmitter {
     }
     return value;
   }
-  async beginLogin() {
-    const result = await this.fetchJson<{ loginId: string; verifier: string; authorizeUrl: string; expiresAt: string }>("/api/auth/start", { method: "POST", body: {}, authenticated: false });
-    const url = new URL(result.authorizeUrl);
-    if (url.origin !== "https://login.dingtalk.com") throw new Error("企业服务返回了无效的钉钉登录地址。");
-    this.login = result; return { authorizeUrl: result.authorizeUrl, expiresAt: result.expiresAt };
-  }
-  async pollLogin() {
-    if (!this.login || Date.parse(this.login.expiresAt) < Date.now()) throw new Error("登录请求已过期，请重新登录。");
-    const result = await this.fetchJson<{ status: "pending" | "authorized"; session?: EnterpriseSession }>("/api/auth/poll", { method: "POST", body: this.login, authenticated: false });
-    if (result.session) {
-      await this.flush(); this.disconnect(); this.session = result.session; this.login = undefined;
-      await this.refreshIdentity();
-      if (safeStorage.isEncryptionAvailable()) this.config.encryptedSession = safeStorage.encryptString(JSON.stringify({ serverUrl: this.config.serverUrl, value: this.session })).toString("base64");
-      this.config.activeSpace = "enterprise"; await this.save(); this.error = undefined; this.connect(); this.changed();
-      this.emit("space-changed");
-    }
-    return { status: result.status };
-  }
   async selectSpace(space: SpaceKind) {
     if (space !== "personal" && space !== "enterprise") throw new Error("无效空间。");
     if (space === this.config.activeSpace) return this.status;
@@ -169,7 +140,7 @@ export class EnterpriseClient extends EventEmitter {
     await this.flush();
     if (this.pendingCount) throw new Error("仍有未同步的企业修改，请先完成同步。");
     if (this.session) await this.fetchJson("/api/auth/logout", { method: "POST", body: {} });
-    this.disconnect(); this.session = undefined; this.config.encryptedSession = undefined; this.documents.clear(); this.versions.clear(); this.boardIds.clear(); this.clearHistory();
+    this.disconnect(); this.session = undefined; this.documents.clear(); this.versions.clear(); this.boardIds.clear(); this.clearHistory();
     await this.save(); this.changed(); this.emit("space-changed"); return this.status;
   }
   async refreshIdentity() { this.metadata = await this.fetchJson("/api/me"); return this.metadata; }

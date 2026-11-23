@@ -17,6 +17,10 @@ import type {
 import { isBoardImageNode } from "../../shared/types.js";
 import { writeJsonAtomic } from "../storage/atomic-json.js";
 import { pendingVideoJobId } from "../../shared/video-generation-placeholder.js";
+import { agentImageChannels, generateWithImageRouting } from "./agent-image-routing.js";
+import { ImageSubmissionError } from "../providers/errors.js";
+import { isCompanyModelChannel } from "../../shared/contracts/providers.js";
+import { findVideoModelRoute } from "../../shared/video-provider-models.js";
 import type { WorkspaceApi } from "./workbench-api.js";
 
 export interface WorkbenchEvent { type: string; [key: string]: unknown }
@@ -133,11 +137,25 @@ export class WorkspaceCommands {
       }
       case "get_space": return api.enterpriseStatus();
       case "select_space": return api.selectSpace(choice(a.target, ["personal", "enterprise"] as const, "personal"));
-      case "configure_provider": return api.configureProvider(a);
+      case "configure_provider": {
+        const input = { ...a };
+        delete input.preserveView;
+        delete input.space;
+        const result = await api.configureProvider(input);
+        if (input.kind === "text" || input.kind === "image") emit({ type: "model-providers-updated" });
+        return result;
+      }
+      case "save_model_routing": {
+        const result = await api.saveModelRouting(a.input as import("../../shared/contracts/settings.js").SaveModelRoutingInput);
+        emit({ type: "model-providers-updated" });
+        return result;
+      }
       case "get_provider": {
         const settings = await api.getSettings();
         const provider = [...settings.providers, ...(settings.videoProviders ?? []), ...(settings.textProviders ?? []), ...(settings.audioProviders ?? [])].find((p) => p.id === string(a.providerId));
         if (!provider) throw new Error("Provider 不存在。");
+        if (isCompanyModelChannel(provider.id)) return { id: provider.id, model: provider.model, managed: true,
+          authConfigured: Boolean(settings.providerKeyStatus?.[provider.id]) };
         const fields = new Set(["id", "name", "type", "baseUrl", "model", "models", "voice", "speechEndpoint", "connectionProviderId", "authProviderId", "generationEndpoint", "referenceEndpoint", "apiMode", "supportsReferenceImages"]);
         return { ...Object.fromEntries(Object.entries(provider).filter(([key]) => fields.has(key))), authConfigured: Boolean(settings.providerKeyStatus?.[provider.id]) };
       }
@@ -297,18 +315,26 @@ export class WorkspaceCommands {
       }
       case "generate_image": case "edit_image": return this.startGeneration(a, method === "edit_image");
       case "get_generation_status": return this.generationStatus(string(a.generationId));
+      case "generate_audio": return api.synthesizeAudio({ text: string(a.text), model: string(a.model) || undefined });
       case "generate_video": {
         const targetBoardId = await this.resolveGenerationBoard(boardId, a.preserveView === true);
         const input: VideoGenerationInput = {
           mode: choice(a.mode, ["generate", "remix", "extend"] as const, "generate"),
           prompt: string(a.prompt), model: string(a.model), aspectRatio: string(a.aspectRatio, "16:9"),
           resolution: string(a.resolution, "720p"), durationSeconds: number(a.durationSeconds, 5),
-          referenceImagePaths: strings(a.referenceImagePaths, 4), referenceVideoPaths: strings(a.referenceVideoPaths, 4),
-          referenceAudioPaths: strings(a.referenceAudioPaths, 4), sourceVideoPath: string(a.sourceVideoPath) || undefined,
+          referenceImagePaths: strings(a.referenceImagePaths, 30), referenceVideoPaths: strings(a.referenceVideoPaths, 10),
+          referenceAudioPaths: strings(a.referenceAudioPaths, 10), sourceVideoPath: string(a.sourceVideoPath) || undefined,
           firstFramePath: string(a.firstFramePath) || undefined, lastFramePath: string(a.lastFramePath) || undefined,
           generationNodeId: string(a.generationNodeId) || undefined, targetVideoNodeId: string(a.targetVideoNodeId) || undefined,
           generateAudio: a.generateAudio === true, watermark: a.watermark === true, providerId: string(a.providerId) || undefined, boardId: targetBoardId
         };
+        const useOmniReference = a.useVideoRouting === true && input.mode === "generate";
+        if (useOmniReference) {
+          input.referenceImagePaths = [...new Set([...input.referenceImagePaths, input.firstFramePath, input.lastFramePath]
+            .filter((value): value is string => Boolean(value)))];
+          input.firstFramePath = undefined;
+          input.lastFramePath = undefined;
+        }
         await this.dependencies.flush();
         const referenceBoard = await api.getBoard(targetBoardId);
         const boardImages = referenceBoard?.nodes.filter(isBoardImageNode).filter((node) => node.imagePath) ?? [];
@@ -322,13 +348,26 @@ export class WorkspaceCommands {
             ? boardImages.filter((node) => requested.includes(node.id))
             : nodeId ? boardImages.filter((node) => node.id === nodeId)
               : input.generationNodeId ? boardImages.filter((node) => incoming.some((connection) => connection.source === node.id))
-                : boardImages.slice(-1);
-          input.firstFramePath = sources.find((node) => incoming.some((connection) => connection.source === node.id
-            && connection.targetHandle === "target-start-frame"))?.imagePath;
-          input.lastFramePath = sources.find((node) => incoming.some((connection) => connection.source === node.id
-            && connection.targetHandle === "target-end-frame"))?.imagePath;
+                : a.useVideoRouting === true ? [] : boardImages.slice(-1);
+          if (!useOmniReference) {
+            input.firstFramePath = sources.find((node) => incoming.some((connection) => connection.source === node.id
+              && connection.targetHandle === "target-start-frame"))?.imagePath;
+            input.lastFramePath = sources.find((node) => incoming.some((connection) => connection.source === node.id
+              && connection.targetHandle === "target-end-frame"))?.imagePath;
+          }
           input.referenceImagePaths = sources.filter((node) => node.imagePath !== input.firstFramePath
             && node.imagePath !== input.lastFramePath).map((node) => node.imagePath);
+        }
+        if (a.useVideoRouting === true) {
+          const settings = await api.getSettings();
+          const routing = settings.otherModelRouting?.video;
+          const route = findVideoModelRoute(routing, input.model);
+          if (!route && routing?.models.length) throw new Error("所选视频模型未在模型设置中配置。");
+          if (route) {
+            input.model = route.name;
+            input.useVideoRouting = true;
+            delete input.providerId;
+          }
         }
         // Tool submissions need the same durable canvas anchor as UI submissions.
         // Publish it before awaiting the provider so even a slow submit is visible.
@@ -507,7 +546,12 @@ export class WorkspaceCommands {
     const prompt = template ? `模板固定规则：\n${template.prompt}\n\n本次创作内容：\n${content}` : content;
     if (!prompt.trim() || !boardId || (edit && !sourcePath)) throw new Error("生成缺少画板、提示词或编辑目标。");
     const settings = await api.getSettings();
-    const provider = settings.providers.find((p) => p.id === (a.providerId || settings.activeProviderId));
+    const count = number(a.n, 1);
+    if (!Number.isInteger(count) || count < 1 || count > 4) throw new Error("图片数量必须是 1 到 4 的整数。");
+    const channels = a.useImageRouting === true && !edit
+      ? agentImageChannels(settings, { model: string(a.model), count, references: references.length, transparent: a.background === "transparent" })
+      : undefined;
+    const provider = channels?.[0]?.provider ?? settings.providers.find((p) => p.id === (a.providerId || settings.activeProviderId));
     if (!provider || provider.type === "official") throw new Error("请配置自有图片 Provider。");
     const board = await api.getBoard(boardId);
     if (!board) throw new Error("画板不存在或已移入回收站。");
@@ -516,8 +560,6 @@ export class WorkspaceCommands {
     await this.dependencies.flush();
     this.prune();
     if (this.tasks.size >= 128) throw new Error("生成任务过多，请等待已提交任务完成。");
-    const count = number(a.n, 1);
-    if (!Number.isInteger(count) || count < 1 || count > 4) throw new Error("图片数量必须是 1 到 4 的整数。");
     const input: GenerateImageInput = {
       clientTaskId: requestId,
       assistantConversationId: string(a.assistantConversationId) || undefined,
@@ -543,7 +585,10 @@ export class WorkspaceCommands {
         return { id: crypto.randomUUID(), name: path.basename(file), mimeType: match[1], dataBase64: match[2], role: edit && file===sourcePath ? "edit-target" : "reference" };
       }));
       submittedToBackend = true;
-      const result = await api.generateImage({ ...input, referenceImages });
+      const request = { ...input, referenceImages };
+      const result = channels
+        ? await generateWithImageRouting(channels, request, attempt => api.generateImage(attempt))
+        : await api.generateImage(request);
       await this.dependencies.flush();
       if (!prepared) await api.appendBoardNodes(boardId, result.images.map((image) => {
         const bytes = image.dataUrl.startsWith("data:") ? Buffer.from(image.dataUrl.split(",")[1], "base64") : undefined;
@@ -557,7 +602,7 @@ export class WorkspaceCommands {
     })().catch(async (error) => {
       const message = error instanceof Error ? error.message : String(error);
       const cancelled = error instanceof Error && error.name === "GenerationCancelledError" || message.includes("已取消排队任务");
-      const status = cancelled ? "cancelled" : submittedToBackend ? "unknown" : "failed";
+      const status = cancelled ? "cancelled" : error instanceof ImageSubmissionError && error.outcome !== "unknown" ? "failed" : submittedToBackend ? "unknown" : "failed";
       await this.remember({ ...record, status, completedAt: new Date().toISOString(), error: message }).catch(() => undefined);
       emit({ type: "generation-finished", boardId, operationId: record.generationId, error: message, mode: input.workflowMode, sourcePath: edit ? sourcePath : undefined });
     });

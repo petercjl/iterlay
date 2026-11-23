@@ -3,23 +3,56 @@ import type { GenerateImageInput, GenerationJob, GenerationResult, ProviderConfi
 vi.mock("../electron/system-notification.js", () => ({ showGenerationCompletedNotification: vi.fn() }));
 import { createImageGenerationCommand, type ImageGenerationDependencies } from "../electron/application/image-generation";
 import { toapisDimensions } from "../electron/company/toapis";
-import { ProviderError } from "../electron/providers/errors";
-function fixture() {
+import { ImageSubmissionError, ProviderError } from "../electron/providers/errors";
+function fixture(routed = false) {
   const config: ProviderConfig = { id: "custom", type: "openai-compatible", name: "Fixture", baseUrl: "https://fixture.invalid", generationEndpoint: "/v1/images/generations", model: "gpt-image-1", supportsReferenceImages: true };
+  const fallback = { ...config, id: "fallback", name: "Fallback", model: "fixture-image" };
+  const finishGenerationNode = vi.fn(async () => undefined);
   let finish!: (value: GenerationResult) => void;
   const generate = vi.fn(() => new Promise<GenerationResult>((resolve) => { finish = resolve; }));
   const history = { findByIdempotencyKey: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => null), addJob: vi.fn<(_job: GenerationJob) => Promise<void>>(async () => undefined), updateJob: vi.fn<(_job: GenerationJob) => Promise<void>>(async () => undefined) };
   const dependencies = {
-    settings: { getSettings: () => ({ activeProviderId: "custom", providers: [config] }), getApiKey: () => "fixture-only" },
+    settings: {
+      getSettings: () => ({ activeProviderId: "custom", providers: routed ? [config, fallback] : [config],
+        imageRouting: routed ? { defaultModel: "Canvas model", models: [{ name: "Canvas model",
+          channels: [{ providerId: config.id, model: config.model }, { providerId: fallback.id, model: fallback.model }] }] } : undefined }),
+      getApiKey: () => "fixture-only", getKeyStatus: () => ({ custom: true, fallback: true })
+    },
     history, assets: { saveReferenceImageBytes: async () => [], saveOutputs: async () => ["/managed/result.png"], toAssetUrl: () => "tuda-asset://result" },
     getProviderAdapter: () => ({ generate }), recordMemory: vi.fn(), sceneMedia: {}, backfillThumbHashes: vi.fn(),
-    createGeneratedBoardNodes: async () => [], boards: {}, analytics: { track: async () => undefined }
+    createGeneratedBoardNodes: async () => [], boards: { finishGenerationNode }, analytics: { track: async () => undefined }
   };
   const command = createImageGenerationCommand(dependencies as unknown as ImageGenerationDependencies);
   const input: GenerateImageInput = { workflowMode: "generate", prompt: "Fixture", model: "gpt-image-1", size: "auto", n: 1, referenceImages: [], boardId: "board", idempotencyKey: "request-1" };
-  return { command, input, config, generate, history, finish: () => finish({ images: [{ bytes: Buffer.from([1]), mimeType: "image/png" }] }) };
+  return { command, input, config, generate, history, finishGenerationNode, finish: () => finish({ images: [{ bytes: Buffer.from([1]), mimeType: "image/png" }] }) };
 }
 describe("shared UI and MCP image generation service", () => {
+  it("routes a canvas node by model, records both attempts and commits only the winning result", async () => {
+    const f = fixture(true);
+    f.generate.mockRejectedValueOnce(new ProviderError("HTTP_ERROR", "HTTP 401", 401));
+    const result = f.command({ ...f.input, idempotencyKey: undefined, providerId: "fallback",
+      clientTaskId: "canvas-routed", model: "Canvas model", useImageRouting: true, generationNodeId: "node" });
+    await vi.waitFor(() => expect(f.generate).toHaveBeenCalledTimes(2));
+    expect(f.history.addJob.mock.calls.map(([job]) => [job.providerId, job.model])).toEqual([
+      ["custom", "gpt-image-1"], ["fallback", "fixture-image"]
+    ]);
+    expect(f.finishGenerationNode).not.toHaveBeenCalled();
+    f.finish();
+    const completed = await result;
+    expect(completed.job.providerId).toBe("fallback");
+    expect(f.finishGenerationNode.mock.calls).toEqual([["board", "node", { jobId: completed.job.id, nodes: [] }]]);
+  });
+
+  it("leaves an uncertain canvas submission on its original channel", async () => {
+    const f = fixture(true);
+    f.generate.mockRejectedValueOnce(new ImageSubmissionError("unknown", "SUBMISSION_UNKNOWN", "受理状态待确认"));
+    await expect(f.command({ ...f.input, idempotencyKey: undefined,
+      model: "Canvas model", useImageRouting: true, generationNodeId: "node" })).rejects.toMatchObject({ outcome: "unknown" });
+    expect(f.generate).toHaveBeenCalledTimes(1);
+    expect(f.history.updateJob).toHaveBeenLastCalledWith(expect.objectContaining({ status: "unknown" }));
+    expect(f.finishGenerationNode).toHaveBeenCalledTimes(1);
+  });
+
   it("coalesces concurrent identical submissions and reuses a committed result", async () => {
     const f = fixture();
     const first = f.command(f.input), second = f.command({ ...f.input });

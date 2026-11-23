@@ -1,7 +1,8 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { SpaceKind } from "../shared/enterprise.js";
+import type { CompanyStorageMode } from "../shared/company-account.js";
 
-export interface ExecutionContext { silent?: boolean; pluginCompany?: unknown; space: SpaceKind; workspace?: string; account?: string; storage?: {kind:"nas"|"local";url?:string} }
+export interface ExecutionContext { silent?: boolean; pluginCompany?: unknown; space: SpaceKind; workspace?: string; account?: string; storage?: {kind:"nas"|"local";url?:string;mode?:CompanyStorageMode} }
 const context = new AsyncLocalStorage<ExecutionContext>();
 let selected: () => SpaceKind = () => "personal";
 let details: () => Omit<ExecutionContext, "space"> = () => ({});

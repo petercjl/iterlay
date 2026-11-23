@@ -168,7 +168,7 @@ export function useCanvasMenuController(options: CanvasMenuControllerOptions): C
     if (menu.source) {
       const sourceNode = current.getNodes().find((node) => node.id === menu.source?.nodeId);
       const targetHandle = type === "videoGenerationNode"
-        ? sourceNode?.type === "imageNode" ? "target-start-frame" : "target-video-reference"
+        ? sourceNode?.type === "videoNode" ? "target-video-reference" : "target-reference"
         : "target-left";
       if (!sourceNode || !canvasPortsCompatible(
         sourceNode.type,
@@ -189,9 +189,9 @@ export function useCanvasMenuController(options: CanvasMenuControllerOptions): C
       target: id,
       sourceHandle: sourceHandle(menu.source),
       targetHandle: type === "videoGenerationNode"
-          ? current.getNodes().find((node) => node.id === menu.source?.nodeId)?.type === "imageNode"
-            ? "target-start-frame"
-          : "target-video-reference"
+          ? current.getNodes().find((node) => node.id === menu.source?.nodeId)?.type === "videoNode"
+            ? "target-video-reference"
+            : "target-reference"
         : "target-left"
     }, {
       recordHistory: false,

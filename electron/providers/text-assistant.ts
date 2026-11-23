@@ -31,7 +31,7 @@ import { convertPiContextToCompletionMessages, parsePiAgentDecision } from "../a
 import { createPiAgentResourceLoader } from "../pi-agent-resources.js";
 import { Semaphore } from "./concurrency.js";
 import { ProviderError } from "./errors.js";
-import { nativeTextContent, nativeTextRequest, readNativeTextStream } from "./native-text.js";
+import { nativeTextApiRoot, nativeTextContent, nativeTextRequest, readNativeTextStream, textProviderHeaders } from "./native-text.js";
 
 /**
  * AI 智能辅助（润色扩写、场景大师、修改建议、主体识别）的统一实现。
@@ -774,7 +774,7 @@ export class OpenAICompatibleTextTransport implements TextTransport {
       : this.config.protocol === "openai-responses" ? "openai-responses" : "openai-completions";
     const baseUrl = api === "openai-completions"
       ? chatCompletionsUrl(this.config.baseUrl).replace(/\/chat\/completions$/, "")
-      : this.config.baseUrl.replace(/\/$/, "");
+      : nativeTextApiRoot(this.config);
     return { id: `tuda-${this.config.id}`, name: this.config.name, model: this.config.model,
       // Anthropic's SDK appends /v1/messages; our configuration names the versioned API root.
       api, baseUrl: api === "anthropic-messages" ? baseUrl.replace(/\/v1$/, "") : baseUrl, fetch: this.fetchImpl,
@@ -787,7 +787,7 @@ export class OpenAICompatibleTextTransport implements TextTransport {
     if (this.config.protocol && this.config.protocol !== "openai-chat-completions") {
       const request = nativeTextRequest(this.config, messages, opts, false);
       return this.fetchGuarded(request.url, { method: "POST", headers: this.nativeHeaders(), body: JSON.stringify(request.body) }, this.timeoutMs, signal, async response => {
-        if (!response.ok) throw new Error(`文本模型请求失败（HTTP ${response.status}）。`);
+        if (!response.ok) throw new ProviderError(`HTTP_${response.status}`, `文本模型请求失败（HTTP ${response.status}）。`, response.status);
         return nativeTextContent(await response.json(), this.config.protocol === "anthropic-messages");
       });
     }
@@ -819,7 +819,7 @@ export class OpenAICompatibleTextTransport implements TextTransport {
     if (this.config.protocol && this.config.protocol !== "openai-chat-completions") {
       const request = nativeTextRequest(this.config, messages, opts, true);
       return this.fetchGuarded(request.url, { method: "POST", headers: this.nativeHeaders(), body: JSON.stringify(request.body) }, this.timeoutMs, signal, async response => {
-        if (!response.ok) throw new Error(`文本模型请求失败（HTTP ${response.status}）。`);
+        if (!response.ok) throw new ProviderError(`HTTP_${response.status}`, `文本模型请求失败（HTTP ${response.status}）。`, response.status);
         return readNativeTextStream(response, this.config.protocol === "anthropic-messages", onRaw, opts.onReasoningSummary);
       });
     }
@@ -905,7 +905,7 @@ export class OpenAICompatibleTextTransport implements TextTransport {
     if (!this.config.baseUrl.trim()) throw new ProviderError("INVALID_CONFIG", "请先填写 Base URL。");
     if (!this.apiKey.trim()) throw new ProviderError("UNAUTHORIZED", "请先填写 API Key。");
     const response = await this.fetchGuarded(textModelListUrl(this.config.baseUrl), {
-      headers: { Authorization: `Bearer ${this.apiKey}` }
+      headers: textProviderHeaders(this.config, this.apiKey)
     }, 15_000, undefined);
     if (!response.ok) await throwTextProviderError(response);
     const payload = (await response.json()) as OpenAIModelsPayload;
@@ -926,8 +926,7 @@ export class OpenAICompatibleTextTransport implements TextTransport {
   }
 
   private nativeHeaders(): Record<string, string> {
-    return { Authorization: `Bearer ${this.apiKey}`, "Content-Type": "application/json", "anthropic-version": "2023-06-01",
-      ...(this.config.managed && this.config.transport !== "company-direct" ? { "X-Company-App-Id": "tuda" } : {}) };
+    return { ...textProviderHeaders(this.config, this.apiKey), "Content-Type": "application/json" };
   }
 
   /** 统一的并发 + 超时 + 取消处理；consume 存在时在同一守卫内消费响应体（流式）。 */

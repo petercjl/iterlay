@@ -647,6 +647,7 @@ const legacyEnglish: Record<string, string> = {
   "历史记录": "History",
   "回收站": "Trash",
   "设置": "Settings",
+  "无法连接工作台。": "Could not connect to the workbench.",
   "设置分类": "Settings categories",
   "最近画板": "Recent boards",
   "检查更新": "Check for updates",

@@ -15,6 +15,7 @@ import { CanvasSelectionCountContext } from "@/components/canvas/canvas-selectio
 import { CodeCanvasNode } from "@/components/code-canvas/CodeCanvasNode";
 import { videoAspectRatio } from "@/components/canvas/video-node-model";
 import { NODE_INPUT_COMMIT_DELAY_MS } from "@/components/canvas/use-debounced-node-commit";
+import { seedanceGatewayModelOption } from "@shared/video-provider-models";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 Object.defineProperty(window, "DOMMatrixReadOnly", { configurable: true, value: class { m22 = 1; } });
@@ -72,6 +73,55 @@ async function openVideoProviderSubmenu(providerName: string): Promise<HTMLButto
 }
 
 describe("video canvas node UI", () => {
+  it("shows the actual failure reason in a video result without a playable file", () => {
+    renderCanvasNode({
+      id: "failed-video", type: "videoNode", position: { x: 0, y: 0 },
+      data: { video: { id: "failed-video", path: "", status: "failed", error: "该视频模型没有可用的本地参考素材渠道。" } }
+    }, { videoNode: VideoNode });
+    const placeholder = document.querySelector(".video-node-placeholder");
+    expect(placeholder?.textContent).toContain("该视频模型没有可用的本地参考素材渠道。");
+    expect(placeholder?.textContent).not.toContain("等待视频结果");
+  });
+
+  it("shows the configured models with documented quality choices and keeps ordinary drafts unlabelled", async () => {
+    const onRun = vi.fn();
+    const model = "seedance-2-5";
+    const firstModel = "doubao-seedance-2-0-260128";
+    const data: VideoGenerationNodeData = {
+      prompt: "A slow establishing shot", providerId: "toapis", model,
+      providerOptions: [
+        { id: "aipai", type: "seedance-aipai", baseUrl: "https://example.test", name: "AI派", model: firstModel,
+          models: [firstModel, "sd-2-5"] },
+        { id: "toapis", type: "seedance-toapis", baseUrl: "https://example.test", name: "ToAPIs", model,
+          models: [model, "seedance-2"], modelOptions: [seedanceGatewayModelOption("seedance-toapis", model)] }
+      ],
+      modelRouting: { defaultModel: "Seedance 2.5", models: [
+        { name: "Seedance 2.5", channels: [{ providerId: "aipai", model: "sd-2-5" }, { providerId: "toapis", model }] },
+        { name: "Seedance 2.0", channels: [{ providerId: "aipai", model: firstModel }, { providerId: "toapis", model: "seedance-2" }] }
+      ] },
+      duration: 30, aspectRatio: "16:9", resolution: "1080p", generateAudio: true, onRun
+    };
+    renderCanvasNode({ id: "seedance-card", type: "videoGenerationNode", position: { x: 0, y: 0 },
+      data: data as unknown as Record<string, unknown> }, { videoGenerationNode: VideoGenerationNode });
+    expect(buttonByLabel("选择视频模型").textContent).toBe("Seedance 2.5");
+    expect(document.querySelector(".canvas-generation-status")).toBeNull();
+    const qualityButtons = () => Array.from(document.querySelectorAll('[role="group"][aria-label="清晰度"] button'), (button) => button.textContent);
+    expect(qualityButtons()).toEqual(["480p", "720p", "1080p"]);
+    const ratios = document.querySelector<HTMLSelectElement>('select[aria-label="画幅"]')!;
+    expect(Array.from(ratios.options, (option) => option.value)).toEqual(["16:9", "9:16", "1:1", "4:3", "3:4", "21:9", "adaptive"]);
+    const duration = document.querySelector<HTMLSelectElement>('select[aria-label="时长"]')!;
+    expect(duration.options[0].value).toBe("4");
+    expect(duration.options.item(duration.options.length - 1)?.value).toBe("30");
+    expect(document.querySelector('[role="switch"][aria-label="生成声音"]')?.getAttribute("aria-checked")).toBe("true");
+    expect(document.querySelector(".video-generation-frame-grid")).toBeNull();
+    act(() => document.querySelector<HTMLButtonElement>(".canvas-generation-run")!.click());
+    expect(onRun).toHaveBeenCalledWith("seedance-card", expect.objectContaining({ providerId: "", model: "Seedance 2.5", duration: 30, resolution: "1080p" }));
+    await openVideoModelMenu();
+    const options = Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]'));
+    expect(options.map((option) => option.textContent)).toEqual(["Seedance 2.5", "Seedance 2.0"]);
+    await act(async () => options[1].click());
+    expect(qualityButtons()).toEqual(["480p", "720p", "1080p", "4K"]);
+  });
   it.each([1, 2, 30])("shows individual video/code actions only for single selection (count=%s)", (count) => {
     renderCanvasNode({
       id: "video", type: "videoNode", position: { x: 0, y: 0 }, selected: true,
@@ -164,6 +214,7 @@ describe("video canvas node UI", () => {
       aspectRatio: "16:9",
       resolution: "720p",
       generateAudio: false,
+      requiresFirstLastFrame: true,
       connectionTargetActive: true,
       compatibleConnectionHandles: [
         "target-start-frame",
@@ -314,7 +365,7 @@ describe("video canvas node UI", () => {
     expect(onChange).toHaveBeenCalledWith("generator", { aspectRatio: "1:1" });
   });
 
-  it("opens the connected frame in the image preview", async () => {
+  it("shows a legacy ordinary frame as a reference image and opens its preview", async () => {
     const data: VideoGenerationNodeData = {
       mode: "generate",
       prompt: "自然过渡",
@@ -340,12 +391,16 @@ describe("video canvas node UI", () => {
       data: data as unknown as Record<string, unknown>
     }, { videoGenerationNode: VideoGenerationNode });
 
-    const previewButton = buttonByLabel("预览首帧预览");
+    expect(document.querySelector(".video-generation-frame-grid")).toBeNull();
+    expect(document.querySelector('[data-handleid="target-start-frame"]')).toBeNull();
+    expect(document.querySelector('[data-handleid="target-end-frame"]')).toBeNull();
+    expect(document.body.textContent).toContain("全能参考");
+    const previewButton = buttonByLabel("预览参考图 1");
     expect(previewButton).toBeTruthy();
 
     await act(async () => previewButton.click());
 
-    expect(document.querySelector('img[alt="首帧预览"]')).toBeTruthy();
+    expect(document.querySelector('img[alt="参考图 1"]')).toBeTruthy();
     expect(buttonByLabel("关闭图片预览")).toBeTruthy();
     expect(document.querySelector("aside")).toBeNull();
     expect(buttonByLabel("图片信息")).toBeNull();

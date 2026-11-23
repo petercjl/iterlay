@@ -39,7 +39,7 @@ const previewConnection: BoardConnection = {
   sourceAnchor: { side: "right", ratio: 0.5, mode: "pinned" },
   targetAnchor: { side: "left", ratio: 0.5, mode: "pinned" },
   style: { dash: "solid", endMarker: "arrow", markerSize: 9, width: 2 },
-  routing: { mode: "auto", kind: "curved", waypoints: [] }
+  routing: { mode: "auto", kind: "orthogonal", waypoints: [] }
 };
 const projectEntry: BoardComicDramaEntryNode = {
   id: "comic-project",

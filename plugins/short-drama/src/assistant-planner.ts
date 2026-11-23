@@ -401,7 +401,7 @@ export function createComicCharactersMutationPlan(input: { snapshot: ComicDramaB
     sourceAnchor: { side: "right", ratio: 0.5, mode: "pinned" },
     targetAnchor: { side: "left", ratio: 0.5, mode: "pinned" },
     style: { dash: "solid", endMarker: "arrow", markerSize: 9, width: 2 },
-    routing: { mode: "auto", kind: "curved", waypoints: [] }
+    routing: { mode: "auto", kind: "orthogonal", waypoints: [] }
   }));
   const result = plan(input.snapshot, "添加所选角色卡 · " + nodes.length, nodes, connections, [], "只添加角色卡及设定引用；角色形象由每张角色卡单独进入生成确认", { kind: "create-characters", characterDraftIds: selected.map((draft) => draft.id) });
   result.preview.cost = "添加角色卡不调用媒体模型；生成角色形象时再逐项确认 Provider、模型与费用";

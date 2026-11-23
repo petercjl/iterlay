@@ -22,13 +22,11 @@ import {
 } from "@xyflow/react";
 import {
   ArrowLeft,
-  ArrowRight,
   CornerDownRight,
   Ellipsis,
   Minus,
   RotateCcw,
   SlidersHorizontal,
-  Spline,
   Workflow
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -66,7 +64,12 @@ import {
 } from "./connection-routing";
 import { screenPxToFlow } from "./canvas-coordinates";
 import { isVideoGenerationTargetHandle, videoGenerationTargetHandleAnchorRatio } from "./canvas-node-layout";
-import { pointAtConnectionPathProgress, projectPointToConnectionPath, sampleConnectionPath } from "./connection-label";
+import {
+  centeredConnectionLabelLocation,
+  pointAtConnectionPathProgress,
+  projectPointToConnectionPath,
+  sampleConnectionPath
+} from "./connection-label";
 import {
   CanvasConnectionEdgeActionsContext,
   type CanvasConnectionAnchor,
@@ -98,7 +101,6 @@ const GRID_SIZE = 8;
 const DRAG_THRESHOLD_PX = 4;
 const DEFAULT_MARKER_SIZE = 10;
 const ENDPOINT_CENTER_SNAP_DISTANCE_PX = 10;
-const COMIC_NODE_TYPES = new Set(["comicSettingNode", "comicCharacterNode", "comicSegmentNode"]);
 
 export type ConnectionEdgeViewportMode = "none" | "zoom" | "overlay";
 
@@ -114,11 +116,9 @@ type ConnectionEdgeStoreSlice = {
 
 export function connectionEdgeViewportMode(input: {
   selected: boolean;
-  hasLabel: boolean;
   editingLabel: boolean;
-  hasMarker: boolean;
 }): ConnectionEdgeViewportMode {
-  if (input.selected || input.hasLabel || input.editingLabel) return "overlay";
+  if (input.selected || input.editingLabel) return "overlay";
   return "zoom";
 }
 
@@ -233,6 +233,17 @@ function overlayAlignment(position: number, available: number, radius: number): 
   return -50;
 }
 
+export function connectionLabelScale(zoom: number): number {
+  const readingZoom = 0.4;
+  const readingSize = 11 / 12; // 11 screen pixels for the 12px label text.
+  if (zoom <= readingZoom) return readingSize / readingZoom;
+  if (zoom >= 1) return 1;
+
+  const progress = (zoom - readingZoom) / (1 - readingZoom);
+  const screenScale = readingSize + (1 - readingSize) * progress;
+  return screenScale / zoom;
+}
+
 function routingEquals(a: ConnectionRoutingDraft, b: ConnectionRoutingDraft): boolean {
   return a.mode === b.mode
     && a.kind === b.kind
@@ -313,19 +324,19 @@ export function connectionDashPattern(
   return dash === "dotted" ? `0 ${gap}` : `5 ${gap}`;
 }
 
+function isGenerationResultLabel(
+  kind: CanvasConnectionEdgeData["kind"],
+  label: CanvasConnectionEdgeData["label"]
+): boolean {
+  return kind !== "reference" && label === "生成结果";
+}
+
 export function isGenerationResultConnection(
   kind: CanvasConnectionEdgeData["kind"],
   label: CanvasConnectionEdgeData["label"],
   sourceType: string | undefined
 ): boolean {
-  return sourceType === "generationNode" && kind !== "reference" && label === "生成结果";
-}
-
-export function connectionEndMarker(
-  marker: BoardConnectionStyle["endMarker"],
-  generationResult: boolean
-): BoardConnectionStyle["endMarker"] {
-  return generationResult ? "arrow" : marker;
+  return sourceType === "generationNode" && isGenerationResultLabel(kind, label);
 }
 
 export function connectionMarkerSize(value: number | undefined): number {
@@ -367,15 +378,13 @@ export function CanvasConnectionEdge({
   const { screenToFlowPosition } = useReactFlow();
   const edgeData = (data ?? {}) as CanvasConnectionEdgeData;
   const connectionStyle = edgeData.style ?? {};
-  const generationResultCandidate = edgeData.kind !== "reference" && edgeData.label === "生成结果";
+  const connectionWidth = Math.min(8, Math.max(1, connectionStyle.width ?? 1.5));
   const editingLabel = actions.editingEdgeId === id;
+  const hasLabel = Boolean(edgeData.label) || editingLabel;
+  const centerResultLabel = isGenerationResultLabel(edgeData.kind, edgeData.label);
   const viewportMode = connectionEdgeViewportMode({
     selected: Boolean(selected),
-    hasLabel: Boolean(edgeData.label),
-    editingLabel,
-    hasMarker: connectionStyle.startMarker === "arrow"
-      || connectionStyle.endMarker === "arrow"
-      || generationResultCandidate
+    editingLabel
   });
   const {
     sourceNode,
@@ -444,6 +453,7 @@ export function CanvasConnectionEdge({
   const draftRef = useRef(draft);
   const gestureRef = useRef<EdgeGesture | null>(null);
   const labelRef = useRef<HTMLDivElement>(null);
+  const [labelSize, setLabelSize] = useState({ width: 0, height: 0 });
   const sequenceRef = useRef(0);
   const markerUid = useId().replace(/[^a-zA-Z0-9_-]/g, "-");
 
@@ -455,6 +465,18 @@ export function CanvasConnectionEdge({
   }, [inputDraft]);
 
   useEffect(() => () => gestureRef.current?.cancel(), []);
+  useEffect(() => {
+    const label = labelRef.current;
+    if (!centerResultLabel || !label) return;
+    const measure = () => {
+      const { offsetWidth: width, offsetHeight: height } = label;
+      setLabelSize((before) => before.width === width && before.height === height ? before : { width, height });
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(label, { box: "border-box" });
+    measure();
+    return () => observer.disconnect();
+  }, [centerResultLabel]);
 
   const localSourcePoint = endpointPosition(sourceNode, draft.sourceAnchor, { x: sourceX, y: sourceY });
   const localTargetPoint = endpointPosition(targetNode, draft.targetAnchor, { x: targetX, y: targetY });
@@ -523,30 +545,45 @@ export function CanvasConnectionEdge({
     path: resolvedRoute.path
   };
   const sampledPath = useMemo(() => sampleConnectionPath(geometry.path), [geometry.path]);
+  const visibleLabelPath = useMemo(
+    () => hasLabel ? sampleConnectionPath(visibleRoute.path) : [],
+    [hasLabel, visibleRoute.path]
+  );
   const resolvedLabel = resolveConnectionLabelAnchor(resolvedRoute, draft.labelAnchor, edgeData.labelProgress);
-  const labelPoint = resolvedRoute.kind === "curved"
-    ? pointAtConnectionPathProgress(sampledPath, resolvedLabel.pathProgress)
-    : resolvedLabel.point;
+  const labelScale = editingLabel ? 1 / Math.max(0.05, zoom) : connectionLabelScale(zoom);
+  const labelLocation = centerResultLabel
+    ? centeredConnectionLabelLocation(visibleLabelPath, {
+        width: labelSize.width * labelScale,
+        height: labelSize.height * labelScale
+      })
+    : projectPointToConnectionPath(visibleLabelPath, resolvedLabel.point);
+  const { point: labelPoint, side: labelSide, alongPathAlignment } = labelLocation;
+  const labelGap = 6 * labelScale + screenPxToFlow(connectionWidth / 2 + 0.25, zoom);
+  const alignLabelEditor = editingLabel && !centerResultLabel && alongPathAlignment === -50;
+  const labelAlignX = labelSide === "left" ? -100
+    : alignLabelEditor ? overlayAlignment(labelPoint.x * zoom + viewportX, viewportWidth, 176) : alongPathAlignment;
+  const labelAlignY = labelSide === "above" ? -100
+    : alignLabelEditor ? overlayAlignment(labelPoint.y * zoom + viewportY, viewportHeight, 22) : alongPathAlignment;
+  const labelX = labelPoint.x - (labelSide === "left" ? labelGap : 0);
+  const labelY = labelPoint.y - (labelSide === "above" ? labelGap : 0);
+  const labelStyle: CSSProperties = {
+    cursor: centerResultLabel ? "text" : undefined,
+    transformOrigin: `${-labelAlignX}% ${-labelAlignY}%`,
+    transform: `translate(${labelX}px, ${labelY}px) translate(${labelAlignX}%, ${labelAlignY}%) scale(${labelScale})`
+  };
   const toolbarPoint = pointAtConnectionPathProgress(sampledPath, 0.5);
   const toolbarScreen = {
     x: toolbarPoint.x * zoom + viewportX,
     y: toolbarPoint.y * zoom + viewportY
   };
+  const toolbarBelow = toolbarScreen.y < 52 || (hasLabel && toolbarScreen.y < viewportHeight - 52);
   const floatingToolbarPoint = {
     x: toolbarPoint.x,
-    y: toolbarPoint.y + (toolbarScreen.y < 52 ? 34 : -34) / Math.max(zoom, 0.05)
+    y: toolbarPoint.y + screenPxToFlow(toolbarBelow ? 34 : hasLabel ? -56 : -34, zoom)
   };
   const toolbarAlignment = {
     x: overlayAlignment(toolbarScreen.x, viewportWidth, 164),
     y: -50 as const
-  };
-  const labelScreen = {
-    x: labelPoint.x * zoom + viewportX,
-    y: labelPoint.y * zoom + viewportY
-  };
-  const labelAlignment = {
-    x: overlayAlignment(labelScreen.x, viewportWidth, 176),
-    y: overlayAlignment(labelScreen.y, viewportHeight, 22)
   };
   const publish = useCallback((
     phase: "begin" | "change" | "commit" | "cancel",
@@ -805,7 +842,7 @@ export function CanvasConnectionEdge({
       return {
         ...initial,
         routing: resolvedRoute.kind === "straight"
-          ? { mode: "manual", kind: "curved", waypoints: [{ id: waypointId, ...point }] }
+          ? { mode: "manual", kind: "orthogonal", waypoints: [{ id: waypointId, ...point }] }
           : insertResolvedConnectionWaypoint(
               initial.routing,
               resolvedRoute,
@@ -846,24 +883,15 @@ export function CanvasConnectionEdge({
   };
 
   const startLabelDrag = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    const start = resolvedLabel.point;
     beginGesture(event, "label", undefined, (sample, initial) => ({
       ...initial,
-      labelAnchor: resolvedRoute.kind === "curved"
-        ? (() => {
-            const progress = projectPointToConnectionPath(sampledPath, sample.flow).progress;
-            return { progress, globalProgress: progress };
-          })()
-        : reanchorConnectionLabel(resolvedRoute, sample.flow).anchor
+      labelAnchor: labelAnchorAtPoint({ x: start.x + sample.delta.x, y: start.y + sample.delta.y })
     }));
   };
 
   const labelAnchorAtPoint = (point: ConnectionPoint): ConnectionLabelAnchor => (
-    resolvedRoute.kind === "curved"
-      ? (() => {
-          const progress = projectPointToConnectionPath(sampledPath, point).progress;
-          return { progress, globalProgress: progress };
-        })()
-      : reanchorConnectionLabel(resolvedRoute, point).anchor
+    reanchorConnectionLabel(resolvedRoute, point).anchor
   );
 
   const keyboardWaypoint = (
@@ -916,6 +944,7 @@ export function CanvasConnectionEdge({
       actions.startLabelEdit?.(id, draft.labelAnchor);
       return;
     }
+    if (centerResultLabel) return;
     const direction = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1
       : event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : 0;
     if (!direction) return;
@@ -930,7 +959,7 @@ export function CanvasConnectionEdge({
     });
   };
 
-  const setRoutingKind = (kind: ConnectionRouteKind): void => {
+  const setRoutingKind = (kind: Exclude<ConnectionRouteKind, "curved">): void => {
     if (actions.applyToSelection) {
       actions.applyToSelection(id, { type: "set-routing-kind", kind });
       return;
@@ -946,24 +975,13 @@ export function CanvasConnectionEdge({
   };
 
   const generationResult = isGenerationResultConnection(edgeData.kind, edgeData.label, sourceNode?.type);
-  const comicDependency = COMIC_NODE_TYPES.has(sourceNode?.type ?? "")
-    && COMIC_NODE_TYPES.has(targetNode?.type ?? "");
-  const endMarker = connectionEndMarker(connectionStyle.endMarker, generationResult);
   const markerSize = connectionMarkerSize(connectionStyle.markerSize);
-  const connectionWidth = Math.min(8, Math.max(1, connectionStyle.width ?? 1.5));
   const edgeStyle = {
-    "--canvas-connection-color": connectionStyle.color ?? (
-      comicDependency
-        ? "hsl(var(--muted-foreground))"
-        : edgeData.kind === "reference" || generationResult ? "hsl(var(--canvas-ai-accent))" : undefined
-    ),
     "--canvas-connection-width": `${connectionWidth}px`,
     "--canvas-connection-dash": connectionDashPattern(connectionStyle.dash, connectionWidth)
   } as CSSProperties;
-  const markerPrefix = `canvas-connection-marker-${markerUid}`;
-  const markerUrl = (position: "source" | "target", marker: "none" | "arrow" | undefined): string | undefined => (
-    marker && marker !== "none" ? `url(#${markerPrefix}-${position}-${marker})` : undefined
-  );
+  const sourceMarkerId = `canvas-connection-marker-${markerUid}-source-arrow`;
+  const targetMarkerId = `canvas-connection-marker-${markerUid}-target-arrow`;
   const editableWaypoints = draft.routing.mode === "manual"
     ? draft.routing.waypoints
     : [];
@@ -972,7 +990,7 @@ export function CanvasConnectionEdge({
     <>
       <defs style={edgeStyle}>
         <marker
-          id={`${markerPrefix}-source-arrow`}
+          id={sourceMarkerId}
           viewBox="0 0 8 8"
           markerUnits="userSpaceOnUse"
           markerWidth={markerSize / Math.max(zoom, 0.05)}
@@ -985,7 +1003,7 @@ export function CanvasConnectionEdge({
           <path d="M 8 0 L 0 4 L 8 8 Z" className="canvas-connection-marker-fill" />
         </marker>
         <marker
-          id={`${markerPrefix}-target-arrow`}
+          id={targetMarkerId}
           viewBox="0 0 8 8"
           markerUnits="userSpaceOnUse"
           markerWidth={markerSize / Math.max(zoom, 0.05)}
@@ -1004,12 +1022,11 @@ export function CanvasConnectionEdge({
         interactionWidth={1}
         className={cn(
           "canvas-connection-edge",
-          generationResult && "is-generation-result",
           selected && "is-selected"
         )}
         style={edgeStyle}
-        markerStart={markerUrl("source", connectionStyle.startMarker)}
-        markerEnd={markerUrl("target", endMarker)}
+        markerStart={connectionStyle.startMarker === "arrow" ? `url(#${sourceMarkerId})` : undefined}
+        markerEnd={`url(#${targetMarkerId})`}
       />
       {generationResult ? (
         <path
@@ -1025,32 +1042,7 @@ export function CanvasConnectionEdge({
           <path className="canvas-connection-bridge-stroke" d={connectionBridgePath(bridge)} />
         </g>
       )) : null}
-      {resolvedRoute.kind === "curved" ? (
-        <path
-          d={geometry.path}
-          className="canvas-connection-segment-hit"
-          onClick={(event) => event.stopPropagation()}
-          onPointerDownCapture={(event) => {
-            const projection = projectPointToConnectionPath(sampledPath, screenToFlowPosition({
-              x: event.clientX,
-              y: event.clientY
-            }));
-            const segmentIndex = Math.min(
-              geometry.segments.length - 1,
-              Math.max(0, Math.floor(projection.progress * geometry.segments.length))
-            );
-            startMidpointDrag(segmentIndex, event, projection.point);
-          }}
-          onDoubleClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            actions.startLabelEdit?.(id, labelAnchorAtPoint(screenToFlowPosition({
-              x: event.clientX,
-              y: event.clientY
-            })));
-          }}
-        />
-      ) : geometry.segments.map((segment) => (
+      {geometry.segments.map((segment) => (
         <path
           key={segment.id}
           d={`M ${segment.start.x} ${segment.start.y} L ${segment.end.x} ${segment.end.y}`}
@@ -1128,12 +1120,7 @@ export function CanvasConnectionEdge({
               />
             ))}
             {geometry.segments.map((segment) => {
-              const center = resolvedRoute.kind === "curved"
-                ? pointAtConnectionPathProgress(
-                    sampledPath,
-                    (segment.index + 0.5) / Math.max(1, geometry.segments.length)
-                  )
-                : midpoint(segment.start, segment.end);
+              const center = midpoint(segment.start, segment.end);
               return (
                 <button
                   key={`midpoint:${segment.id}`}
@@ -1150,7 +1137,7 @@ export function CanvasConnectionEdge({
                     commitImmediate("waypoint", waypointId, (before) => ({
                       ...before,
                       routing: resolvedRoute.kind === "straight"
-                        ? { mode: "manual", kind: "curved", waypoints: [{ id: waypointId, ...center }] }
+                        ? { mode: "manual", kind: "orthogonal", waypoints: [{ id: waypointId, ...center }] }
                         : insertResolvedConnectionWaypoint(
                             before.routing,
                             resolvedRoute,
@@ -1180,29 +1167,12 @@ export function CanvasConnectionEdge({
               ><Minus aria-hidden="true" /></button>
               <button
                 type="button"
-                aria-label={uiText("正交线")}
-                title={uiText("正交线")}
+                aria-label={uiText("折线")}
+                title={uiText("折线")}
                 aria-pressed={draft.routing.kind === "orthogonal"}
                 onClick={() => setRoutingKind("orthogonal")}
               ><CornerDownRight aria-hidden="true" /></button>
-              <button
-                type="button"
-                aria-label={uiText("曲线")}
-                title={uiText("曲线")}
-                aria-pressed={draft.routing.kind === "curved"}
-                onClick={() => setRoutingKind("curved")}
-              ><Spline aria-hidden="true" /></button>
               <span aria-hidden="true" />
-              <label className="canvas-connection-color" title={uiText("连接线颜色")}>
-                <span className="sr-only">{uiText("连接线颜色")}</span>
-                <input
-                  type="color"
-                  aria-label={uiText("连接线颜色")}
-                  value={/^#[0-9a-f]{6}$/iu.test(connectionStyle.color ?? "") ? connectionStyle.color : "#52525b"}
-                  disabled={!actions.applyToSelection}
-                  onChange={(event) => applyStyle({ color: event.currentTarget.value })}
-                />
-              </label>
               <button
                 type="button"
                 aria-label={uiText("切换连接线宽度")}
@@ -1235,31 +1205,19 @@ export function CanvasConnectionEdge({
                   startMarker: connectionStyle.startMarker === "arrow" ? "none" : "arrow"
                 })}
               ><ArrowLeft aria-hidden="true" /></button>
-              <button
-                type="button"
-                aria-label={uiText("切换终点箭头")}
-                title={uiText("终点箭头")}
-                aria-pressed={connectionStyle.endMarker === "arrow"}
-                disabled={!actions.applyToSelection}
-                onClick={() => applyStyle({
-                  endMarker: connectionStyle.endMarker === "arrow" ? "none" : "arrow"
-                })}
-              ><ArrowRight aria-hidden="true" /></button>
-              {(connectionStyle.startMarker === "arrow" || endMarker === "arrow") ? (
-                <label className="canvas-connection-marker-size" title={uiText("箭头大小 {{ui:0}}px", [markerSize])}>
-                  <span className="sr-only">{uiText("箭头大小")}</span>
-                  <input
-                    type="range"
-                    min="6"
-                    max="20"
-                    step="2"
-                    aria-label={uiText("箭头大小")}
-                    value={markerSize}
-                    disabled={!actions.applyToSelection}
-                    onChange={(event) => applyStyle({ markerSize: Number(event.currentTarget.value) })}
-                  />
-                </label>
-              ) : null}
+              <label className="canvas-connection-marker-size" title={uiText("箭头大小 {{ui:0}}px", [markerSize])}>
+                <span className="sr-only">{uiText("箭头大小")}</span>
+                <input
+                  type="range"
+                  min="6"
+                  max="20"
+                  step="2"
+                  aria-label={uiText("箭头大小")}
+                  value={markerSize}
+                  disabled={!actions.applyToSelection}
+                  onChange={(event) => applyStyle({ markerSize: Number(event.currentTarget.value) })}
+                />
+              </label>
               <button
                 type="button"
                 aria-label={uiText("切换跨线桥")}
@@ -1288,15 +1246,15 @@ export function CanvasConnectionEdge({
             </div> : null}
           </>
         ) : null}
-        {(edgeData.label || editingLabel) ? (
+        {hasLabel ? (
           <div
             ref={labelRef}
             className="nodrag nopan canvas-connection-label"
-            style={overlayStyle(labelPoint, zoom, labelAlignment)}
+            style={labelStyle}
             role={editingLabel ? undefined : "button"}
             tabIndex={editingLabel ? undefined : 0}
-            aria-label={editingLabel ? undefined : uiText("拖动连接线文字")}
-            onPointerDown={editingLabel ? undefined : startLabelDrag}
+            aria-label={editingLabel ? undefined : uiText(centerResultLabel ? "连接线文字" : "拖动连接线文字")}
+            onPointerDown={editingLabel || centerResultLabel ? undefined : startLabelDrag}
             onKeyDown={editingLabel ? undefined : keyboardLabel}
             onDoubleClick={(event) => {
               event.preventDefault();

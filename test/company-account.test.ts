@@ -118,17 +118,48 @@ it("uses a local verifier, validates authorization URL and claims once with app 
   try {
     const login = await account.beginLogin();
     expect(JSON.stringify(login)).not.toContain("verifier");
+    expect(account.pendingBrowserAuthorization()).toBe(login.authorizeUrl);
     expect(await account.pollLogin()).toEqual({ status: "pending" });
     expect(calls).toHaveLength(1);
     vi.advanceTimersByTime(2000);
     expect(await account.pollLogin()).toEqual({ status: "authorized" });
+    expect(() => account.pendingBrowserAuthorization()).toThrow("过期");
     expect(calls.at(-1)?.headers.get("X-Company-App-Id")).toBe("tuda");
-    expect(saved).toHaveLength(2);
+    expect(saved).toHaveLength(1);
     await expect(account.pollLogin()).rejects.toThrow("过期");
   } finally {
     vi.useRealTimers();
   }
 });
+it("ignores approval for a cancelled request after a new authorization has started", async () => {
+  vi.useFakeTimers();
+  const ids = ["a".repeat(43), "b".repeat(43)];
+  const reply = (data: unknown) => Response.json({ ok: true, data });
+  let approveOld!: (response: Response) => void;
+  const oldReply = new Promise<Response>(resolve => { approveOld = resolve; });
+  const persist = vi.fn(async () => {});
+  const account = new CompanyAccount(origin, persist, async input => {
+    if (String(input).endsWith("/auth/poll")) return oldReply;
+    const requestId = ids.shift()!;
+    return reply({ contract: 1, appId: "tuda", requestId, userCode: requestId.slice(0, 8).toUpperCase(),
+      verificationUrl: origin + "/api/company/v1/auth/authorize?request=" + requestId, expiresIn: 600, intervalMs: 2000 });
+  });
+  try {
+    await account.beginLogin();
+    vi.advanceTimersByTime(2000);
+    const oldPoll = account.pollLogin();
+    expect(account.cancelLogin()).toBe(true);
+    const next = await account.beginLogin();
+    approveOld(reply({ ...session, status: "authorized" }));
+    await expect(oldPoll).rejects.toThrow("登录请求已更改");
+    expect(account.pendingBrowserAuthorization()).toBe(next.authorizeUrl);
+    expect(account.authenticated).toBe(false);
+    expect(persist).not.toHaveBeenCalled();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 it("clears active credentials on revocation but retains an unexpired cache on network failure", async () => {
   let revoked = false;
   const account = new CompanyAccount(
@@ -175,6 +206,41 @@ it("keeps company login and text models when NAS permission alone is denied", as
   );
 });
 
+it.each([
+  ["hosted", "https://hosted.example.test"],
+  ["nas", "http://192.168.10.8:18473"],
+  ["self-hosted", "https://storage.example.test"],
+] as const)("binds %s storage grants to the issuer-selected endpoint", async (mode, endpoint) => {
+  const scopes = ["boards:read", "assets:read"];
+  const storage = { enabled: true, audience: "tuda-nas" as const, mode, endpoint, scopes };
+  let grantEndpoint = endpoint as string;
+  const fetcher = vi.fn<typeof fetch>(async (_url, init) => {
+    expect(JSON.parse(String(init?.body))).toEqual({ audience: "tuda-nas", mode, endpoint, scopes });
+    return Response.json({ ok: true, data: {
+      contract: 1, appId: "tuda", token: "storage-fixture", tokenType: "Bearer",
+      audience: "tuda-nas", mode, endpoint: grantEndpoint, scopes,
+      organizationId: session.organization.id, memberId: session.member.id,
+      expiresAt: new Date(Date.now() + 120_000).toISOString(),
+    } });
+  });
+  const account = new CompanyAccount(origin, async () => undefined, fetcher);
+  await account.restore({ origin, session, bootstrap: { ...bootstrap, storage } });
+  await expect(account.storageToken()).resolves.toMatchObject({ token: "storage-fixture", scopes });
+  grantEndpoint = "https://old-storage.example.test";
+  await expect(account.storageToken()).rejects.toThrow("当前来源不匹配");
+  expect(account.authenticated).toBe(true);
+});
+
+it("rejects managed enterprise storage with an incomplete route or a non-origin endpoint", () => {
+  for (const storage of [
+    { enabled: true, mode: "hosted" },
+    { enabled: true, endpoint: "https://hosted.example.test" },
+    { enabled: true, mode: "hosted", endpoint: "http://public.example.test" },
+    { enabled: true, mode: "nas", endpoint: "http://nas.example.test/other" },
+    { enabled: true, mode: "nas", endpoint: "http://user@nas.example.test" },
+  ]) expect(() => validateBootstrap({ ...bootstrap, storage }, session, origin)).toThrow();
+});
+
 it("refreshes DingTalk profile without changing account identity", async () => {
   const member = {...session.member, name: "钉钉新名称", avatarUrl: "https://static.dingtalk.com/avatar-fixture.png"};
   const account = new CompanyAccount(origin, async () => undefined, (async url => Response.json({ok:true,data: String(url).endsWith("/session") ? {...session,...lease, authenticated:true, member} : String(url).endsWith("/direct-models") ? direct : {...bootstrap, member}})) as typeof fetch);
@@ -201,7 +267,7 @@ it("requests a real profile OAuth and binds its return to the same employee", as
     await account.restore({origin,session,bootstrap});
     expect((await account.beginLogin(true)).authorizeUrl).toContain("refreshProfile=1");
     expect(profileRequested).toBe(true);vi.advanceTimersByTime(1100);
-    await expect(account.pollLogin()).rejects.toThrow("当前登录的钉钉账号");
+    await expect(account.pollLogin()).rejects.toThrow("当前登录的账号");
     expect(account.session?.member.id).toBe(session.member.id);
   } finally {vi.useRealTimers();}
 });

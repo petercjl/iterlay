@@ -125,26 +125,6 @@ function polylinePath(points: ConnectionPoint[]): string {
   return points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
 }
 
-function curvedPath(points: ConnectionPoint[]): string {
-  if (points.length < 2) return "";
-  if (points.length === 2) {
-    const [start, end] = points;
-    const controlX = (start.x + end.x) / 2;
-    return `M ${start.x} ${start.y} C ${controlX} ${start.y} ${controlX} ${end.y} ${end.x} ${end.y}`;
-  }
-  let path = `M ${points[0].x} ${points[0].y}`;
-  for (let index = 0; index < points.length - 1; index += 1) {
-    const previous = points[Math.max(0, index - 1)];
-    const current = points[index];
-    const next = points[index + 1];
-    const after = points[Math.min(points.length - 1, index + 2)];
-    const control1 = { x: current.x + (next.x - previous.x) / 6, y: current.y + (next.y - previous.y) / 6 };
-    const control2 = { x: next.x - (after.x - current.x) / 6, y: next.y - (after.y - current.y) / 6 };
-    path += ` C ${control1.x} ${control1.y} ${control2.x} ${control2.y} ${next.x} ${next.y}`;
-  }
-  return path;
-}
-
 export function createConnectionGeometry(input: {
   source: ConnectionPoint;
   target: ConnectionPoint;
@@ -154,7 +134,7 @@ export function createConnectionGeometry(input: {
 }): ConnectionGeometry {
   const source = { id: "source", ...input.source };
   const target = { id: "target", ...input.target };
-  const generatedWaypoints = input.routing.kind === "orthogonal" && input.routing.waypoints.length === 0
+  const generatedWaypoints = input.routing.kind !== "straight" && input.routing.waypoints.length === 0
     ? autoOrthogonalWaypoints(
         source,
         target,
@@ -177,7 +157,7 @@ export function createConnectionGeometry(input: {
   return {
     points,
     segments,
-    path: input.routing.kind === "curved" ? curvedPath(points) : polylinePath(points)
+    path: polylinePath(points)
   };
 }
 
@@ -402,8 +382,8 @@ export function connectionBridgePath(input: {
   const radius = Math.max(2, input.radius ?? 5);
   const { x, y } = input.point;
   return input.orientation === "horizontal"
-    ? `M ${x - radius} ${y} Q ${x} ${y - radius * 1.35} ${x + radius} ${y}`
-    : `M ${x} ${y - radius} Q ${x + radius * 1.35} ${y} ${x} ${y + radius}`;
+    ? `M ${x - radius} ${y} L ${x} ${y - radius} L ${x + radius} ${y}`
+    : `M ${x} ${y - radius} L ${x + radius} ${y} L ${x} ${y + radius}`;
 }
 
 export function connectionBridgeGapPath(input: {

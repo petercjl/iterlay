@@ -149,7 +149,7 @@ try {
     ...process.env,
     TUDA_PLAYWRIGHT: "1",
     TUDA_E2E_USER_DATA: userData,
-    TUDA_COMPANY_URL: origin,
+    TUDA_OMNI_URL: origin,
   };
   delete env.VITE_DEV_SERVER_URL;
   delete env.TUDA_ENTERPRISE_URL;

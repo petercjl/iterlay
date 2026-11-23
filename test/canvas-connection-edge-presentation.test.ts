@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   connectionDashPattern,
-  connectionEndMarker,
   connectionEdgeStoreSlicesEqual,
   connectionEdgeViewportMode,
+  connectionLabelScale,
   connectionMarkerSize,
   connectionRouteMatchesAnchors,
   connectionRoutesShareTopology,
@@ -39,12 +39,6 @@ describe("connection edge route presentation", () => {
     expect(isGenerationResultConnection("reference", "生成结果", "generationNode")).toBe(false);
     expect(isGenerationResultConnection("visual", "参考", "generationNode")).toBe(false);
     expect(isGenerationResultConnection("visual", "生成结果", "imageNode")).toBe(false);
-  });
-
-  it("always points generation result connections toward their output", () => {
-    expect(connectionEndMarker(undefined, true)).toBe("arrow");
-    expect(connectionEndMarker("none", true)).toBe("arrow");
-    expect(connectionEndMarker("none", false)).toBe("none");
   });
 
   it("keeps visible route endpoints on their resolved node anchors", () => {
@@ -181,12 +175,20 @@ describe("connection edge route presentation", () => {
     expect(connectionDashPattern("solid", 4)).toBe("none");
   });
 
-  it("subscribes a plain edge to zoom for a stable card gap but not pan or viewport size", () => {
+  it("keeps labels readable near 40% and scales them down for the canvas overview", () => {
+    const screenSize = (zoom: number): number => 12 * zoom * connectionLabelScale(zoom);
+
+    expect(screenSize(0.2)).toBeCloseTo(5.5);
+    expect(screenSize(0.4)).toBeCloseTo(11);
+    expect(screenSize(0.42)).toBeGreaterThan(11);
+    expect(screenSize(1)).toBe(12);
+    expect(screenSize(2)).toBe(24);
+  });
+
+  it("subscribes an idle edge to zoom for a stable card gap but not pan or viewport size", () => {
     expect(connectionEdgeViewportMode({
       selected: false,
-      hasLabel: false,
-      editingLabel: false,
-      hasMarker: false
+      editingLabel: false
     })).toBe("zoom");
 
     const nodeLookup = new Map();
@@ -213,56 +215,14 @@ describe("connection edge route presentation", () => {
     expect(connectionEdgeStoreSlicesEqual(before, zoomed)).toBe(false);
   });
 
-  it("subscribes marker-only edges to zoom but not pan or viewport size", () => {
-    expect(connectionEdgeViewportMode({
-      selected: false,
-      hasLabel: false,
-      editingLabel: false,
-      hasMarker: true
-    })).toBe("zoom");
-
-    const nodeLookup = new Map();
-    const initialState = {
-      nodeLookup,
-      transform: [0, 0, 1],
-      width: 800,
-      height: 600
-    } as ReactFlowState;
-    const initial = selectConnectionEdgeStore(initialState, "source", "target", "zoom");
-    const panned = selectConnectionEdgeStore({
-      ...initialState,
-      transform: [100, 200, 1],
-      width: 1200,
-      height: 900
-    } as ReactFlowState, "source", "target", "zoom");
-    const zoomed = selectConnectionEdgeStore({
-      ...initialState,
-      transform: [100, 200, 2]
-    } as ReactFlowState, "source", "target", "zoom");
-
-    expect(connectionEdgeStoreSlicesEqual(initial, panned)).toBe(true);
-    expect(connectionEdgeStoreSlicesEqual(initial, zoomed)).toBe(false);
-    expect(zoomed.zoom).toBe(2);
-  });
-
-  it("keeps full viewport subscription for selected and labelled overlays", () => {
+  it("keeps full viewport subscription for selected edges and active label editors", () => {
     expect(connectionEdgeViewportMode({
       selected: true,
-      hasLabel: false,
-      editingLabel: false,
-      hasMarker: false
+      editingLabel: false
     })).toBe("overlay");
     expect(connectionEdgeViewportMode({
       selected: false,
-      hasLabel: true,
-      editingLabel: false,
-      hasMarker: false
-    })).toBe("overlay");
-    expect(connectionEdgeViewportMode({
-      selected: false,
-      hasLabel: false,
-      editingLabel: true,
-      hasMarker: false
+      editingLabel: true
     })).toBe("overlay");
   });
 });

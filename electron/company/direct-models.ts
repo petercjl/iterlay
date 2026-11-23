@@ -38,7 +38,7 @@ export function validateDirectModels(value: unknown, session: CompanySession, or
 
 export function directTextProviders(d: CompanyDirectModels): TextProviderConfig[] {
   return Object.entries(d.provider).flatMap(([id, p]) => Object.entries(p.models).map(([model, m]) => ({
-    id: `company-text/${id}/${model}`, name: m.name, type: "openai-compatible" as const,
+    id: `company-text/${id}/${model}`, name: m.name, connectionName: p.name, type: "openai-compatible" as const,
     managed: true, transport: "company-direct" as const,
     protocol: p.wire_api === "anthropic" ? "anthropic-messages" as const : p.wire_api === "chat" ? "openai-chat-completions" as const : "openai-responses" as const,
     baseUrl: p.options.baseURL, model

@@ -319,9 +319,11 @@ export function normalizeConnectionRouting(
 ): BoardConnectionRouting {
   const record = value && typeof value === "object" ? value as Record<string, unknown> : {};
   const mode = record.mode === "manual" ? "manual" : "auto";
-  const kind = record.kind === "straight" || record.kind === "curved" || record.kind === "orthogonal"
+  // Persisted curves use the same waypoints with right-angle segments.
+  const requestedKind = record.kind === "straight" || record.kind === "orthogonal" || record.kind === "curved"
     ? record.kind
     : fallbackKind;
+  const kind = requestedKind === "straight" ? "straight" : "orthogonal";
   const candidates = Array.isArray(record.waypoints) ? record.waypoints.slice(0, MAX_WAYPOINTS) : [];
   const usedIds = new Set<string>();
   const waypoints: BoardConnectionWaypoint[] = [];
@@ -499,20 +501,6 @@ function linearPath(points: ConnectionPoint[]): string {
   return points.map((point, index) => `${index ? "L" : "M"} ${svgNumber(point.x)} ${svgNumber(point.y)}`).join(" ");
 }
 
-function curvedPath(points: ConnectionPoint[]): string {
-  if (points.length < 3) return linearPath(points);
-  const commands = [`M ${svgNumber(points[0].x)} ${svgNumber(points[0].y)}`];
-  for (let index = 1; index < points.length - 1; index += 1) {
-    const control = points[index];
-    const next = points[index + 1];
-    const end = index === points.length - 2
-      ? next
-      : { x: midpointCoordinate(control.x, next.x), y: midpointCoordinate(control.y, next.y) };
-    commands.push(`Q ${svgNumber(control.x)} ${svgNumber(control.y)} ${svgNumber(end.x)} ${svgNumber(end.y)}`);
-  }
-  return commands.join(" ");
-}
-
 function segmentId(start: ConnectionRoutePoint, end: ConnectionRoutePoint): string {
   return `segment:${start.id}->${end.id}`;
 }
@@ -549,11 +537,11 @@ function pointsFromRouting(
       ...routing.waypoints.map((waypoint) => routePoint(`waypoint:${waypoint.id}`, waypoint, "waypoint", waypoint.id)),
       routePoint("target", target, "target")
     ];
-    return routing.kind === "orthogonal" ? orthogonalizePoints(points, source.side) : points;
+    return orthogonalizePoints(points, source.side);
   }
 
   let autoPoints: ConnectionPoint[];
-  if (routing.kind === "orthogonal" && obstacles.length) {
+  if (obstacles.length) {
     const sourceLead = connectionEndpointLead(source, endpointClearance);
     const targetLead = connectionEndpointLead(target, endpointClearance);
     const avoided = routeConnectionAvoidingObstacles(sourceLead, targetLead, obstacles, {
@@ -584,7 +572,7 @@ export function resolveConnectionRoute(input: ResolveConnectionRouteInput): Reso
     input.obstacles ?? [],
     nonNegativeFinite(input.obstaclePadding, DEFAULT_OBSTACLE_PADDING)
   ));
-  const path = routing.kind === "curved" ? curvedPath(points) : linearPath(points);
+  const path = linearPath(points);
   return {
     kind: routing.kind,
     mode: routing.mode,
@@ -611,7 +599,7 @@ export function resolveConnectionRoutePoints(
     kind: routing.kind,
     mode: routing.mode,
     points,
-    path: routing.kind === "curved" ? curvedPath(points) : linearPath(points),
+    path: linearPath(points),
     segments: buildSegments(points),
     routing
   };

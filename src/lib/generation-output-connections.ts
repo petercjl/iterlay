@@ -24,6 +24,6 @@ export function createMissingGenerationOutputConnections(input: {
       label: input.label,
       sourceAnchor: { side: "right", ratio: 0.5, mode: "pinned" },
       targetAnchor: { side: "left", ratio: 0.5, mode: "pinned" },
-      routing: { mode: "auto", kind: "curved", waypoints: [] }
+      routing: { mode: "auto", kind: "orthogonal", waypoints: [] }
     }));
 }

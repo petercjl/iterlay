@@ -45,7 +45,7 @@ describe("connection edge commands", () => {
           style: { dash: "dashed", endMarker: "arrow" },
           sourceAnchor: { side: "right", ratio: 0.5, mode: "auto" },
           targetAnchor: { side: "left", ratio: 0.5, mode: "auto" },
-          routing: { mode: "auto", kind: "curved", waypoints: [] }
+          routing: { mode: "auto", kind: "orthogonal", waypoints: [] }
         }
       }
     });
@@ -92,7 +92,7 @@ describe("connection edge commands", () => {
   ])("pins semantic video input %s to its rendered handle", (targetHandle, ratio, label) => {
     const sourceType = targetHandle === "target-video-reference" ? "videoNode" : "imageNode";
     const result = buildConnectionEdge(
-      [node("source", sourceType), node("video-generation", "videoGenerationNode")],
+      [node("source", sourceType), { ...node("video-generation", "videoGenerationNode"), data: { requiresFirstLastFrame: true } }],
       {
         source: "source",
         target: "video-generation",
