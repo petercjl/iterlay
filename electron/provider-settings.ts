@@ -134,11 +134,11 @@ export async function saveLocalModelRouting(store: SettingsStore, input: SaveMod
       return provider?.model === channel.model && (keys.has(provider.id) || keyStatus[provider.id] || provider.type === "codex-oauth");
     }));
     const preferred = usableRoutes?.find(model => model.name === textRouting?.defaultModel) ?? usableRoutes?.[0];
-    const useDefault = (kind: "text" | "video" | "audio") => input.applyDefaults?.includes(kind);
-    const selectedText = useDefault("text") ? usableRoutes?.find(model => model.name === textRouting?.defaultModel) : undefined;
-    if (useDefault("text") && !selectedText) throw new Error("请为默认文本模型配置可用渠道。");
+    const shouldApplyDefault = (kind: "text" | "video" | "audio") => input.applyDefaults?.includes(kind);
+    const selectedText = shouldApplyDefault("text") ? usableRoutes?.find(model => model.name === textRouting?.defaultModel) : undefined;
+    if (shouldApplyDefault("text") && !selectedText) throw new Error("请为默认文本模型配置可用渠道。");
     function selectMediaDefault(kind: "video" | "audio") {
-      if (!useDefault(kind)) return;
+      if (!shouldApplyDefault(kind)) return;
       const route = routes[kind]?.models.find(model => model.name === routes[kind]?.defaultModel);
       const selected = route?.channels.find(channel => {
         const provider = providers[kind].get(channel.providerId);
