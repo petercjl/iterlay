@@ -13,7 +13,6 @@ import { duplicateClipboardImages,type CanvasClipboardItem } from "@/components/
 import { centerNodeAtDrop,type CanvasDropPoint } from "@/components/canvas/canvas-drop";
 import type { CanvasNodeLayout,CanvasRestoreSnapshot,CanvasSelectionSnapshot } from "@/components/canvas/canvas-history";
 import { VIDEO_GENERATION_NODE_HEIGHT,VIDEO_NODE_HEIGHT,VIDEO_NODE_WIDTH } from "@/components/canvas/canvas-node-layout";
-import type { EmptyCanvasMode } from "@/components/canvas/EmptyCanvasStart";
 import { placeGenerationReferenceImages,type GenerationReferencePlacementTarget } from "@/components/canvas/generation-reference-paste";
 import {
 getPendingEditCount,
@@ -88,10 +87,8 @@ missingImageWorkbenchMessage
 import { mergeVideoProviderModelCatalogs } from "@/lib/official-video-models";
 import {
 clearTourSeen,
-hasSeenDemoStart,
 hasSeenTour,
 initializeOnboardingPersistence,
-markDemoStartSeen,
 markTourSeen
 } from "@/lib/onboarding";
 import { sceneAssistantFieldsToPrompt } from "@/lib/prompt-assistant";
@@ -107,7 +104,6 @@ import { reconcileRecoveredVideoCanvas } from "@/lib/video-generation-recovery";
 import { notifyVideoJob as showVideoJobNotification } from "@/lib/video-job-notification";
 import { promoteRecentlyUsedBoard,sortBoardsByRecentUse } from "@shared/board-order";
 import { isComicDramaNode } from "@shared/comic-drama";
-import { INITIAL_DEMO_BOARD_NAME } from "@shared/demo-board";
 import type { AgentEditDraft } from "@shared/modification-requests";
 
 
@@ -119,7 +115,6 @@ import { hasDeliveryReferencesToMovedVersions } from "@shared/image-delivery-ref
 
 import type {
 AssetComment,
-AssetLibraryItem,
 AssetReference,
 BoardComicDramaEntryNode,
 BoardConnection,
@@ -744,7 +739,6 @@ export default function App(): React.ReactElement {
   const [activeTour, setActiveTour] = useState<TourDefinition | null>(null);
   const tourAutoShownRef = useRef<Set<string>>(new Set());
   // 启动时只读取一次，确保首次推荐在当前会话内保持可见，同时不会在后续启动重复出现。
-  const firstDemoStartVisitRef = useRef(!hasSeenDemoStart());
   // 画板引导的模拟生成演示：打字定时器与预载的演示图 dataUrl。
   const tourTypingTimerRef = useRef<number | null>(null);
   const tourDemoDataUrlRef = useRef<string | null>(null);
@@ -1783,7 +1777,6 @@ export default function App(): React.ReactElement {
         // Load the home screen before removing the startup screen.
         const startupLibraryPromise = loadLibraryShell();
         await initializeOnboardingPersistence(api);
-        firstDemoStartVisitRef.current = !hasSeenDemoStart();
         const settingsPromise = api.getSettings();
         const boardsPromise = api.listBoards();
         const commentsPromise = api.listComments().catch(() => [] as AssetComment[]);
@@ -1848,7 +1841,6 @@ export default function App(): React.ReactElement {
           summaries = await api.listBoards();
         }
         setBoards(summaries);
-        if (firstDemoStartVisitRef.current) markDemoStartSeen();
         await startupLibraryPromise;
       } catch (error) {
         reportWorkbenchError(error);
@@ -3582,10 +3574,9 @@ export default function App(): React.ReactElement {
     }));
   }, []);
 
-  const startEmptyCanvasPrompt = useCallback((prompt?: string): void => {
-    if (prompt !== undefined) changePrompt(prompt);
+  const focusCanvasPrompt = useCallback((): void => {
     setPromptFocusNonce((current) => current + 1);
-  }, [changePrompt]);
+  }, []);
 
   const applySuggestedEdit = useCallback((prompt: string): void => {
     setInput((current) => ({ ...current, prompt, sceneId: undefined }));
@@ -3848,57 +3839,6 @@ export default function App(): React.ReactElement {
       previews: copies.map((image) => image.dataUrl)
     });
   }, []);
-
-  const addRecentAssetsToCanvas = useCallback((assets: AssetLibraryItem[]): void => {
-    if (assets.length === 0) return;
-    const imageAssets = assets.filter((asset) => asset.mediaType !== "video");
-    const videoAssets = assets.filter((asset) => asset.mediaType === "video");
-    const imageIds = imageAssets.map(() => crypto.randomUUID());
-    const addedImages: GeneratedImage[] = imageAssets.map((asset, index) => ({
-      id: imageIds[index],
-      path: asset.imagePath,
-      dataUrl: asset.dataUrl,
-      jobId: asset.jobId,
-      source: asset.source,
-      width: asset.width,
-      height: asset.height,
-      selectOnCreate: index === 0,
-      placementAnchorId: index > 0 ? imageIds[index - 1] : undefined
-    }));
-    if (addedImages.length > 0) setImages((current) => [...addedImages, ...current]);
-    if (videoAssets.length > 0) {
-      const videoNodes = videoAssets.map((asset, index): BoardVideoNode => ({
-        id: crypto.randomUUID(),
-        type: "video",
-        title: asset.prompt || "视频",
-        x: index * 32,
-        y: index * 32,
-        videoPath: asset.imagePath,
-        jobId: asset.jobId,
-        source: asset.source === "upload" ? "upload" : "generated",
-        width: asset.width,
-        height: asset.height,
-        durationMs: asset.durationMs,
-        displayWidth: VIDEO_NODE_WIDTH,
-        displayHeight: VIDEO_NODE_HEIGHT
-      }));
-      setVideoUrls((current) => Object.fromEntries([
-        ...Object.entries(current),
-        ...videoAssets.map((asset) => [asset.imagePath, asset.dataUrl] as const)
-      ]));
-      setWorkflowNodes((current) => {
-        const next = [...videoNodes, ...current];
-        workflowNodesRef.current = next;
-        return next;
-      });
-      scheduleBoardSave();
-    }
-    tudaToast.placed({
-      title: assets.length === 1 ? translateSourceText("已将素材放入画板") : translateSourceText("已将 {{ui:0}} 项素材放入画板", [assets.length]),
-      detail: assets.length === 1 ? translateSourceText("来自「{{ui:0}}」", [assets[0].boardName]) : translateSourceText("已按选择顺序排列"),
-      previews: assets.map((asset) => asset.thumbnailUrl || asset.dataUrl)
-    });
-  }, [scheduleBoardSave]);
 
   // 前 9 个最近画板对应 Command/Ctrl + 1-9；切换复用完整的保存与预加载流程。
   useEffect(() => {
@@ -5377,18 +5317,6 @@ export default function App(): React.ReactElement {
     return () => window.clearTimeout(timerId);
   }, [boardGalleryEnabled, galleryPreloadPaths]);
   const galleryAvailable = boardGalleryEnabled && images.some((image) => Boolean(image.path) && !image.pending);
-  const demoStartBoard = boards.find((board) => board.name === INITIAL_DEMO_BOARD_NAME);
-  const showFirstRunDemoStart = Boolean(
-    demoStartBoard &&
-    demoStartBoard.id !== activeBoard?.id &&
-    firstDemoStartVisitRef.current
-  );
-  const emptyCanvasSuggestedMode = useMemo<EmptyCanvasMode>(
-    () => showFirstRunDemoStart
-      ? "compass"
-      : boards.some((board) => board.imageCount > 0) ? "recent" : "preview",
-    [boards, showFirstRunDemoStart]
-  );
   const canvasInitialLayout = useMemo(
     () => ({
       boardId: activeBoard?.id,
@@ -5398,10 +5326,6 @@ export default function App(): React.ReactElement {
     }),
     [activeBoard?.id, canvasConnectionsVersion]
   );
-  const openCanvasAssetLibrary = useCallback((): void => openLibrary("assets"), [openLibrary]);
-  const openCanvasDemoStart = useCallback((): void => {
-    if (demoStartBoard) void openBoard(demoStartBoard.id);
-  }, [demoStartBoard, openBoard]);
   const openCanvasShortcutHelp = useCallback((): void => setShortcutHelpOpen(true), []);
   const imageByPath = useMemo(
     () => new Map(images.filter((image) => image.path).map((image) => [image.path, image])),
@@ -5597,14 +5521,7 @@ export default function App(): React.ReactElement {
         onPasteImages={handlePasteCanvasImages}
         onDropImages={handleDropImages}
         onImportGenerationReferences={handleImportGenerationReferences}
-        showEmptyCanvasStart={!BOARD_ONLY_MODE && activeBoard !== null}
-        emptyCanvasSuggestedMode={emptyCanvasSuggestedMode}
-        promptFocused={promptFocused}
-        onStartPrompt={startEmptyCanvasPrompt}
-        onAddRecentAssets={addRecentAssetsToCanvas}
-        onOpenAssetLibrary={openCanvasAssetLibrary}
-        showDemoStart={showFirstRunDemoStart}
-        onOpenDemoStart={openCanvasDemoStart}
+        onFocusPrompt={focusCanvasPrompt}
         onOpenShortcutHelp={openCanvasShortcutHelp}
         onExitCanvas={exitCanvas}
       />

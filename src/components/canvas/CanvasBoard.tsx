@@ -8,7 +8,6 @@ import { useReducedMotion } from "framer-motion";
 import { Position, useReactFlow, type Edge, type Node } from "@xyflow/react";
 import type {
   AssetComment,
-  AssetLibraryItem,
   BoardConnection,
   BoardComicDramaEntryNode,
   BoardGenerationNode,
@@ -40,7 +39,6 @@ import {
 } from "./ImageNode";
 import { centerNodeAtDrop, type CanvasDropPoint } from "./canvas-drop";
 import type { CanvasClipboardItem } from "./canvas-clipboard";
-import type { EmptyCanvasMode } from "./EmptyCanvasStart";
 import { copyImageDataUrlToClipboard } from "@/lib/clipboard-images";
 import { tudaToast } from "@/components/ui/tuda-toast";
 import { CANVAS_FIT_VIEW_OPTIONS, resolveCanvasWheelInteraction } from "./canvas-viewport";
@@ -49,7 +47,6 @@ import { useCanvasController } from "./CanvasController";
 import { CanvasSurface } from "./CanvasSurface";
 import {
   CanvasDropTarget,
-  CanvasEmptyState,
   CanvasMiniMap,
   CanvasSelectionToolbar,
   CanvasVideoMergeToolbar,
@@ -428,15 +425,7 @@ interface CanvasBoardProps {
   onRedo?: (current: CanvasSelectionSnapshot) => void;
   onPasteImages: (items: CanvasClipboardItem[], action?: "paste" | "duplicate") => void;
   onDropImages: (payload: { files: File[]; imageUrls: string[]; position?: CanvasDropPoint }) => void;
-  /** 仅在画板数据恢复完成、且已确认当前画板为空时展示空画板入口。 */
-  showEmptyCanvasStart: boolean;
-  emptyCanvasSuggestedMode: EmptyCanvasMode;
-  promptFocused: boolean;
-  onStartPrompt: (prompt?: string) => void;
-  onAddRecentAssets: (assets: AssetLibraryItem[]) => void;
-  onOpenAssetLibrary: () => void;
-  showDemoStart: boolean;
-  onOpenDemoStart: () => void;
+  onFocusPrompt: () => void;
   onOpenShortcutHelp?: () => void;
   /** 画板空闲时按 Esc 退出当前画板。 */
   onExitCanvas?: () => void;
@@ -535,14 +524,7 @@ export function CanvasBoard({
   onRedo,
   onPasteImages,
   onDropImages,
-  showEmptyCanvasStart,
-  emptyCanvasSuggestedMode,
-  promptFocused,
-  onStartPrompt,
-  onAddRecentAssets,
-  onOpenAssetLibrary,
-  showDemoStart,
-  onOpenDemoStart,
+  onFocusPrompt,
   onOpenShortcutHelp,
   onExitCanvas
 }: CanvasBoardProps): React.ReactElement {
@@ -1542,7 +1524,7 @@ export function CanvasBoard({
       reject: rejectCanvasShortcut,
       exitCanvas: onExitCanvas,
       openShortcutHelp: onOpenShortcutHelp,
-      focusPrompt: onStartPrompt
+      focusPrompt: onFocusPrompt
     }
   });
   useCanvasShortcutController({
@@ -1611,13 +1593,6 @@ export function CanvasBoard({
       : selectedReferenceCandidateCount === 0
         ? "所选图片已在参考图中"
       : `将所选图片加入参考 · R · 当前 ${referenceCount}/4`;
-
-  const handleEmptyCanvasFiles = useCallback((files: File[]): void => {
-    if (files.length === 0) return;
-    recordCanvasChange();
-    onDropImages({ files, imageUrls: [] });
-  }, [onDropImages, recordCanvasChange]);
-
 
   const startComicDrama = useCallback((): void => {
     const rect = canvasContainerRef.current?.getBoundingClientRect();
@@ -1768,20 +1743,6 @@ export function CanvasBoard({
         <CanvasContextMenu {...menuController.contextMenu} />
       ) : null}
 
-      <CanvasEmptyState
-        visible={showEmptyCanvasStart && images.length === 0 && workflowNodes.length === 0 && !dropController.preview}
-        reduceMotion={reduceMotion}
-        suggestedMode={emptyCanvasSuggestedMode}
-        promptFocused={promptFocused}
-        pasteShortcut={clipboardController.pasteShortcut}
-        showDemoStart={showDemoStart}
-        onChooseFiles={handleEmptyCanvasFiles}
-        onPaste={clipboardController.pasteFromSystemClipboard}
-        onStartPrompt={onStartPrompt}
-        onAddRecentAssets={onAddRecentAssets}
-        onOpenAssetLibrary={onOpenAssetLibrary}
-        onOpenDemoStart={onOpenDemoStart}
-      />
       <CanvasDropTarget preview={dropController.preview} />
     </div>
     </TooltipProvider>
