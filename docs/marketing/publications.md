@@ -376,3 +376,11 @@ X、小红书、Hacker News、Linux.do、开源中国、少数派暂未找到已
 - 状态：本机固定制品发布完成；六个分块 SHA-512、两份公开安装器 SHA-256、精确版本和 latest、真实 npm 精确安装以及两个平台的更新选择均已核验。Windows 验证机实际发现 0.1.5。源码同步未触发云端 Actions 或网站部署。
 - 验收：最终 2501 项单元测试通过、4 项跳过，官网 13 项检查通过；Windows 专项 97 项通过。两平台均通过实际安装、访客三次登录退出、进程重启恢复、内置 CLI 和 Pi 检查；Windows 验证同版本重装保留画板。Mac 为 ad-hoc 签名，尚未做苹果公证。
 - npm SRI：`sha512-VOjEaS5WhyScEhLjTyzTBU/zwZhfyAL8P1i07ItQ8+fmTktNt7rd7OKbBTmMlArZ0zmZi4pQZKPMZgYthIH8sg==`。完整文件哈希、验收范围和恢复证据见 [发布记录](../releases/tuda-0.1.5.md)。独立插件 `@petercjl/tuda` 保持 0.1.2。指标未采集。
+
+
+### DESKTOP-NPM-004 · Tuda 0.1.6 Windows / Mac 双平台版
+
+- 入口：[npm 精确版本](https://www.npmjs.com/package/@petercjl/tuda-desktop/v/0.1.6)，稳定渠道 `latest`。发布日期 2026-11-23（Asia/Shanghai）。
+- 内容：OMNI 正式环境接入、企业模型配置和画板交互优化。提供 Windows x64 与 Mac arm64 首装及更新内容。
+- 源码：[bd67882](https://github.com/petercjl/iterlay/commit/bd6788286791a707f5a11b477a04db24bf5302b0)。两平台分别原生构建并完成安装验证，Windows 同版本重装后保留测试画板。
+- 状态：本机固定制品发布完成。公开安装分块、安装器 SHA-256、npm 精确安装、稳定标签和两个平台的更新选择均已核验。完整证据和验收范围见 [0.1.6 发布记录](../releases/tuda-0.1.6.md)。指标未采集。
