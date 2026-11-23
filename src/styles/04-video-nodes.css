@@ -377,11 +377,12 @@
 .video-generation-audio strong { color: hsl(var(--foreground)); font-size: 10px; font-weight: 600; }
 .video-generation-audio small { color: hsl(var(--muted-foreground)); font-size: 8px; }
 .video-generation-audio-switch { position: relative; display: inline-flex; width: 36px; height: 20px; flex: 0 0 36px; align-items: center; padding: 0 2px; border: 2px solid transparent; border-radius: 999px; outline: 0; background: hsl(var(--input)); transition: background-color 120ms ease; }
-.video-generation-audio-switch[aria-checked="true"] { background: hsl(var(--primary)); }
+.video-generation-audio-switch[aria-checked="true"] { background: hsl(var(--focus-accent)); }
 .video-generation-audio-switch > span { display: block; width: 16px; height: 16px; border-radius: 50%; background: hsl(var(--background)); box-shadow: 0 1px 2px hsl(var(--foreground) / .2); transform: translateX(0); transition: transform 120ms ease; }
 .video-generation-audio-switch[aria-checked="true"] > span { transform: translateX(16px); }
 .video-generation-audio-switch:focus-visible { outline: 2px solid hsl(var(--focus-accent)); outline-offset: 2px; }
 .video-generation-audio-switch:disabled { cursor: not-allowed; opacity: .5; }
+.video-generation-audio-switch[aria-checked="true"]:disabled { opacity: .8; }
 
 .video-generation-footer { display: flex; min-height: 52px; align-items: center; gap: 8px; padding: 0 12px; border-top: 1px solid hsl(var(--border)); }
 .video-generation-footer > span { min-width: 0; flex: 1; overflow: hidden; color: hsl(var(--muted-foreground)); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
