@@ -534,7 +534,8 @@ export class WorkspaceCommands {
   private async performGeneration(a: Record<string, unknown>, edit: boolean, requestId: string, requestHash: string): Promise<GenerationRecord> {
     const { api } = this.dependencies;
     const emit = (event: WorkbenchEvent) => this.dependencies.emit({ ...event, ...(a.preserveView === true ? { preserveView: true } : {}) });
-    const template = a.templateId === undefined ? undefined : await api.getTemplate(string(a.templateId));
+    const templateId = string(a.templateId);
+    const template = templateId.trim() ? await api.getTemplate(templateId) : undefined;
     if (template && template.mode !== (edit ? "edit" : "generate")) throw new Error("模板创作模式与当前命令不匹配。");
     const boardId = await this.resolveGenerationBoard(string(a.boardId), a.preserveView === true);
     const sourcePath = string(a.sourcePath);

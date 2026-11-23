@@ -41,6 +41,25 @@ describe("typed workspace image tasks", () => {
     expect(f.mocks.appendBoardNodes).toHaveBeenCalledTimes(expected === "succeeded" ? 1 : 0);
   });
 
+  it.each(["", "   "])("generates without a template for blank template ID %j", async (templateId) => {
+    const f = workspaceFixture();
+    f.mocks.getTemplate.mockRejectedValue(new Error("模板不存在。"));
+    const task = await f.commands.call("generate_image", { boardId: "board", prompt: "test", templateId }) as { generationId: string };
+    expect(f.mocks.getTemplate).not.toHaveBeenCalled();
+    await vi.waitFor(async () => expect(await f.commands.call("get_generation_status", { generationId: task.generationId }))
+      .toMatchObject({ status: "succeeded" }));
+    expect(f.mocks.generateImage).toHaveBeenCalledWith(expect.objectContaining({ prompt: "test", sceneId: undefined }));
+  });
+
+  it("reports a missing template when an explicit ID is supplied", async () => {
+    const f = workspaceFixture();
+    f.mocks.getTemplate.mockRejectedValue(new Error("模板不存在。"));
+    await expect(f.commands.call("generate_image", { boardId: "board", prompt: "test", templateId: "custom:missing" }))
+      .rejects.toThrow("模板不存在。");
+    expect(f.mocks.getTemplate).toHaveBeenCalledWith("custom:missing");
+    expect(f.mocks.generateImage).not.toHaveBeenCalled();
+  });
+
   it.each(["generate_image", "edit_image"])("preserves transparent PNG parameters for %s", async (name) => {
     const f = workspaceFixture();
     const task = await f.commands.call(name, { boardId: "board", sourcePath: "/managed/source.png",
