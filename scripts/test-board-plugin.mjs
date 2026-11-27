@@ -10,6 +10,7 @@ import { Client } from "../cli/node_modules/@modelcontextprotocol/sdk/dist/esm/c
 import { StdioClientTransport } from "../cli/node_modules/@modelcontextprotocol/sdk/dist/esm/client/stdio.js";
 
 const directory = await mkdtemp(path.join(os.tmpdir(), "tuda-plugin-stdio-"));
+const cliDist = path.resolve(import.meta.dirname, "../cli/dist");
 const calls = [];
 let token = "t".repeat(43);
 const instanceId = () => createHash("sha256").update(`${backend.address().port}\0${token}`).digest("hex");
@@ -23,7 +24,7 @@ const backend = createServer(async (req, res) => {
   res.end(JSON.stringify({ result: { protocolVersion: 1, accepted: true } }));
 });
 await new Promise(resolve => backend.listen(0, "127.0.0.1", resolve));
-const transport = new StdioClientTransport({ command: process.execPath, args: [path.resolve("cli/dist/board-plugin.js")],
+const transport = new StdioClientTransport({ command: process.execPath, args: [path.join(cliDist, "board-plugin.js")],
   env: { ...process.env, TUDA_USER_DATA_PATH: directory, TUDA_NO_LAUNCH: "1", TUDA_PLUGIN_SPACE: "enterprise", TUDA_AUTH_HANDOFF_FILE: path.join(directory, "not-issued-yet.json") }, stderr: "pipe" });
 let diagnostics = "";
 transport.stderr?.on("data", chunk => { diagnostics += chunk; });
@@ -51,7 +52,7 @@ try {
   assert.equal(wrongSpace.isError, true);
   assert.equal(calls.length, 0);
   // The host issues its short-lived private file immediately before the first business call.
-  const prepared = await promisify(execFile)(process.execPath, [path.resolve("cli/dist/main.js"), "desktop", "prepare", "--user-data-path", directory, "--no-launch", "--json"]);
+  const prepared = await promisify(execFile)(process.execPath, [path.join(cliDist, "main.js"), "desktop", "prepare", "--user-data-path", directory, "--no-launch", "--json"]);
   assert.deepEqual(JSON.parse(prepared.stdout).data, { ready: true, instanceId: instanceId(), protocolVersion: 1 });
   const grant = { instanceId: instanceId(), contract: 1, origin: "https://company.example.test", appId: "tuda", code: "c".repeat(43), verifier: "v".repeat(43), expiresAt: new Date(Date.now() + 60000).toISOString() };
   await writeFile(path.join(directory, "not-issued-yet.json"), JSON.stringify(grant), { mode: 0o600, flag: "wx" });
