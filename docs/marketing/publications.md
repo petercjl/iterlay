@@ -398,3 +398,9 @@ X、小红书、Hacker News、Linux.do、开源中国、少数派暂未找到已
 - 稳定渠道 `latest` 于 2026-11-27（Asia/Shanghai）发布。 [npm 精确版本](https://www.npmjs.com/package/@petercjl/tuda-desktop/v/0.1.9)
 - 保留原更新按钮，旧版通过原清单升级到过渡版，过渡版具备按文件差分更新能力。包含星港生图渠道的模型 ID 解析修复。
 - macOS arm64 和 Windows x64 都通过旧版整包到过渡版、过渡版差分到验收版的升级检查，原测试画板和设置保留。公开安装包、精确 npm 安装和更新发现已核对。 [0.1.9 发布记录](../releases/tuda-0.1.9.md)
+
+
+### DESKTOP-NPM-009 · Tuda 0.1.11 恢复完整包直升
+
+- 2026-11-27（Asia/Shanghai）通过 npm 稳定标签 `latest` 发布。 [npm 精确版本](https://www.npmjs.com/package/@petercjl/tuda-desktop/v/0.1.11)
+- macOS arm64 和 Windows x64 验证较早完整包版和历史差分版可用原按钮一次升级，并保留测试画板、设置和登录状态。 [0.1.11 发布记录](../releases/tuda-0.1.11.md)
