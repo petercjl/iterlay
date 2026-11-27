@@ -24,7 +24,7 @@ const patch: UpdateManifest = {
   })) },
 };
 const { patch: _delta, ...installer } = patch;
-const bridge = { ...installer, version: "0.1.9" };
+const full = { ...installer, version: "0.1.11" };
 const dirs: string[] = [];
 afterEach(async () => { await Promise.all(dirs.splice(0).map(dir => rm(dir, { recursive: true, force: true }))); });
 
@@ -32,15 +32,14 @@ describe("desktop differential release", () => {
   const query = { platform: "win32" as const, arch: "x64" as const };
   const reader = () => vi.fn(async (url: string | URL | Request) => String(url).endsWith("/desktop-patch")
     ? Response.json({ version: patch.version, tudaPatchRelease: { schemaVersion: 1, applicationVersion: patch.version, patches: [patch] } })
-    : Response.json({ version: bridge.version, tudaRelease: { schemaVersion: 1, applicationVersion: bridge.version, installers: [bridge] } }));
+    : Response.json({ version: full.version, tudaRelease: { schemaVersion: 1, applicationVersion: full.version, installers: [full] } }));
 
-  it("keeps the bridge visible to old installs and selects a patch only for its exact base", async () => {
+  it.each(["0.1.3", "0.1.9", "0.1.10"])("offers %s the latest full installer without reading the former patch tag", async (currentVersion) => {
     const fetcher = reader();
     const client = new NpmUpdateApiClient(fetcher);
-    expect(await client.fetchLatest({ ...query, currentVersion: "0.1.3" })).toEqual(bridge);
+    expect(await client.fetchLatest({ ...query, currentVersion })).toEqual(full);
     expect(fetcher).toHaveBeenCalledTimes(1);
-    expect(await client.fetchLatest({ ...query, currentVersion: "0.1.9" })).toMatchObject(patch);
-    expect(await client.fetchLatest({ ...query, currentVersion: "0.1.10" })).toEqual(bridge);
+    expect(String(fetcher.mock.calls[0]?.[0])).toMatch(/\/latest$/);
   });
 
   it("rejects file paths outside the patch contract and duplicate entries", () => {
