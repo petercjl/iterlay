@@ -26,6 +26,20 @@ tuda tools list --json
 
 `--reference`、`image edit --input` 和 `assets import --input` 按原始文件字节数校验：每个非空素材最多 20 MiB（20,971,520 字节）。Base64 编码后的数据使用独立的媒体校验，不占用提示词的 100,000 字符额度；CLI 会先导入原始素材，再把受管路径用于生成，不会自动压缩图片。超限错误会包含文件名、实际大小和上限；可压缩后重试，或先通过 App 导入，再用 `tuda call` 传入受管路径。模型服务自身仍可能有更低的参考图限制。此修复需要更新 App 后台，仅更新 CLI 无法修复旧版 App 的导入校验。
 
+## 配置本机图片渠道
+
+使用 `providers set --kind image --provider <id>` 新建或更新本机 OpenAI 兼容图片渠道。新建时提供 Base URL 和厂商模型 ID。更新时只需提供要改的字段。密钥从环境变量或标准输入传给桌面，回读只显示配置状态。
+
+```bash
+tuda providers set --kind image --provider local-images --base-url https://relay.example.invalid/v1 \
+  --model vendor-image --image-api-mode images --image-task-protocol business-id \
+  --generation-endpoint /v1/images/generations --image-task-endpoint '/v1/tasks/{id}' \
+  --api-key-env IMAGE_RELAY_KEY --json
+tuda providers show local-images --json
+```
+
+文生图可按渠道文档选择 `sync`、`task-id` 或 `business-id`。异步查询路径可留空，默认在提交路径后追加 ID。用 `--image-task-endpoint default` 清除自定义路径。Responses 使用 `--image-api-mode responses`。使用 `image generate --provider local-images` 明确选择该本机渠道，或用 `providers set --kind image --provider local-images --default` 设为本机默认。山海管理的渠道继续由企业管理员管理。配置需要配套更新的桌面后台。
+
 ## 配置视频与旁白模型
 
 配置命令通过 App 主进程原子保存，不会提交生成任务。视频支持现有的 `ark`、`fal`、`openrouter`、`minimax` 协议；`audio` 是新增的独立 OpenAI-compatible TTS 配置，目前仅保存配置，尚未提供语音生成命令、音乐或音效模型。
@@ -50,7 +64,7 @@ tuda models list --provider narration --json
 tuda providers remove narration --kind audio --json
 ```
 
-新增视频服务使用 `providers set --kind video --type <协议> --base-url <地址> --model <模型>`，可用 `--provider` 自定 ID，省略则生成 ID。重复 `--saved-model <模型>` 会替换已保存列表，并始终包含 `--model` 指定的默认模型；省略则保留列表。`--default` 同时将此服务设为该类别默认服务。内置官方服务不可修改或删除，图片、文本配置暂不开放修改。
+新增视频服务使用 `providers set --kind video --type <协议> --base-url <地址> --model <模型>`，可用 `--provider` 自定 ID，省略则生成 ID。重复 `--saved-model <模型>` 会替换已保存列表，并始终包含 `--model` 指定的默认模型；省略则保留列表。`--default` 同时将此服务设为该类别默认服务。内置官方服务不可修改或删除。
 
 TTS 的 `--speech-endpoint` 默认 `/v1/audio/speech`，表示相对 `--base-url` 的接口路径；例如地址为 `https://api.openai.com/v1` 时可设 `/audio/speech`。模型及音色 ID 由服务商决定，保存配置不代表远端模型可用。`models list` 只列已保存模型，不查询远程目录。
 

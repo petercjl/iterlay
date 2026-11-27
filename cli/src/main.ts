@@ -18,13 +18,16 @@ tuda status                         工作区状态
 tuda desktop prepare                准备桌面后台并返回不含凭证的实例身份
 tuda providers list [--kind image]   已保存的模型服务（不包含密钥）
 tuda providers show <id>             查看配置（不包含密钥）
-tuda providers set --kind video|audio --provider <id> --model <id> [配置选项]
+tuda providers set --kind image|video|audio --provider <id> --model <id> [配置选项]
 tuda providers default|remove <id> --kind video|audio
 tuda models list --provider <id>     服务已保存的模型
 tuda models set --kind video|audio --provider <id> --model <id> [--saved-model <id>]
 配置：--type --name --base-url --voice --speech-endpoint --connection-provider
       --saved-model <id>（可重复） --default --api-key-env <变量名> | --api-key-stdin
       --clear-api-key 清除密钥；省略密钥参数则保留原凭证。audio 为独立 TTS 配置。
+图片：--image-api-mode images|responses --image-task-protocol sync|task-id|business-id
+      --generation-endpoint <路径> --reference-endpoint <路径> --supports-reference-images true|false
+      --image-task-endpoint <包含 {id} 的查询路径，或 default>
 tuda image generate --prompt <text> [--reference <file>] [--out <file>]
 tuda image slice --path <managed-path> --rows 3 --columns 4 [--out <directory>]
 tuda image edit --input <file> --prompt <text> [--out <file>]
@@ -60,6 +63,8 @@ function parse(argv: string[]): { words: string[]; flags: Flags } {
   const words: string[] = [], flags: Flags = {};
   const bools = new Set(["json", "async", "no-launch", "overwrite", "help", "version", "default", "api-key-stdin", "clear-api-key"]);
   const values = new Set(["conversation", "template", "description", "category", "mode", "use-case", "expected-prompt", "agent", "home", "kind", "provider", "model", "prompt", "input", "out", "path", "board", "name", "size", "quality", "style", "background", "n", "reference", "ratio", "duration", "resolution", "timeout", "startup-timeout", "request-id", "app-path", "user-data-path", "type", "base-url", "voice", "speech-endpoint", "connection-provider", "saved-model", "api-key-env", "rows", "columns", "margin", "gap", "crops", "node"]);
+  for (const flag of ["image-api-mode", "image-task-protocol", "image-task-endpoint", "generation-endpoint",
+    "reference-endpoint", "supports-reference-images"]) values.add(flag);
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (!arg.startsWith("--")) { words.push(arg); continue; }
@@ -166,11 +171,28 @@ async function main(): Promise<void> {
   if (group === "providers" && action === "list") { output(await call("list_providers", get("kind") ? { kind: get("kind") } : {})); return; }
   if (group === "providers" && action === "show") { output(await call("get_provider", { providerId: id ?? get("provider") })); return; }
   if ((group === "providers" && ["set", "default", "remove"].includes(action)) || (group === "models" && action === "set")) {
-    if (!["video", "audio"].includes(get("kind") ?? "")) throw new Error("配置必须指定 --kind video 或 audio。");
-    const input: Record<string, unknown> = { kind: get("kind"), action: action === "set" ? "upsert" : action, providerId: id ?? get("provider") };
+    const kind = get("kind");
+    const imageSet = group === "providers" && action === "set" && kind === "image";
+    if (!imageSet && kind !== "video" && kind !== "audio") throw new Error("请用 providers set --kind image 配置图片，或指定 --kind video / audio。");
+    const input: Record<string, unknown> = { kind, action: action === "set" ? "upsert" : action, providerId: id ?? get("provider") };
     if (action !== "set" && !input.providerId) throw new Error("缺少 Provider ID。");
+    if (imageSet && !input.providerId) throw new Error("配置图片请指定 --provider <id>。");
     const fields: Record<string, string> = { name: "name", type: "type", "base-url": "baseUrl", model: "model", voice: "voice", "speech-endpoint": "speechEndpoint", "connection-provider": "connectionProviderId" };
     for (const [flag, field] of Object.entries(fields)) if (get(flag) !== undefined) input[field] = get(flag) === "none" && flag === "connection-provider" ? "" : get(flag);
+    const imageFields = { "image-api-mode": "apiMode", "image-task-protocol": "imageTaskProtocol", "image-task-endpoint": "imageTaskEndpoint",
+      "generation-endpoint": "generationEndpoint", "reference-endpoint": "referenceEndpoint" };
+    for (const [flag, field] of Object.entries(imageFields)) {
+      const value = get(flag);
+      if (value === undefined) continue;
+      if (!imageSet) throw new Error(`--${flag} 仅用于 providers set --kind image。`);
+      input[field] = flag === "image-task-endpoint" && value === "default" ? null : value;
+    }
+    const supportsReferences = get("supports-reference-images");
+    if (supportsReferences !== undefined) {
+      if (!imageSet || !["true", "false"].includes(supportsReferences))
+        throw new Error("--supports-reference-images 仅用于图片配置，值须为 true 或 false。");
+      input.supportsReferenceImages = supportsReferences === "true";
+    }
     if (flags["saved-model"]) input.models = flags["saved-model"];
     if (flags.default) input.setDefault = true;
     const keySources = [Boolean(get("api-key-env")), Boolean(flags["api-key-stdin"]), Boolean(flags["clear-api-key"])].filter(Boolean).length;

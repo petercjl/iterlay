@@ -45,9 +45,11 @@ export function enterpriseSettings(local: SettingsStore, client: EnterpriseClien
     }
     return store;
   };
-  const overlay = () => company?.enabled
-    ? company.overlaySettings(local.getSettings(), modelStore().getSettings())
-    : client.overlaySettings(local.getSettings());
+  const overlay = () => {
+    if (!company?.enabled) return client.overlaySettings(local.getSettings());
+    const store = modelStore();
+    return company.overlaySettings(local.getSettings(), store.getSettings(), store.getKeyStatus());
+  };
   return new Proxy(local, { get(target, property) {
     if (property === "getSettings") return () => managed() || executionSpace() === "enterprise" ? overlay() : target.getSettings();
     if (property === "getApiKey") return (id?: string) => {

@@ -1,4 +1,5 @@
 import { MAX_INLINE_MEDIA_DATA_URL_LENGTH } from "../shared/media-import.js";
+import { imageTaskProtocols } from "../shared/image-task-protocol.js";
 
 type JsonObject = Record<string, unknown>;
 type ToolContent = { type: "text"; text: string } | { type: "image"; data: string; mimeType: string };
@@ -11,8 +12,8 @@ export function listWorkspaceTools(): JsonObject[] {
         tool("select_space", "Switch the desktop selected space after flushing changes. Enterprise requires company storage access.", { target: { type: "string", enum: ["personal", "enterprise"] } }, ["target"]),
         tool("list_providers", "List saved providers without credentials.", { kind: { type: "string", enum: ["image", "video", "text", "audio"] } }),
         tool("get_provider", "Read saved Provider configuration without credentials.", { providerId: stringField("Provider ID") }, ["providerId"]),
-        tool("configure_provider", "Atomically configure a video or TTS provider. Does not submit generation. Omitted fields and credentials are preserved; empty apiKey clears it.", {
-          kind: { type: "string", enum: ["video", "audio"] },
+        tool("configure_provider", "Atomically save a local image, video or TTS provider. Image supports upsert by explicit providerId. This does not generate media. Omitted fields and credentials are preserved; empty apiKey clears it.", {
+          kind: { type: "string", enum: ["image", "video", "audio"] },
           action: { type: "string", enum: ["upsert", "default", "remove"] },
           providerId: stringField("Existing ID or optional new ID"), name: stringField("Display name"),
           type: { type: "string", enum: ["ark", "fal", "openrouter", "minimax", "openai-compatible"] },
@@ -20,6 +21,12 @@ export function listWorkspaceTools(): JsonObject[] {
           models: stringArrayField("Saved models", 0), voice: stringField("TTS voice ID"),
           speechEndpoint: stringField("TTS relative endpoint; defaults to /v1/audio/speech"),
           connectionProviderId: stringField("Video image connection ID; empty detaches"),
+          apiMode: { type: "string", enum: ["images", "responses"] },
+          generationEndpoint: stringField("Image submission path relative to the service Base URL"),
+          referenceEndpoint: stringField("Image edit or reference path"),
+          supportsReferenceImages: { type: "boolean" },
+          imageTaskProtocol: { type: "string", enum: imageTaskProtocols },
+          imageTaskEndpoint: { type: ["string", "null"], description: "Async path containing {id}; null restores the default lookup path" },
           apiKey: stringField("Credential to encrypt; empty clears; never returned"), setDefault: { type: "boolean" }
         }, ["kind"]),
         tool("list_models", "Read saved models for a provider.", { providerId: stringField("Provider ID") }, ["providerId"]),

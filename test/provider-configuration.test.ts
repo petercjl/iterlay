@@ -26,6 +26,38 @@ const audio = { kind: "audio", providerId: "tts", baseUrl: "https://example.com"
 const video = { kind: "video", providerId: "video", type: "openrouter", baseUrl: "https://openrouter.ai/api", model: "vendor/video" };
 
 describe("CLI Provider configuration", () => {
+  it("saves and incrementally changes a local image task protocol without exposing or replacing its key", async () => {
+    const { store, directory } = await fixture();
+    const config = { kind: "image", providerId: "local-relay", baseUrl: "https://relay.example/v1",
+      model: "upstream-image", apiMode: "images", generationEndpoint: "/v1/create",
+      referenceEndpoint: "/v1/edit", imageTaskProtocol: "business-id", imageTaskEndpoint: "/v1/jobs/{id}",
+      supportsReferenceImages: true, apiKey: "fixture-image-key", setDefault: true };
+    await configureProvider(store, config);
+    await configureProvider(store, { kind: "image", providerId: config.providerId, name: "Updated name" });
+    const loaded = new SettingsStore(directory);
+    const settings = loaded.getSettings();
+    expect(settings.activeProviderId).toBe(config.providerId);
+    expect(loaded.getApiKey(config.providerId)).toBe(config.apiKey);
+    const { mocks, commands } = workspaceFixture();
+    mocks.getSettings.mockResolvedValue({ ...settings, providerKeyStatus: loaded.getKeyStatus() });
+    const readback = await commands.call("get_provider", { providerId: config.providerId });
+    expect(readback).toMatchObject({ name: "Updated name", model: config.model, apiMode: "images",
+      imageTaskProtocol: config.imageTaskProtocol, imageTaskEndpoint: config.imageTaskEndpoint,
+      generationEndpoint: config.generationEndpoint, referenceEndpoint: config.referenceEndpoint,
+      supportsReferenceImages: true, authConfigured: true });
+    expect(JSON.stringify(readback)).not.toContain(config.apiKey);
+    const patch = { kind: "image", providerId: config.providerId };
+    await expect(configureProvider(loaded, { ...patch, imageTaskEndpoint: "//other.example/{id}" })).rejects.toThrow("同源");
+    await expect(configureProvider(loaded, { ...patch, apiMode: "responses", imageTaskProtocol: "business-id" })).rejects.toThrow("OpenAI Images");
+    await expect(configureProvider(loaded, { ...patch, baseUrl: "https://other.example/v1" })).rejects.toThrow("API Key");
+    await configureProvider(loaded, { ...patch, imageTaskEndpoint: null });
+    expect(loaded.getSettings().providers.find(provider => provider.id === config.providerId)?.imageTaskEndpoint).toBeUndefined();
+    await configureProvider(loaded, { ...patch, apiMode: "responses" });
+    expect(loaded.getSettings().providers.find(provider => provider.id === config.providerId)).toMatchObject({
+      apiMode: "responses", generationEndpoint: "/v1/responses", imageTaskProtocol: undefined
+    });
+  });
+
   it("switches existing text, video and audio defaults to the chosen models", async () => {
     const { store, directory } = await fixture();
     await configureProvider(store, { ...audio, models: ["voice-upstream"], apiKey: "fixture-audio", setDefault: true });

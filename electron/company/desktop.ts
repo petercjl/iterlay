@@ -1,5 +1,6 @@
 import { defaultTudaTextProvider } from "../../shared/tuda-models.js";
 import { findTextModelRoute, groupModelChannels, resolveImageRouting, textModelRouteId } from "../../shared/image-routing.js";
+import { getProviderModels } from "../../shared/provider-models.js";
 import { BrowserWindow, net, safeStorage } from "electron";
 import { createHash, randomUUID } from "node:crypto";
 import {
@@ -731,7 +732,7 @@ export class CompanyDesktop {
     }
     return this.status;
   }
-  overlaySettings(settings: AppSettings, localModels?: AppSettings): AppSettings {
+  overlaySettings(settings: AppSettings, localModels?: AppSettings, localKeyStatus?: Record<string, boolean>): AppSettings {
     this.assertAccount();
     const b = this.account.bootstrap,
       s = this.namespace
@@ -750,6 +751,15 @@ export class CompanyDesktop {
       };
       const personalRoute = (kind: "text" | "video" | "audio") => personal.other?.[kind] ??
         groupModelChannels(locals[kind].filter(provider => Boolean(provider.model)).map(({ id, model }) => ({ providerId: id, model })));
+      const localImages = localModels?.providers ?? [];
+      const localImageRouting = resolveImageRouting(personal.image, localImages, localModels?.activeProviderId ?? "");
+      const localImageDefault = localImageRouting.models.find(model => model.name === localImageRouting.defaultModel)?.channels.find(channel =>
+        localKeyStatus?.[channel.providerId] && localImages.some(provider =>
+          provider.id === channel.providerId && provider.type !== "official" && getProviderModels(provider).includes(channel.model)));
+      const imageRouting = mergeManagedRouting(route?.image ?? fallback, localImageRouting, Boolean(localImageDefault));
+      const activeImageProviderId = localImageDefault?.providerId ??
+        imageRouting.models.find(model => model.name === imageRouting.defaultModel)?.channels[0]?.providerId ??
+        localModels?.activeProviderId ?? "";
       const text = mergeManagedRouting(route?.text ?? fallback, personalRoute("text"));
       const textProviders = [...managed?.textProviders ?? [], ...locals.text];
       const savedText = s?.text;
@@ -761,19 +771,17 @@ export class CompanyDesktop {
         ...settings,
         companyModelRouting: route ?? { text: fallback, image: fallback, video: fallback, audio: fallback },
         personalModelRouting: personal,
-        providers: [...managed?.providers ?? [], ...localModels?.providers ?? []],
+        providers: [...managed?.providers ?? [], ...localImages],
         textProviders,
         videoProviders: [...managed?.videoProviders ?? [], ...locals.video],
         audioProviders: [...managed?.audioProviders ?? [], ...locals.audio],
-        imageRouting: mergeManagedRouting(route?.image ?? fallback,
-          resolveImageRouting(personal.image, localModels?.providers ?? [], localModels?.activeProviderId ?? "")),
+        imageRouting,
         otherModelRouting: {
           text,
           video: mergeManagedRouting(route?.video ?? fallback, personalRoute("video")),
           audio: mergeManagedRouting(route?.audio ?? fallback, personalRoute("audio"))
         },
-        activeProviderId: route?.image.models.find(model => model.name === route.image.defaultModel)?.channels[0].providerId
-          ?? localModels?.activeProviderId ?? "",
+        activeProviderId: activeImageProviderId,
         activeTextProviderId: preferredText ?? (route?.text.defaultModel
           ? textModelRouteId(route.text.defaultModel) : localModels?.activeTextProviderId ?? ""),
         activeVideoProviderId: route?.video.models.find(model => model.name === route.video.defaultModel)?.channels[0].providerId

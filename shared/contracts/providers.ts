@@ -1,3 +1,5 @@
+import type managedChannelProtocols from "./tuda-managed-channel-protocols.json";
+
 export type ProviderType = "official" | "codex-oauth" | "openai-compatible" | "openrouter" | "bailian" | "ark" | "poe" | "fal";
 
 export function isCompanyModelChannel(id: string | undefined): boolean {
@@ -5,6 +7,7 @@ export function isCompanyModelChannel(id: string | undefined): boolean {
 }
 
 export type ProviderApiMode = "images" | "responses";
+export type ImageTaskProtocol = keyof typeof managedChannelProtocols.imageTaskProtocols;
 
 export type FalSizeMode = "image_size" | "aspect_ratio" | "aspect_ratio_and_resolution";
 
@@ -17,6 +20,8 @@ export interface ProviderConfig {
   name: string;
   type: ProviderType;
   apiMode?: ProviderApiMode;
+  imageTaskProtocol?: ImageTaskProtocol;
+  imageTaskEndpoint?: string;
   compatResponseFormat?: "b64_json";
   baseUrl: string;
   generationEndpoint: string;

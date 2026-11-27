@@ -1,6 +1,8 @@
 import type { AppSettings } from "../../shared/contracts/settings.js";
 import type { CompanySession } from "../../shared/company-account.js";
 import { isSeedanceGateway } from "../../shared/contracts/providers.js";
+import channelProtocols from "../../shared/contracts/tuda-managed-channel-protocols.json" with { type: "json" };
+import { isImageTaskEndpoint, isImageTaskProtocol } from "../../shared/image-task-protocol.js";
 import type { ImageModelRouting } from "../../shared/image-routing.js";
 import { normalizeVideoProviderModelOption, seedanceGatewayModelOption } from "../../shared/video-provider-models.js";
 
@@ -14,12 +16,7 @@ export type ManagedModels = ProviderLists & {
   keys: Record<string, string>;
 };
 
-const adapters = {
-  text: ["openai-chat-completions", "openai-responses", "anthropic-messages"],
-  image: ["images", "responses", "openai-compatible"],
-  video: ["ark", "fal", "openrouter", "minimax", "seedance-aipai", "seedance-toapis"],
-  audio: ["openai-speech"]
-} as const;
+const { adapters } = channelProtocols;
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value && typeof value === "object" && !Array.isArray(value));
 const invalid = () => new Error("山海模型配置无效。");
@@ -64,7 +61,13 @@ export function validateManagedModels(value: unknown, session: CompanySession, v
         if (rawIds.has(channelId)) throw invalid();
         rawIds.add(channelId);
         const adapter = text(channel.adapter);
-        if (!(adapters[kind] as readonly string[]).includes(adapter)) throw invalid();
+        if (!Object.hasOwn(adapters[kind], adapter) && !(kind === "image" && adapter === "openai-compatible")) throw invalid();
+        const taskProtocol = channel.imageTaskProtocol;
+        if (taskProtocol !== undefined && (kind !== "image" || adapter === "responses" ||
+            !isImageTaskProtocol(taskProtocol))) throw invalid();
+        const taskEndpoint = channel.imageTaskEndpoint === undefined ? undefined : text(channel.imageTaskEndpoint);
+        if (taskEndpoint !== undefined && (kind !== "image" || (taskProtocol !== "task-id" && taskProtocol !== "business-id") ||
+            !isImageTaskEndpoint(taskEndpoint))) throw invalid();
         let url: URL;
         try { url = new URL(text(channel.baseUrl)); } catch { throw invalid(); }
         const allowsHttp = kind === "image" || kind === "video";
@@ -76,14 +79,16 @@ export function validateManagedModels(value: unknown, session: CompanySession, v
         keys[provider.id] = apiKey;
         refs.push({ providerId: provider.id, model: provider.model });
         if (kind === "text") providers.textProviders.push({ ...provider, type: "openai-compatible",
-          protocol: adapter as typeof adapters.text[number], transport: "company-direct", managed: true });
+          protocol: adapter as keyof typeof adapters.text, transport: "company-direct", managed: true });
         if (kind === "image") providers.providers.push({ ...provider, type: "openai-compatible",
           apiMode: adapter === "responses" ? "responses" : "images",
+          ...(taskProtocol === undefined ? {} : { imageTaskProtocol: taskProtocol }),
+          ...(taskEndpoint === undefined ? {} : { imageTaskEndpoint: taskEndpoint }),
           generationEndpoint: endpoint(channel.generationEndpoint, adapter === "responses" ? "/v1/responses" : "/v1/images/generations"),
           referenceEndpoint: endpoint(channel.referenceEndpoint, "/v1/images/edits"),
           supportsReferenceImages: channel.supportsReferenceImages === true });
         if (kind === "video") {
-          const type = adapter as typeof adapters.video[number];
+          const type = adapter as keyof typeof adapters.video;
           const option = channel.modelOption === undefined ? undefined : normalizeVideoProviderModelOption(channel.modelOption);
           if (option === null || (option && option.id !== provider.model)) throw invalid();
           const effective = option ?? (isSeedanceGateway(type) ? seedanceGatewayModelOption(type, provider.model) : undefined);
@@ -103,7 +108,7 @@ export function validateManagedModels(value: unknown, session: CompanySession, v
   return { version, routing, keys, ...providers };
 }
 
-export function mergeManagedRouting(managed: ImageModelRouting, personal: ImageModelRouting | undefined): ImageModelRouting {
+export function mergeManagedRouting(managed: ImageModelRouting, personal: ImageModelRouting | undefined, preferPersonal = false): ImageModelRouting {
   const names = new Set(managed.models.map(model => model.name.toLowerCase()));
   const mapped = personal?.models.map(model => {
     let name = model.name;
@@ -114,6 +119,7 @@ export function mergeManagedRouting(managed: ImageModelRouting, personal: ImageM
     names.add(name.toLowerCase());
     return { ...model, name };
   }) ?? [];
+  const personalDefault = mapped[personal?.models.findIndex(model => model.name === personal.defaultModel) ?? -1]?.name ?? "";
   return { models: [...managed.models, ...mapped],
-    defaultModel: managed.defaultModel || mapped[personal?.models.findIndex(model => model.name === personal.defaultModel) ?? -1]?.name || "" };
+    defaultModel: (preferPersonal && personalDefault) || managed.defaultModel || personalDefault };
 }

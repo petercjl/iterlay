@@ -156,17 +156,21 @@ export class WorkspaceCommands {
         if (!provider) throw new Error("Provider 不存在。");
         if (isCompanyModelChannel(provider.id)) return { id: provider.id, model: provider.model, managed: true,
           authConfigured: Boolean(settings.providerKeyStatus?.[provider.id]) };
-        const fields = new Set(["id", "name", "type", "baseUrl", "model", "models", "voice", "speechEndpoint", "connectionProviderId", "authProviderId", "generationEndpoint", "referenceEndpoint", "apiMode", "supportsReferenceImages"]);
+        const fields = new Set(["id", "name", "type", "baseUrl", "model", "models", "voice", "speechEndpoint", "connectionProviderId", "authProviderId", "generationEndpoint", "referenceEndpoint", "apiMode", "supportsReferenceImages", "imageTaskProtocol", "imageTaskEndpoint"]);
         return { ...Object.fromEntries(Object.entries(provider).filter(([key]) => fields.has(key))), authConfigured: Boolean(settings.providerKeyStatus?.[provider.id]) };
       }
       case "list_providers": {
         const settings = await api.getSettings();
         const kinds = a.kind ? [choice(a.kind, ["image", "video", "text", "audio"] as const, "image")] : ["image", "video", "text", "audio"];
         const safe = settings as typeof settings & { providerKeyStatus?: Record<string, boolean>; codexAuthStatusByProviderId?: Record<string, { connected?: boolean }> };
+        const activeImageModel = settings.imageRouting?.models.find(route => route.name === settings.imageRouting?.defaultModel)
+          ?.channels.find(channel => channel.providerId === settings.activeProviderId)?.model;
         return kinds.flatMap((kind) => {
           const providers = kind === "image" ? settings.providers : kind === "video" ? settings.videoProviders ?? [] : kind === "audio" ? settings.audioProviders ?? [] : settings.textProviders ?? [];
           const activeId = kind === "image" ? settings.activeProviderId : kind === "video" ? settings.activeVideoProviderId : kind === "audio" ? settings.activeAudioProviderId : settings.activeTextProviderId;
-          return providers.filter((p) => p.type !== "official").map((p) => ({ id: p.id, name: p.name, kind, type: p.type, model: p.model, isDefault: p.id === activeId, authConfigured: Boolean(safe.providerKeyStatus?.[p.id] || safe.codexAuthStatusByProviderId?.[p.id]?.connected) }));
+          return providers.filter((p) => p.type !== "official").map((p) => ({ id: p.id, name: p.name, kind, type: p.type,
+            model: kind === "image" && p.id === activeId ? activeImageModel ?? p.model : p.model,
+            isDefault: p.id === activeId, authConfigured: Boolean(safe.providerKeyStatus?.[p.id] || safe.codexAuthStatusByProviderId?.[p.id]?.connected) }));
         });
       }
       case "list_models": {
@@ -569,7 +573,10 @@ export class WorkspaceCommands {
         jobId: target.versions?.find((version) => version.imagePath === sourcePath)?.jobId ?? target.jobId } : undefined,
       modificationRequestId: prepared?.id, idempotencyKey: prepared?.executionKey,
       workflowMode: edit ? "edit" : "generate", creationMode: "general", promptSpec: { primaryRequest: prompt },
-      prompt, model: string(a.model, provider.model), size: string(a.size, "auto"),
+      prompt, model: string(a.model, !edit && !a.providerId && !channels
+        ? settings.imageRouting?.models.find(route => route.name === settings.imageRouting?.defaultModel)
+          ?.channels.find(channel => channel.providerId === provider.id)?.model ?? provider.model
+        : provider.model), size: string(a.size, "auto"),
       n: count, quality: choice(a.quality, ["auto", "low", "medium", "high"] as const, "high"),
       style: string(a.style, "natural"), background: choice(a.background, ["auto", "opaque", "transparent"] as const, "auto"), outputFormat: "png",
       boardId, providerId: provider.id, referenceImages: []

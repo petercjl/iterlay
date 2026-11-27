@@ -1,0 +1,31 @@
+{
+  "contractVersion": 1,
+  "adapters": {
+    "text": {
+      "openai-chat-completions": "OpenAI Chat Completions",
+      "openai-responses": "OpenAI Responses",
+      "anthropic-messages": "Anthropic Messages"
+    },
+    "image": {
+      "images": "OpenAI Images",
+      "responses": "OpenAI Responses"
+    },
+    "video": {
+      "ark": "火山方舟",
+      "fal": "fal.ai",
+      "openrouter": "OpenRouter",
+      "minimax": "MiniMax",
+      "seedance-aipai": "AI派 Seedance",
+      "seedance-toapis": "ToAPIs Seedance"
+    },
+    "audio": {
+      "openai-speech": "OpenAI Speech"
+    }
+  },
+  "imageTaskEndpointPattern": "^/(?:[A-Za-z0-9_.-]+/)*\\{id\\}(?:/[A-Za-z0-9_.-]+)*$",
+  "imageTaskProtocols": {
+    "sync": "同步返回图片",
+    "task-id": "异步，按任务 ID 查询",
+    "business-id": "异步，支持按业务 ID 恢复"
+  }
+}

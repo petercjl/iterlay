@@ -1,6 +1,6 @@
 {
   "name": "@petercjl/tuda",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "CLI for Tuda: images, videos, and creative workflows on one canvas. Generate, edit, organize, and export with your configured models.",
   "type": "module",
   "license": "MIT",
@@ -27,6 +27,8 @@
   "scripts": {
     "build": "node scripts/sync-skill.mjs && esbuild src/main.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/main.js && esbuild src/board-plugin.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/board-plugin.js --metafile=dist/board-plugin.meta.json && node scripts/build-plugin-notices.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "check": "npm run typecheck && npm run build",
+    "test": "pnpm --dir .. exec vitest run test/cli-runtime.test.ts test/provider-configuration.test.ts test/company-desktop.test.ts test/agent-image-routing.test.ts test/board-plugin.test.ts && node ../scripts/test-cli-package.mjs && node ../scripts/test-board-plugin.mjs",
     "prepublishOnly": "npm run typecheck && node scripts/sync-skill.mjs && npm run build",
     "prepack": "node scripts/validate-package.mjs"
   },

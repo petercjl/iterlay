@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { createServer } from "node:http";
 import { createServer as createHttpsServer } from "node:https";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import { _electron as electron } from "playwright";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -34,6 +35,7 @@ try {
   };
   let providerOrigin;
   const failures = [];
+  const imageRequests = new Map();
   provider = createHttpsServer({ cert: await readFile(cert), key: await readFile(key) }, async (req, res) => {
     try {
       const input = await body(req);
@@ -56,7 +58,22 @@ try {
         const end = { ...chunk, choices: [{ index: 0, delta: {}, finish_reason: "stop" }] };
         return res.end(`data: ${JSON.stringify(chunk)}\n\ndata: ${JSON.stringify(end)}\n\ndata: [DONE]\n\n`);
       }
-      if (kind === "image") return json(res, { data: [{ b64_json: jpeg.toString("base64") }] });
+      if (kind === "image") {
+        const output = { object: "generation.task", id: "fixture-image", status: "completed",
+          result: { data: [{ b64_json: jpeg.toString("base64") }] } };
+        if (req.method === "POST") {
+          assert.equal(req.url, "/image-b/v1/create");
+          assert.match(input.client_business_id, /^[a-z0-9-]{1,100}$/u);
+          assert.equal(req.headers["idempotency-key"], input.client_business_id);
+          assert(!imageRequests.has(input.client_business_id), "图片提交重复");
+          imageRequests.set(input.client_business_id, input.prompt);
+          if (input.prompt === "模拟丢失图片回执") return req.socket.destroy();
+          return json(res, { ...output, status: "queued", result: undefined }, 202);
+        }
+        const task = req.url.match(/^\/image-b\/v1\/tasks\/([a-z0-9-]+)$/u)?.[1];
+        assert(task === output.id || imageRequests.get(task) === "模拟丢失图片回执");
+        return json(res, output);
+      }
       if (kind === "video") {
         if (req.method === "POST") return json(res, { id: "fixture-video", status: "queued" });
         return json(res, { id: "fixture-video", status: "completed", result: { data: [{ url: providerOrigin + "/result.mp4" }] } });
@@ -71,10 +88,12 @@ try {
   const labels = { text: "模拟文本", image: "模拟图片", video: "模拟视频", audio: "模拟音频" };
   let version = "published-1", reverse = false, empty = false;
   let modelReads = 0, companyOrigin;
+  const accountCalls = [];
   const identity = { contract: 1, appId: "tuda", sessionId: "fixture-session",
     expiresAt: new Date(Date.now() + 3600_000).toISOString(),
     member: { id: "member", name: "同步验收员工" }, organization: { id: "organization", name: "模拟企业" } };
   company = createServer(async (req, res) => {
+    accountCalls.push(req.url);
     const send = data => json(res, { ok: true, data });
     await body(req);
     if (req.url.endsWith("/auth/start")) {
@@ -95,7 +114,10 @@ try {
         empty ? { defaultModelId: null, items: [] } : { defaultModelId: kind, items: [{ id: kind, name: labels[kind],
           channels: (reverse ? ["b", "a"] : ["a", "b"]).map(rank => ({
             id: `${kind}-${rank}`, name: `隐藏渠道 ${rank}`, adapter, apiKey: `fixture-${kind}-${rank}`,
-            baseUrl: `${providerOrigin}/${kind}-${rank}/v1`, model: `${kind}-${rank}`
+            baseUrl: `${providerOrigin}/${kind}-${rank}/v1`, model: `${kind}-${rank}`,
+            ...(kind === "image" && rank === "b" ? {
+              imageTaskProtocol: "business-id", generationEndpoint: "/v1/create", imageTaskEndpoint: "/v1/tasks/{id}"
+            } : {})
           })) }] }]));
       return send({ contract: 1, appId: "tuda", sessionId: identity.sessionId, memberId: identity.member.id,
         organizationId: identity.organization.id, configVersion: version, models });
@@ -116,9 +138,18 @@ try {
   await page.getByRole("button", { name: "前往山海授权登录" }).waitFor({ timeout: 60_000 });
   await app.evaluate(({ shell }) => { shell.openExternal = async () => undefined; return true; });
   await page.evaluate(() => window.imageWorkbench.beginEnterpriseLogin());
-  await page.waitForTimeout(2050);
-  await page.evaluate(() => window.imageWorkbench.pollEnterpriseLogin());
-  await page.waitForFunction(async () => (await window.imageWorkbench.getSettings()).companyModelRouting?.text.defaultModel === "模拟文本");
+  let loginStatus = "pending";
+  for (let attempt = 0; attempt < 8 && loginStatus === "pending"; attempt++) {
+    await page.waitForTimeout(500);
+    ({ status: loginStatus } = await page.evaluate(() => window.imageWorkbench.pollEnterpriseLogin()));
+  }
+  assert.equal(loginStatus, "authorized", "模拟账号应完成授权登录");
+  await page.locator("[data-global-account]").first().waitFor({ timeout: 12_000 }).catch(async error => {
+    const status = await page.evaluate(() => window.imageWorkbench.enterpriseStatus()).catch(() => ({}));
+    console.error("模拟企业登录未进入工作区", { accountCalls, authenticated: status.authenticated,
+      error: status.error, page: (await page.locator("body").innerText()).slice(0, 450) });
+    throw error;
+  });
   const settings = await page.evaluate(() => window.imageWorkbench.getSettings());
   assert.equal(JSON.stringify(settings).includes("fixture-company-device"), false);
   assert.equal(JSON.stringify(settings).includes("隐藏渠道"), false);
@@ -136,13 +167,53 @@ try {
     console.error("模拟文本响应失败", error.message, { requests, failures });
     throw error;
   }
-  const image = await page.evaluate(async boardId => {
-    const api = window.imageWorkbench;
-    await api.appendBoardNodes(boardId, [{ id: "image-node", type: "generation", title: "图片", x: 0, y: 0 }]);
-    return api.generateImage({ boardId, generationNodeId: "image-node", workflowMode: "generate",
-      useImageRouting: true, prompt: "模拟图片生成", model: "模拟图片", size: "auto", n: 1, referenceImages: [] });
-  }, board.id);
-  assert(image.images.length);
+  for (const [index, prompt] of ["模拟图片生成", "模拟丢失图片回执"].entries()) {
+    const image = await page.evaluate(async ({ boardId, nodeId, prompt }) => {
+      const api = window.imageWorkbench;
+      await api.appendBoardNodes(boardId, [{ id: nodeId, type: "generation", title: "图片", x: 0, y: 0 }]);
+      return api.generateImage({ boardId, generationNodeId: nodeId, workflowMode: "generate",
+        useImageRouting: true, prompt, model: "模拟图片", size: "auto", n: 1, referenceImages: [] });
+    }, { boardId: board.id, nodeId: `image-node-${index}`, prompt });
+    assert.equal(image.images.length, 1);
+  }
+  assert.equal(imageRequests.size, 2);
+  assert.equal(requests.filter(request => request.kind === "image" && request.method === "GET").length, 2);
+  console.log("图片模型配置下发后，验证了 202 排队查询和回执丢失后的原任务恢复");
+  if (process.env.TUDA_E2E_CLI_IMAGE_ENTRY) {
+    const runCli = async (...args) => {
+      const { stdout, stderr } = await promisify(execFile)(process.execPath, [process.env.TUDA_E2E_CLI_IMAGE_ENTRY, ...args,
+        "--user-data-path", path.join(fixtureRoot, "user-data"), "--no-launch", "--timeout", "30", "--json"],
+      { env: { ...process.env, TUDA_NO_UPDATE_CHECK: "1", TUDA_FIXTURE_IMAGE_KEY: "fixture-image-b" }, timeout: 40_000 });
+      assert(!stdout.includes("fixture-image-b") && !stderr.includes("fixture-image-b"));
+      return JSON.parse(stdout).data;
+    };
+    await runCli("providers", "set", "--kind", "image", "--provider", "offline-cli-image",
+      "--base-url", providerOrigin + "/image-b/v1", "--model", "image-b", "--image-api-mode", "images",
+      "--image-task-protocol", "business-id", "--generation-endpoint", "/v1/create",
+      "--image-task-endpoint", "/v1/tasks/{id}", "--api-key-env", "TUDA_FIXTURE_IMAGE_KEY");
+    const configured = await runCli("providers", "show", "offline-cli-image");
+    assert.equal(configured.imageTaskProtocol, "business-id");
+    assert.equal(configured.imageTaskEndpoint, "/v1/tasks/{id}");
+    assert.equal(configured.authConfigured, true);
+    const defaultChannel = async () => (await runCli("providers", "list", "--kind", "image")).find(channel => channel.isDefault)?.id;
+    assert.equal(await defaultChannel(), "offline-cli-image", "已配置的本机默认应优先于公司默认");
+    await page.evaluate(() => window.imageWorkbench.saveModelRouting({
+      channels: [], imageRouting: { defaultModel: "模拟图片", models: [{
+        name: "模拟图片", channels: [{ providerId: "offline-cli-image", model: "image-b" }]
+      }] }
+    }));
+    assert.equal(await defaultChannel(), "offline-cli-image", "与公司同名的本机默认仍应生效");
+    const before = imageRequests.size;
+    const started = await runCli("call", "generate_image", "--input", JSON.stringify({ boardId: board.id,
+      prompt: "本机默认生图验收", background: "auto", useImageRouting: true }));
+    const generated = await runCli("tasks", "wait", started.generationId);
+    assert.equal(generated.status, "succeeded");
+    assert.equal(generated.job.providerId, "offline-cli-image");
+    assert.equal(imageRequests.size, before + 1);
+    await runCli("providers", "set", "--kind", "image", "--provider", "offline-cli-image", "--clear-api-key");
+    assert.equal(await defaultChannel(), "company-image/sync/image-a", "本机默认渠道失效时应显示可用的公司默认");
+    console.log("桌面助手按本机默认生图，同名公司模型不覆盖本机选择，本机渠道失效时回到公司默认");
+  }
   const job = await page.evaluate(async boardId => {
     const api = window.imageWorkbench;
     await api.appendBoardNodes(boardId, [{ id: "video-node", type: "video-generation", title: "视频", x: 0, y: 0 }]);

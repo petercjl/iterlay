@@ -5,6 +5,7 @@ import type { SettingsStore } from "./storage/settings-store.js";
 import type { AppSettings, AppSettingsPatch, NewModelChannel, SaveModelRoutingInput } from "../shared/contracts/settings.js";
 import { isCompanyModelChannel, isSeedanceGateway } from "../shared/contracts/providers.js";
 import { getProviderModels } from "../shared/provider-models.js";
+import { isImageTaskEndpoint, isImageTaskProtocol } from "../shared/image-task-protocol.js";
 import { normalizeImageRouting, normalizeOtherModelRouting, findTextModelRoute, textModelRouteId, type ImageModelRouting } from "../shared/image-routing.js";
 
 function text(value: unknown, label: string): string {
@@ -241,7 +242,7 @@ export async function configureProvider(store: SettingsStore, input: Record<stri
 function configureOpenAIProvider(store: SettingsStore, input: Record<string, unknown>, kind: "image" | "text") {
   const isImage = kind === "image";
   const allowed = new Set(["kind", "action", "providerId", "name", "baseUrl", "model", "apiKey", "setDefault",
-    ...(isImage ? ["supportsReferenceImages"] : ["protocol"])]);
+    ...(isImage ? ["apiMode", "generationEndpoint", "referenceEndpoint", "supportsReferenceImages", "imageTaskProtocol", "imageTaskEndpoint"] : ["protocol"])]);
   if (Object.keys(input).some(key => !allowed.has(key)) || (input.action !== undefined && input.action !== "upsert"))
     throw new Error("模型服务配置参数无效。");
   const id = text(input.providerId, "Provider ID");
@@ -249,9 +250,6 @@ function configureOpenAIProvider(store: SettingsStore, input: Record<string, unk
   const protocol = input.protocol ?? "openai-chat-completions";
   if (protocol !== "openai-chat-completions" && protocol !== "openai-responses" && protocol !== "anthropic-messages")
     throw new Error("文本服务协议无效。");
-  const base = new URL(text(input.baseUrl, "Base URL"));
-  if (!["https:", "http:"].includes(base.protocol) || base.username || base.password || base.search || base.hash)
-    throw new Error("Base URL 必须是无凭证、查询参数和片段的 HTTP(S) 地址。");
   const apiKey = input.apiKey;
   if (input.setDefault !== undefined && typeof input.setDefault !== "boolean")
     throw new Error("setDefault 必须为布尔值。");
@@ -259,10 +257,6 @@ function configureOpenAIProvider(store: SettingsStore, input: Record<string, unk
     throw new Error("API Key 格式无效。");
   if (input.supportsReferenceImages !== undefined && typeof input.supportsReferenceImages !== "boolean")
     throw new Error("supportsReferenceImages 必须为布尔值。");
-  const connection = {
-    id, type: "openai-compatible" as const, name: text(input.name, "服务名称"),
-    baseUrl: base.href.replace(/\/$/, ""), model: text(input.model, "模型 ID"), protocol
-  };
   return store.transaction(async () => {
     const current = store.getSettings();
     const list = isImage ? current.providers : current.textProviders;
@@ -272,6 +266,17 @@ function configureOpenAIProvider(store: SettingsStore, input: Record<string, unk
     const previous = list.find(provider => provider.id === id);
     if (previous && (("managed" in previous && previous.managed) || previous.transport || previous.type !== "openai-compatible"))
       throw new Error("该服务由其他来源管理。");
+    if (isImage && !previous && input.baseUrl === undefined) throw new Error("新增图片渠道时请提供 Base URL。");
+    let base: URL;
+    try { base = new URL(text(input.baseUrl ?? (isImage ? previous?.baseUrl : undefined), "Base URL")); }
+    catch { throw new Error("Base URL 必须是有效的 HTTP(S) 地址。"); }
+    if (!["https:", "http:"].includes(base.protocol) || base.username || base.password || base.search || base.hash)
+      throw new Error("Base URL 必须是无凭证、查询参数和片段的 HTTP(S) 地址。");
+    const connection = {
+      id, type: "openai-compatible" as const,
+      name: text(input.name ?? (isImage ? previous?.name ?? id : undefined), "服务名称"),
+      baseUrl: base.href.replace(/\/$/, ""), model: text(input.model ?? (isImage ? previous?.model : undefined), "模型 ID")
+    };
     if (previous && new URL(previous.baseUrl).origin !== base.origin && apiKey === undefined)
       throw new Error("更换服务地址域名时请同时提供 API Key。");
     const preset = isImage ? COMMUNITY_IMAGE_PROVIDER : COMMUNITY_TEXT_PROVIDER;
@@ -280,11 +285,52 @@ function configureOpenAIProvider(store: SettingsStore, input: Record<string, unk
       !store.getApiKey(provider.id))).filter(provider => provider.id !== id);
     const setDefault = input.setDefault === true;
     if (isImage) {
-      const { id, name, type, baseUrl, model } = connection;
-      const image: ProviderConfig = { id, name, type, baseUrl, model, apiMode: "images",
-        generationEndpoint: "/v1/images/generations", referenceEndpoint: "/v1/images/edits",
-        supportsReferenceImages: input.supportsReferenceImages === true };
-      await store.updateSettings({ providers: [...providers as ProviderConfig[], image], ...(setDefault ? { activeProviderId: id } : {}) });
+      const old = previous as ProviderConfig | undefined;
+      const apiMode = input.apiMode ?? old?.apiMode ?? "images";
+      if (apiMode !== "images" && apiMode !== "responses") throw new Error("图片服务协议必须为 images 或 responses。");
+      const sameMode = old?.apiMode === apiMode;
+      const taskProtocol = input.imageTaskProtocol ?? (sameMode ? old.imageTaskProtocol : undefined);
+      if (taskProtocol !== undefined && (apiMode !== "images" || !isImageTaskProtocol(taskProtocol)))
+        throw new Error("图片任务协议仅用于 OpenAI Images，须为 sync、task-id 或 business-id。");
+      const asyncTask = taskProtocol === "task-id" || taskProtocol === "business-id";
+      const taskEndpoint = input.imageTaskEndpoint === null ? undefined : input.imageTaskEndpoint ??
+        (asyncTask && sameMode ? old.imageTaskEndpoint : undefined);
+      if (taskEndpoint !== undefined && (!asyncTask || typeof taskEndpoint !== "string" ||
+          taskEndpoint.length > 300 || !isImageTaskEndpoint(taskEndpoint)))
+        throw new Error("异步任务查询路径必须为包含 {id} 的同源路径。");
+      const image: ProviderConfig = {
+        ...old, ...connection, apiMode, imageTaskProtocol: taskProtocol, imageTaskEndpoint: taskEndpoint,
+        generationEndpoint: relativeImageEndpoint(input.generationEndpoint ?? (sameMode ? old.generationEndpoint : undefined),
+          apiMode === "responses" ? "/v1/responses" : "/v1/images/generations"),
+        referenceEndpoint: input.referenceEndpoint === undefined
+          ? old?.referenceEndpoint ?? "/v1/images/edits" : relativeImageEndpoint(input.referenceEndpoint, "/v1/images/edits"),
+        supportsReferenceImages: (input.supportsReferenceImages as boolean | undefined) ?? old?.supportsReferenceImages ?? false
+      };
+      const routing = current.personalModelRouting ? current.personalModelRouting.image : current.imageRouting;
+      const models = routing?.models.map(route => ({
+        ...route, channels: route.channels.map(channel => channel.providerId === id && channel.model === old?.model
+          ? { providerId: id, model: image.model } : channel)
+      }));
+      let defaultModel = routing?.defaultModel ?? "";
+      if (models && setDefault) {
+        const selected = models.find(route => route.channels.some(channel => channel.providerId === id && channel.model === image.model));
+        if (selected) {
+          selected.channels.sort((left, right) =>
+            Number(right.providerId === id && right.model === image.model) - Number(left.providerId === id && left.model === image.model));
+          defaultModel = selected.name;
+        } else {
+          if (models.length >= 50 || image.model.length > 300 || id.length > 300) throw new Error("无法新增默认图片模型路由。");
+          const sameName = models.find(route => route.name === image.model);
+          const channel = { providerId: id, model: image.model };
+          if (sameName) {
+            if (sameName.channels.length >= 30) throw new Error("默认图片模型的渠道已满。");
+            sameName.channels.unshift(channel);
+          } else models.push({ name: image.model, channels: [channel] });
+          defaultModel = image.model;
+        }
+      }
+      await store.updateSettings({ providers: [...providers as ProviderConfig[], image],
+        ...(models ? { imageRouting: { models, defaultModel } } : {}), ...(setDefault ? { activeProviderId: id } : {}) });
     } else {
       const config: TextProviderConfig = { ...connection, protocol };
       await store.updateSettings({ textProviders: [...providers as TextProviderConfig[], config], ...(setDefault ? { activeTextProviderId: id } : {}) });
@@ -292,4 +338,11 @@ function configureOpenAIProvider(store: SettingsStore, input: Record<string, unk
     if (typeof apiKey === "string") store.setApiKey(id, apiKey);
     return { providerId: id, kind, authConfigured: Boolean(store.getKeyStatus()[id]) };
   });
+}
+
+function relativeImageEndpoint(value: unknown, fallback: string): string {
+  const endpoint = value === undefined ? fallback : text(value, "图片接口路径");
+  if (endpoint.length > 300 || !/^\/(?!\/)[^?#\\\s]*$/u.test(endpoint) || endpoint.includes(".."))
+    throw new Error("图片接口路径必须是同源路径，例如 /v1/images/generations。");
+  return endpoint;
 }

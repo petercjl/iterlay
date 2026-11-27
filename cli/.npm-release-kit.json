@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "mode": "local",
+  "checks": [
+    [
+      "run",
+      "check",
+      "--if-present"
+    ],
+    [
+      "test",
+      "--if-present"
+    ]
+  ]
+}

@@ -99,8 +99,10 @@ export function ModelRoutingSettings({ providers, activeProviderId, onRoutingSav
     ? defaultChoices.find(model => textModelRouteId(model.name) === activeId)
     : defaultChoices.find(model => model.channels.some(channel => channel.providerId === activeService?.id && channel.model === activeService?.model));
   const chosenDefault = defaultChoices.find(model => model.name === routing.defaultModel);
-  const defaultValue = kind === "image" || applyDefaults.includes(kind) ? chosenDefault?.name : activeRoute?.name;
-  const shownManagedDefault = !defaultValue && activeService && isCompanyModelChannel(activeService.id) && (kind !== "image" || !settings?.imageRouting);
+  const managedImageDefault = kind === "image" && !drafts.image && isCompanyModelChannel(activeService?.id);
+  const defaultValue = managedImageDefault ? undefined
+    : kind === "image" || applyDefaults.includes(kind) ? chosenDefault?.name : activeRoute?.name;
+  const shownManagedDefault = !defaultValue && activeService && isCompanyModelChannel(activeService.id);
   const duplicateName = routing.models.some(model => model.name === newName.trim());
   const label = (item: ImageChannel) => isCompanyModelChannel(item.providerId) ? uiText("山海管理") :
     `${newChannels.find(service => service.providerId === item.providerId)?.name ?? services.find(service => service.id === item.providerId)?.name
@@ -230,7 +232,7 @@ export function ModelRoutingSettings({ providers, activeProviderId, onRoutingSav
         <label htmlFor={defaultFieldId} className="shrink-0 text-sm font-medium">{uiText("默认模型")}</label>
         <select id={defaultFieldId} className={`${selectClass} flex-1`} value={defaultValue ?? ""} disabled={disabled || !defaultChoices.length}
           onChange={event => chooseDefault(event.target.value)}>
-          <option value="" disabled>{shownManagedDefault ? `${activeService.name} · ${uiText("山海管理")}`
+          <option value="" disabled>{shownManagedDefault ? `${managedImageDefault ? settings?.imageRouting?.defaultModel || activeService.model : activeService.name} · ${uiText("山海管理")}`
             : uiText(defaultChoices.length ? "选择默认模型" : "尚无已配置渠道的模型")}</option>
           {defaultChoices.map(model => <option key={model.name} value={model.name}>{model.name}</option>)}
         </select>

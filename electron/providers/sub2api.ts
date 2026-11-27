@@ -89,7 +89,7 @@ export class Sub2ApiImageProvider {
       response_format: config.compatResponseFormat || undefined
     };
     if (input.recoverImageSubmission && input.clientRequestId)
-      return withRequestedCountWarning(await this.submitRecoverableImage(endpoint, apiKey, body, input.clientRequestId), input.n);
+      return withRequestedCountWarning(await this.submitRecoverableImage(endpoint, apiKey, body, input.clientRequestId, config), input.n);
     const response = await this.fetchWithTimeout(endpoint, {
       method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify(body)
@@ -245,33 +245,49 @@ export class Sub2ApiImageProvider {
     return parseOpenAIImageResponse(response, (input, init) => this.fetchWithTimeout(input, init));
   }
 
-  private async submitRecoverableImage(endpoint: string, apiKey: string, body: Record<string, unknown>, requestId: string): Promise<GenerationResult> {
+  private async submitRecoverableImage(endpoint: string, apiKey: string, body: Record<string, unknown>, requestId: string,
+    config: ProviderConfig): Promise<GenerationResult> {
     const url = new URL(endpoint);
+    const protocol = config.imageTaskProtocol;
+    const legacy = protocol === undefined;
     const directImages = /^\/v1\/images\/generations\/?$/.test(url.pathname);
-    const aiPai = directImages && url.origin === "https://aipaiai.cn";
-    const toApis = directImages && ["https://toapis.cn", "https://toapis.com"].includes(url.origin);
+    const aiPai = legacy && directImages && url.origin === "https://aipaiai.cn";
+    const toApis = legacy && directImages && ["https://toapis.cn", "https://toapis.com"].includes(url.origin);
+    const nas = legacy && /^\/omni\/v1\/images\/generations\/?$/.test(url.pathname);
+    const businessLookup = protocol === "business-id" || toApis || nas;
     if (aiPai) url.pathname = "/v1/images/generations/tasks";
     const headers = { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json",
-      ...(aiPai ? { "Idempotency-Key": requestId } : {}) };
+      ...(aiPai || nas || protocol === "business-id" ? { "Idempotency-Key": requestId } : {}) };
     const encoded = JSON.stringify({
       ...body,
       ...(aiPai ? { response_format: body.response_format || "url" } : {}),
-      ...(toApis ? { client_business_id: requestId, ...(body.size === "auto" ? { size: "1:1" } : {}) } : {})
+      ...(businessLookup ? { client_business_id: requestId } : {}),
+      ...(toApis && body.size === "auto" ? { size: "1:1" } : {})
     });
+    let submissionDetail = "";
     const submit = () => this.fetchWithTimeout(url.href, { method: "POST", headers, body: encoded, redirect: "error" },
-      aiPai || toApis ? Math.min(this.timeoutMs, 20_000) : this.timeoutMs);
+      aiPai || businessLookup || protocol === "task-id" ? Math.min(this.timeoutMs, 20_000) : this.timeoutMs)
+      .then(response => {
+        submissionDetail = `提交接口 HTTP ${response.status}`;
+        return response;
+      }, (error: unknown) => {
+        submissionDetail = `提交接口${imageNetworkFailure(error)}`;
+        return undefined;
+      });
     const uncertain = () => new ImageSubmissionError("unknown", "IMAGE_SUBMISSION_UNKNOWN",
-      `服务端受理状态待确认（本次请求 ${requestId}）。请核对原渠道任务。`);
-    let response = await submit().catch(() => undefined);
+      `服务端受理状态待确认（本次请求 ${requestId}，${submissionDetail}）。请核对原渠道任务。`);
+    const taskEndpoint = config.imageTaskEndpoint && joinUrl(config.baseUrl, config.imageTaskEndpoint);
+    const discover = () => this.waitForImageTask(url.href, apiKey, requestId, {}, submissionDetail, taskEndpoint);
+    let response = await submit();
     if (!response || response.status >= 500 || response.status === 408) {
       await response?.body?.cancel().catch(() => undefined);
       if (aiPai) {
         // This endpoint uses the identical key and payload to rediscover the original task.
-        response = await submit().catch(() => undefined);
+        response = await submit();
         // A rejection of a recovery request cannot prove the first submission failed.
         if (!response?.ok) throw uncertain();
-      } else if (toApis) {
-        return this.waitForImageTask(url.href, apiKey, requestId, {}, true);
+      } else if (businessLookup) {
+        return discover();
       } else {
         throw uncertain();
       }
@@ -284,13 +300,18 @@ export class Sub2ApiImageProvider {
       if (/submission_unknown/i.test(info) || ![400, 401, 402, 403, 404, 422, 429].includes(status)) throw uncertain();
       throw new ImageSubmissionError("rejected", "IMAGE_SUBMISSION_REJECTED", `服务端拒绝提交（HTTP ${status}）。`, status);
     }
-    const payload = await readResponsePayload(response).catch(() => { throw uncertain(); });
+    const payload = await readResponsePayload(response).catch(() => undefined);
+    if (!payload) {
+      if (businessLookup) return discover();
+      throw uncertain();
+    }
     const task = payload as ImageTaskPayload;
-    if (toApis && task.object === "generation.task" && task.id) return this.waitForImageTask(url.href, apiKey, task.id, task);
+    if ((businessLookup || protocol === "task-id") && task.object === "generation.task" && task.id)
+      return this.waitForImageTask(url.href, apiKey, task.id, task, undefined, taskEndpoint);
     if (aiPai && task.task_id) return this.waitForImageTask(url.href, apiKey, task.task_id, task);
-    if (aiPai || toApis) {
+    if (aiPai || businessLookup || protocol !== undefined) {
       if (!getImageItems(payload).length) {
-        if (toApis) return this.waitForImageTask(url.href, apiKey, requestId, {}, true);
+        if (businessLookup) return discover();
         throw uncertain();
       }
     }
@@ -308,15 +329,17 @@ export class Sub2ApiImageProvider {
     return this.waitForImageTask(endpoint, apiKey, task.id, task);
   }
 
-  private async waitForImageTask(endpoint: string, apiKey: string, id: string, initial: ImageTaskPayload, discover = false): Promise<GenerationResult> {
+  private async waitForImageTask(endpoint: string, apiKey: string, id: string, initial: ImageTaskPayload,
+    submissionDetail?: string, statusEndpoint?: string): Promise<GenerationResult> {
+    let pollDetail = "";
     const unknown = () => new ImageSubmissionError("unknown", "IMAGE_TASK_UNKNOWN",
-      `图片任务状态待确认（任务或业务 ID ${id}）。请核对原渠道任务。`);
+      `图片任务状态待确认（任务或业务 ID ${[id, submissionDetail, pollDetail].filter(Boolean).join("，")}）。请核对原渠道任务。`);
     if (!/^[\w-]{1,200}$/.test(id)) throw new ProviderError("INVALID_RESPONSE", "图片服务返回了无效的任务 ID。");
-    const taskUrl = new URL(endpoint);
-    taskUrl.pathname = taskUrl.pathname.replace(/\/$/, "") + "/" + encodeURIComponent(id);
+    const taskUrl = new URL(statusEndpoint?.replace("{id}", encodeURIComponent(id)) ?? endpoint);
+    if (!statusEndpoint) taskUrl.pathname = taskUrl.pathname.replace(/\/$/, "") + "/" + encodeURIComponent(id);
     const deadline = Date.now() + this.timeoutMs;
     let current = initial;
-    let pollDelay = discover ? 0 : IMAGE_TASK_POLL_MS;
+    let pollDelay = submissionDetail ? 0 : IMAGE_TASK_POLL_MS;
     let missing = 0;
     for (;;) {
       if (current.status === "completed") {
@@ -335,8 +358,12 @@ export class Sub2ApiImageProvider {
       if (timeLeft <= 0) throw unknown();
       pollDelay = IMAGE_TASK_POLL_MS;
       const poll = await this.fetchWithTimeout(taskUrl.href, { headers: { Authorization: `Bearer ${apiKey}` }, redirect: "error" },
-        Math.min(timeLeft, 15_000)).catch(() => undefined);
+        Math.min(timeLeft, 15_000)).catch((error: unknown) => {
+          pollDetail = `查询接口${imageNetworkFailure(error)}`;
+          return undefined;
+        });
       if (!poll) continue;
+      pollDetail = `查询接口 HTTP ${poll.status}`;
       if (!poll.ok) {
         const retryAfter = Number(poll.headers.get("retry-after"));
         await poll.body?.cancel();
@@ -370,6 +397,15 @@ export class Sub2ApiImageProvider {
       }
     });
   }
+}
+
+function imageNetworkFailure(error: unknown): string {
+  if (error instanceof ProviderError && error.code === "TIMEOUT") return "超时";
+  const cause = error instanceof Error ? error.cause : undefined;
+  const code = cause && typeof cause === "object" && "code" in cause ? cause.code : undefined;
+  const networkCodes = ["ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "ENOTFOUND", "EAI_AGAIN",
+    "EHOSTUNREACH", "ENETUNREACH", "EACCES", "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_SOCKET"];
+  return typeof code === "string" && networkCodes.includes(code) ? `连接失败（${code}）` : "网络请求失败";
 }
 
 export async function parseOpenAIImageResponse(
@@ -432,7 +468,7 @@ function describeFailure(reason: unknown): string {
 }
 
 function usesResponsesApi(config: ProviderConfig): boolean {
-  return config.apiMode === "responses" || /\/responses\/?$/.test(config.generationEndpoint);
+  return config.apiMode === undefined ? /\/responses\/?$/.test(config.generationEndpoint) : config.apiMode === "responses";
 }
 
 function usesJsonImagesApi(config: ProviderConfig): boolean {

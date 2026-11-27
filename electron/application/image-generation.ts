@@ -178,9 +178,10 @@ export function createImageGenerationCommand(dependencies: ImageGenerationDepend
     if (!input.sceneOnly) await history.addJob(jobBase);
 
     try {
+      const recoverImageSubmission = input.recoverImageSubmission || currentProvider.imageTaskProtocol !== undefined;
       const providerInput: ProviderGenerateInput = {
-        clientRequestId: input.recoverImageSubmission ? input.clientTaskId : paidProviderClientRequestId(input) ?? (currentProvider.transport === "toapiscli" ? jobId : undefined),
-        recoverImageSubmission: input.recoverImageSubmission,
+        clientRequestId: recoverImageSubmission ? input.clientTaskId ?? jobId : paidProviderClientRequestId(input) ?? (currentProvider.transport === "toapiscli" ? jobId : undefined),
+        recoverImageSubmission,
         workflowMode: input.workflowMode,
         useCase: input.useCase,
         prompt: input.prompt,
@@ -208,7 +209,7 @@ export function createImageGenerationCommand(dependencies: ImageGenerationDepend
         try {
           return await selectedProvider.generate(providerInput, currentProvider, apiKey);
         } catch (error) {
-          if (input.recoverImageSubmission && !(error instanceof ImageSubmissionError)) {
+          if (recoverImageSubmission && !(error instanceof ImageSubmissionError)) {
             const normalized = normalizeProviderError(error);
             if ([400, 401, 402, 403, 404, 413, 415, 422, 429].includes(normalized.status ?? 0))
               throw new ImageSubmissionError("rejected", normalized.code, normalized.message, normalized.status);

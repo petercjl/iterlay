@@ -84,6 +84,23 @@ describe('CLI subprocess workflow', () => {
     await exec(process.execPath, [script, 'models', 'set', '--kind', 'audio', '--provider', 'tts', '--model', 'tts-2', '--user-data-path', directory, '--json']);
     expect(configurations.at(-1)).toEqual({ kind: 'audio', action: 'upsert', providerId: 'tts', model: 'tts-2' });
   });
+  it('passes explicit local image channel settings and leaves the key out of the CLI response', async () => {
+    const common = ['--user-data-path', directory, '--no-launch', '--json'];
+    const command = [script, 'providers', 'set', '--kind', 'image', '--provider', 'image-relay'];
+    const { stdout, stderr } = await exec(process.execPath, [...command, '--base-url', 'https://relay.example/v1',
+      '--model', 'fixture-image', '--image-api-mode', 'images', '--image-task-protocol', 'business-id',
+      '--generation-endpoint', '/v1/create', '--image-task-endpoint', '/v1/jobs/{id}',
+      '--supports-reference-images', 'false', '--api-key-env', 'TUDA_TEST_IMAGE_KEY', ...common],
+      { env: { ...process.env, TUDA_TEST_IMAGE_KEY: 'fixture-image-key' } });
+    expect(configurations.at(-1)).toMatchObject({
+      kind: 'image', providerId: 'image-relay', apiMode: 'images', imageTaskProtocol: 'business-id',
+      generationEndpoint: '/v1/create', imageTaskEndpoint: '/v1/jobs/{id}', supportsReferenceImages: false,
+      apiKey: 'fixture-image-key'
+    });
+    expect(stdout + stderr).not.toContain('fixture-image-key');
+    await exec(process.execPath, [...command, '--image-task-endpoint', 'default', ...common]);
+    expect(configurations.at(-1)).toEqual({ kind: 'image', action: 'upsert', providerId: 'image-relay', imageTaskEndpoint: null });
+  });
   it('routes show/default/remove and rejects invalid key sources before mutation', async () => {
     const common = ['--user-data-path', directory, '--json'];
     const shown = await exec(process.execPath, [script, 'providers', 'show', 'tts', ...common]);

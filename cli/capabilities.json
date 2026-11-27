@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "name": "@petercjl/tuda",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "kind": "cli-skill",
   "skills": [
     "using-tuda"
@@ -181,6 +181,33 @@
         }
       },
       "sideEffects": "package-and-skill-update"
+    },
+    "providers set": {
+      "options": {
+        "--kind": { "type": "string", "enum": ["image", "video", "audio"] },
+        "--provider": { "type": "string", "semantics": "Required for image channels" },
+        "--name": { "type": "string" },
+        "--model": { "type": "string" },
+        "--base-url": { "type": "string" },
+        "--image-api-mode": { "type": "string", "enum": ["images", "responses"] },
+        "--image-task-protocol": { "type": "string", "enum": ["sync", "task-id", "business-id"] },
+        "--image-task-endpoint": { "type": "string", "semantics": "Path containing {id}, or default" },
+        "--generation-endpoint": { "type": "string" },
+        "--reference-endpoint": { "type": "string" },
+        "--supports-reference-images": { "type": "string", "enum": ["true", "false"] },
+        "--api-key-env": { "type": "string" },
+        "--api-key-stdin": { "type": "boolean" },
+        "--clear-api-key": { "type": "boolean" },
+        "--default": { "type": "boolean" },
+        "--type": { "type": "string" },
+        "--saved-model": { "type": "string", "repeatable": true },
+        "--voice": { "type": "string" },
+        "--speech-endpoint": { "type": "string" },
+        "--connection-provider": { "type": "string" },
+        "--json": { "type": "boolean" }
+      },
+      "sideEffects": "local-write",
+      "effects": ["save-local-provider-settings", "update-encrypted-credential-if-supplied"]
     },
     "desktop prepare": {
       "options": {

@@ -87,6 +87,76 @@ describe("Agent image model channel order", () => {
     await expect(adapter.generate(req, providers[1], "test-key")).resolves.toMatchObject({ images: [{ mimeType: "image/png" }] });
   });
 
+  const nasProvider: ProviderConfig = {
+    ...providers[1], id: "nas", name: "公司NAS生图", baseUrl: "http://192.0.2.10:18743/omni/v1"
+  };
+  const nasInput: ProviderGenerateInput = {
+    ...input, recoverImageSubmission: true, clientRequestId: "nas-original-id", referenceImages: []
+  };
+
+  it("polls the NAS task returned by a 202 response", async () => {
+    const endpoint = nasProvider.baseUrl + "/images/generations";
+    const fetcher = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(Response.json({ object: "generation.task", id: "nas-task", status: "queued" }, { status: 202 }))
+      .mockResolvedValueOnce(Response.json({ object: "generation.task", id: "nas-task", status: "completed", result: { data: [image] } }));
+    const adapter = new Sub2ApiImageProvider(fetcher);
+    await expect(adapter.generate(nasInput, nasProvider, "test-key")).resolves.toMatchObject({ images: [{ mimeType: "image/png" }] });
+    expect(fetcher.mock.calls.map(([url, req]) => [url, req?.method ?? "GET"])).toEqual([
+      [endpoint, "POST"], [endpoint + "/nas-task", "GET"]
+    ]);
+    expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body)).client_business_id).toBe("nas-original-id");
+    expect(new Headers(fetcher.mock.calls[0][1]?.headers).get("Idempotency-Key")).toBe("nas-original-id");
+  }, 8_000);
+
+  it("recovers a NAS task by business ID using a read-only request after the submit response is lost", async () => {
+    const fetcher = vi.fn<typeof fetch>()
+      .mockRejectedValueOnce(new TypeError("response lost"))
+      .mockResolvedValueOnce(Response.json({ object: "generation.task", id: "nas-task", status: "completed", result: { data: [image] } }));
+    const adapter = new Sub2ApiImageProvider(fetcher);
+    await expect(adapter.generate(nasInput, nasProvider, "test-key")).resolves.toMatchObject({ images: [{ mimeType: "image/png" }] });
+    expect(fetcher.mock.calls.map(([url, req]) => [url, req?.method ?? "GET"])).toEqual([
+      [nasProvider.baseUrl + "/images/generations", "POST"],
+      [nasProvider.baseUrl + "/images/generations/nas-original-id", "GET"]
+    ]);
+  });
+
+  it("retains the submission and lookup HTTP statuses when NAS recovery is inconclusive", async () => {
+    const fetcher = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(Response.json({}, { status: 502 }))
+      .mockResolvedValueOnce(Response.json({}, { status: 401 }));
+    const adapter = new Sub2ApiImageProvider(fetcher);
+    await expect(adapter.generate(nasInput, nasProvider, "test-key")).rejects.toMatchObject({
+      outcome: "unknown", message: expect.stringMatching(/HTTP 502.*HTTP 401/u)
+    });
+    expect(fetcher.mock.calls.filter(([, req]) => req?.method === "POST")).toHaveLength(1);
+  });
+
+  it("uses the declared business-ID protocol with an arbitrary host and submit endpoint", async () => {
+    const endpoint = "https://relay.example.invalid/custom/create";
+    const provider: ProviderConfig = {
+      ...nasProvider, baseUrl: "https://relay.example.invalid", generationEndpoint: "/custom/create",
+      imageTaskProtocol: "business-id", imageTaskEndpoint: "/custom/tasks/{id}"
+    };
+    const fetcher = vi.fn<typeof fetch>()
+      .mockRejectedValueOnce(new TypeError("response lost"))
+      .mockResolvedValueOnce(Response.json({ status: "completed", result: { data: [image] } }));
+    await expect(new Sub2ApiImageProvider(fetcher).generate(nasInput, provider, "test-key"))
+      .resolves.toMatchObject({ images: [{ mimeType: "image/png" }] });
+    expect(fetcher.mock.calls.map(([url]) => url)).toEqual([endpoint, "https://relay.example.invalid/custom/tasks/nas-original-id"]);
+    expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body)).client_business_id).toBe("nas-original-id");
+  });
+
+  it("uses a declared task-ID protocol without sending business-ID fields", async () => {
+    const provider: ProviderConfig = { ...nasProvider, imageTaskProtocol: "task-id" };
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      Response.json({ object: "generation.task", id: "provider-task", status: "completed", result: { data: [image] } }, { status: 202 })
+    );
+    await expect(new Sub2ApiImageProvider(fetcher).generate(nasInput, provider, "test-key"))
+      .resolves.toMatchObject({ images: [{ mimeType: "image/png" }] });
+    expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body))).not.toHaveProperty("client_business_id");
+    expect(new Headers(fetcher.mock.calls[0][1]?.headers).has("Idempotency-Key")).toBe(false);
+  });
+
   it("stays on the original channel when recovery cannot determine its status", async () => {
     const fetcher = vi.fn<typeof fetch>().mockRejectedValue(new TypeError("response lost"));
     await expect(generateWithImageRouting(channels(), input, tracedAdapter(fetcher))).rejects.toMatchObject({
