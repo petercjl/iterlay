@@ -1,8 +1,16 @@
 import { compareVersions, parseVersion, type UpdateManifest, type UpdatePlatform } from "./app-update.js";
 
 export const DESKTOP_PATCH_BASELINE = "0.1.9";
+// electron-builder embeds the application version in each macOS helper's sealed plist.
+const macVersionedHelpers = ["Tuda Helper", "Tuda Helper (GPU)", "Tuda Helper (Plugin)", "Tuda Helper (Renderer)"];
 export const desktopPatchPaths: Readonly<Record<UpdatePlatform, readonly string[]>> = {
-  darwin: ["Contents/Info.plist", "Contents/MacOS/Tuda", "Contents/Resources/app.asar", "Contents/_CodeSignature/CodeResources"],
+  darwin: [
+    "Contents/Info.plist", "Contents/MacOS/Tuda", "Contents/Resources/app.asar", "Contents/_CodeSignature/CodeResources",
+    ...macVersionedHelpers.flatMap(name => {
+      const contents = `Contents/Frameworks/${name}.app/Contents`;
+      return [`${contents}/Info.plist`, `${contents}/MacOS/${name}`];
+    }),
+  ],
   win32: ["Tuda.exe", "resources/app.asar"],
 };
 
