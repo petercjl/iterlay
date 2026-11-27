@@ -166,7 +166,9 @@ export class AppUpdateService {
     });
     this.patch({ phase: "installing", error: undefined });
     try {
-      const result = await this.options.driver.install(this.state.installerPath);
+      const result = await (manifest.patch
+        ? this.options.driver.install(this.state.installerPath, manifest)
+        : this.options.driver.install(this.state.installerPath));
       if (result.quitRequested) this.options.onQuitRequested?.();
     } catch (error) {
       await this.options.preferences.setPendingUpdate(undefined).catch(() => undefined);
@@ -178,9 +180,20 @@ export class AppUpdateService {
 
   /** 下载、校验后立即交给安装器；供用户点击一次完成整个更新流程。 */
   async downloadAndInstall(): Promise<UpdateStateSnapshot> {
+    const fallback = this.state.manifest?.fullFallback;
     const downloaded = await this.download();
-    if (downloaded.phase !== "ready") return downloaded;
-    return this.install();
+    if (downloaded.phase === "ready") {
+      try {
+        return await this.install();
+      } catch (error) {
+        if (!fallback) throw error;
+      }
+    } else if (downloaded.phase !== "error" || !fallback) {
+      return downloaded;
+    }
+    this.patch({ phase: "available", manifest: fallback, installerPath: undefined, error: undefined });
+    const full = await this.download();
+    return full.phase === "ready" ? this.install() : full;
   }
 
   async dismissInstalledRelease(): Promise<UpdateStateSnapshot> {

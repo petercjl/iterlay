@@ -7,6 +7,18 @@ export const UPDATE_FIRST_CHECK_DELAY_MS = 15 * 1_000;
 /** 主进程 → 渲染层的更新状态推送通道。 */
 export const UPDATE_STATE_CHANNEL = "update:state";
 
+export interface DesktopPatchFile {
+  path: string;
+  baseSha256: string;
+  sha256: string;
+  fileSize: number;
+}
+
+export interface DesktopPatch {
+  baseVersion: string;
+  files: DesktopPatchFile[];
+}
+
 /** 后台版本接口返回的单个平台安装包描述。 */
 export interface UpdateManifest {
   version: string;
@@ -26,6 +38,10 @@ export interface UpdateManifest {
   /** 后台直接标记本次发布为强制更新。 */
   forced?: boolean;
   publishedAt?: string;
+  /** Exact-base replacement files concatenated in order in the verified payload. */
+  patch?: DesktopPatch;
+  /** Independently discovered full installer for the same or newer release. */
+  fullFallback?: UpdateManifest;
 }
 
 export type UpdateAvailability = "up-to-date" | "available" | "forced";

@@ -9,6 +9,7 @@ import type { ReadableStream as WebReadableStream } from "node:stream/web";
 import type { UpdateManifest, UpdatePlatform, UpdateProgress } from "../../shared/app-update.js";
 import type { UpdateFetch } from "./api-client.js";
 import { downloadNpmPayloads } from "./npm-payload.js";
+import { activateDesktopPatch, stageDesktopPatch } from "./desktop-patch.js";
 
 export interface UpdateDownloadOptions {
   onProgress?: (progress: UpdateProgress) => void;
@@ -26,7 +27,7 @@ export interface UpdateInstallResult {
  */
 export interface UpdateDriver {
   download(manifest: UpdateManifest, options?: UpdateDownloadOptions): Promise<string>;
-  install(installerPath: string): Promise<UpdateInstallResult>;
+  install(installerPath: string, manifest?: UpdateManifest): Promise<UpdateInstallResult>;
 }
 
 export interface DirectDownloadDriverOptions {
@@ -101,12 +102,23 @@ export class DirectDownloadDriver implements UpdateDriver {
     }
   }
 
-  async install(installerPath: string): Promise<UpdateInstallResult> {
+  async install(installerPath: string, manifest?: UpdateManifest): Promise<UpdateInstallResult> {
     const exists = await stat(installerPath).then(() => true, () => false);
     if (!exists) throw new Error("安装包不存在，请重新下载。");
 
     const applicationPath = this.options.applicationPath ?? defaultApplicationPath(this.options.platform);
     await access(applicationPath);
+    if (manifest?.patch) {
+      if (manifest.platform !== this.options.platform) throw new Error("差分更新的平台不匹配。");
+      const staged = await stageDesktopPatch(installerPath, applicationPath, manifest);
+      try {
+        await activateDesktopPatch(staged, manifest.platform, process.pid);
+      } catch (error) {
+        await rm(staged.staging, { recursive: true, force: true }).catch(() => undefined);
+        throw error;
+      }
+      return { quitRequested: true };
+    }
     if (this.options.launchInstallerAfterExit) {
       await this.options.launchInstallerAfterExit(installerPath, process.pid, applicationPath);
       return { quitRequested: true };
@@ -276,6 +288,7 @@ async function launchWindowsInstallerAfterExit(
 }
 
 function installerFileName(manifest: UpdateManifest): string {
+  if (manifest.patch) return `Tuda-${manifest.version}-${manifest.arch}.patch`;
   try {
     const basename = decodeURIComponent(path.posix.basename(new URL(manifest.downloadUrl).pathname));
     if (/\.(dmg|exe)$/i.test(basename)) return sanitizeFileName(basename);

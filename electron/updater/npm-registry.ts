@@ -8,7 +8,7 @@ export function npmRegistryUrls(input: string): string[] {
   const url = new URL(input);
   const pathname = decodeURIComponent(url.pathname);
   if (url.origin !== official || url.username || url.password || url.search || url.hash
-    || !/^\/@petercjl\/tuda-desktop\/(?:latest|next|-\/tuda-desktop-0\.0\.0-payload\.[a-f0-9]{64}\.tgz)$/.test(pathname)) {
+    || !/^\/@petercjl\/tuda-desktop\/(?:latest|next|desktop-patch(?:-beta)?|-\/tuda-desktop-0\.0\.0-payload\.[a-f0-9]{64}\.tgz)$/.test(pathname)) {
     throw new Error("Tuda npm 更新地址无效。");
   }
   return [url.href, mirror + url.pathname];

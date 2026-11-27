@@ -10,5 +10,6 @@ const run=args=>{const result=spawnSync("pnpm",args,{stdio:"inherit"});if(result
 run(["brand:check"]);run(["build"]);
 const {build,Platform,Arch}=await import("electron-builder"),pkg=JSON.parse(await readFile("package.json","utf8"));
 process.env.CSC_IDENTITY_AUTO_DISCOVERY="false";
-await build({targets:Platform.MAC.createTarget("dmg",Arch[arch]),publish:"never",config:{...(arch===process.arch?{electronDist:"node_modules/electron/dist"}:{}),mac:{...pkg.build.mac,identity:"-",hardenedRuntime:false,notarize:false},extraResources:[...pkg.build.extraResources,{from:defaults.file,to:"company-defaults.json"}]}});
+const target=process.argv.includes("--app-only")?"dir":"dmg";
+await build({targets:Platform.MAC.createTarget(target,Arch[arch]),publish:"never",config:{...(arch===process.arch?{electronDist:"node_modules/electron/dist"}:{}),mac:{...pkg.build.mac,identity:"-",hardenedRuntime:false,notarize:false},extraResources:[...pkg.build.extraResources,{from:defaults.file,to:"company-defaults.json"}]}});
 run(["exec","node","scripts/verify-package-size.mjs","--app-path",arch==="arm64"?"release/mac-arm64/Tuda.app":"release/mac/Tuda.app","--report",`output/package-size/mac-${arch}-${pkg.version}.json`,"--company-defaults",defaults.file]);

@@ -20,7 +20,8 @@ run(["build"]);
 const { build, Platform, Arch } = await import("electron-builder");
 const pkg = JSON.parse(await readFile("package.json", "utf8"));
 process.env.CSC_IDENTITY_AUTO_DISCOVERY = "false";
-await build({ targets: Platform.WINDOWS.createTarget("nsis", Arch[arch]), publish: "never", config: {
+const target = process.argv.includes("--app-only") ? "dir" : "nsis";
+await build({ targets: Platform.WINDOWS.createTarget(target, Arch[arch]), publish: "never", config: {
   ...(arch === process.arch ? { electronDist: "node_modules/electron/dist" } : {}),
   extraResources: [...pkg.build.extraResources, { from: defaults.file, to: "company-defaults.json" }]
 } });

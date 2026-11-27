@@ -28,20 +28,26 @@ export async function prepareDesktopRelease({root=process.cwd(),platform="win32"
  if(mergeFile){const other=JSON.parse(await fs.readFile(mergeFile,"utf8"));if(other.schemaVersion!==1||other.applicationVersion!==app.version)throw Error("Merged release version mismatch.");incoming=other.installers;}
  else{
   const file=installer??path.join(root,`release/Tuda-${app.version}-${arch}.${platform==="win32"?"exe":"dmg"}`),bytes=await fs.readFile(file);verifyInstaller(bytes,platform);
-  payloadRoot=await fs.mkdtemp(path.join(root,"release/npm-payloads-"));const parts=[];
-  for(let offset=0;offset<bytes.length;offset+=payloadLimit){
-   const block=bytes.subarray(offset,offset+payloadLimit),sha256=createHash("sha256").update(block).digest("hex"),version=`0.0.0-payload.${sha256}`,directory=path.join(payloadRoot,sha256,"package");await fs.mkdir(directory,{recursive:true});
-   await fs.writeFile(path.join(directory,"payload.bin"),block,{flag:"wx"});
-   await fs.writeFile(path.join(directory,"package.json"),JSON.stringify({name:pkg.name,version,description:"Immutable Tuda installer payload. Install the desktop release, not this internal data version.",license:"MIT",repository:pkg.repository,files:["payload.bin"],scripts:{check:"node validate.mjs",prepack:"node validate.mjs"},publishConfig:{access:"public"}})+"\n",{flag:"wx"});
-   await fs.writeFile(path.join(directory,"validate.mjs"),`import fs from 'node:fs';import {createHash} from 'node:crypto';const b=fs.readFileSync(new URL('payload.bin',import.meta.url));if(b.length!==${block.length}||createHash('sha256').update(b).digest('hex')!==${JSON.stringify(sha256)})throw Error('Payload integrity mismatch');\n`,{flag:"wx"});
-   await fs.writeFile(path.join(directory,".npm-release-kit.json"),JSON.stringify({schemaVersion:1,mode:"local",checks:[["run","check"]]})+"\n",{flag:"wx"});
-   await c({gzip:true,portable:true,noMtime:true,cwd:path.dirname(directory),file:path.join(payloadRoot,`tuda-${version}.tgz`)},["package"]);
-   parts.push({url:`https://registry.npmjs.org/@petercjl/tuda-desktop/-/tuda-desktop-${version}.tgz`,sha256,fileSize:block.length});
-  }
+  const prepared=await prepareDesktopPayloads(bytes,root,pkg);
+  payloadRoot=prepared.payloadRoot;const {parts}=prepared;
   incoming=[{version:app.version,platform,arch,channel:app.version.includes("-")?"beta":"stable",downloadUrl:parts[0].url,npmPayloads:parts,sha256:createHash("sha256").update(bytes).digest("hex"),fileSize:bytes.length,publishedAt:new Date().toISOString(),releaseNotes:`Tuda · 图塔 ${app.version}`}];
  }
  const release={schemaVersion:1,applicationVersion:app.version,installers:mergeInstallers(existing.installers,incoming,app.version)};
  await fs.mkdir(path.join(root,"tmp"),{recursive:true});const backup=await fs.mkdtemp(path.join(root,"tmp/release-metadata-"));
  for(const [file,value]of [[pkgPath,{...pkg,tudaRelease:release}],[manifestPath,release]]){await fs.stat(file);await fs.copyFile(file,path.join(backup,path.basename(file)));await fs.writeFile(file,JSON.stringify(value,null,2)+"\n");}
  return {ok:true,version:app.version,payloadRoot,targets:release.installers.map(item=>`${item.platform}/${item.arch}`),backup};
+}
+
+export async function prepareDesktopPayloads(bytes,root,pkg){
+  const payloadRoot=await fs.mkdtemp(path.join(root,"release/npm-payloads-"));const parts=[];
+  for(let offset=0;offset<bytes.length;offset+=payloadLimit){
+   const block=bytes.subarray(offset,offset+payloadLimit),sha256=createHash("sha256").update(block).digest("hex"),version=`0.0.0-payload.${sha256}`,directory=path.join(payloadRoot,sha256,"package");await fs.mkdir(directory,{recursive:true});
+   await fs.writeFile(path.join(directory,"payload.bin"),block,{flag:"wx"});
+   await fs.writeFile(path.join(directory,"package.json"),JSON.stringify({name:pkg.name,version,description:"Immutable Tuda desktop update payload. Install the desktop release, not this internal data version.",license:"MIT",repository:pkg.repository,files:["payload.bin"],scripts:{check:"node validate.mjs",prepack:"node validate.mjs"},publishConfig:{access:"public"}})+"\n",{flag:"wx"});
+   await fs.writeFile(path.join(directory,"validate.mjs"),`import fs from 'node:fs';import {createHash} from 'node:crypto';const b=fs.readFileSync(new URL('payload.bin',import.meta.url));if(b.length!==${block.length}||createHash('sha256').update(b).digest('hex')!==${JSON.stringify(sha256)})throw Error('Payload integrity mismatch');\n`,{flag:"wx"});
+   await fs.writeFile(path.join(directory,".npm-release-kit.json"),JSON.stringify({schemaVersion:1,mode:"local",checks:[["run","check"]]})+"\n",{flag:"wx"});
+   await c({gzip:true,portable:true,noMtime:true,cwd:path.dirname(directory),file:path.join(payloadRoot,`tuda-${version}.tgz`)},["package"]);
+   parts.push({url:`https://registry.npmjs.org/@petercjl/tuda-desktop/-/tuda-desktop-${version}.tgz`,sha256,fileSize:block.length});
+  }
+  return {payloadRoot,parts};
 }
