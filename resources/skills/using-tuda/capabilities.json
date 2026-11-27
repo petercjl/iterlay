@@ -5,6 +5,9 @@
   "target_platforms": [
     "generic"
   ],
+  "host_resolution": {
+    "fallback_adapter": "generic"
+  },
   "capabilities": [
     {
       "id": "command.execute",
