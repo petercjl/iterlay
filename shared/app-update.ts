@@ -12,6 +12,7 @@ export interface DesktopPatchFile {
   baseSha256: string;
   sha256: string;
   fileSize: number;
+  ranges: { offset: number; size: number }[];
 }
 
 export interface DesktopPatch {
@@ -38,7 +39,7 @@ export interface UpdateManifest {
   /** 后台直接标记本次发布为强制更新。 */
   forced?: boolean;
   publishedAt?: string;
-  /** Exact-base replacement files concatenated in order in the verified payload. */
+  /** Exact-base changed byte ranges concatenated in file and range order. */
   patch?: DesktopPatch;
   /** Independently discovered full installer for the same or newer release. */
   fullFallback?: UpdateManifest;

@@ -64,17 +64,19 @@ for (const installer of artifacts) {
   for (const payload of payloads) { whole.update(payload); total += payload.length; }
   if (total !== installer.fileSize || whole.digest("hex") !== installer.sha256) throw Error("Registry update artifact integrity mismatch");
   if (installer.patch) {
-    const bytes = Buffer.concat(payloads, total);
-    let offset = 0;
+    let described = 0;
     for (const file of installer.patch.files) {
-      const end = offset + file.fileSize;
-      if (!Number.isSafeInteger(file.fileSize) || file.fileSize <= 0 || end > total
-        || createHash("sha256").update(bytes.subarray(offset, end)).digest("hex") !== file.sha256) {
-        throw Error("Registry differential file integrity mismatch");
+      let end = 0;
+      for (const range of file.ranges) {
+        if (!Number.isSafeInteger(range.offset) || range.offset < end
+          || !Number.isSafeInteger(range.size) || range.size <= 0 || range.size > file.fileSize - range.offset) {
+          throw Error("Invalid differential range");
+        }
+        end = range.offset + range.size;
+        described += range.size;
       }
-      offset = end;
     }
-    if (offset !== total) throw Error("Registry differential artifact has unexpected bytes");
+    if (described !== total) throw Error("Registry differential artifact has unexpected bytes");
   }
   console.log(JSON.stringify({ ok: true, applicationVersion: installer.version, platform: installer.platform, arch: installer.arch, fileSize: total, sha256: installer.sha256, source: "npm" }));
 }

@@ -73,20 +73,31 @@ assert.equal(pkg.version,pkg.tudaPatchRelease.applicationVersion);
   };
   const [before, after] = await Promise.all([listFiles(base), listFiles(target)]);
   const files = [];
-  for (const name of new Set([...before.keys(), ...after.keys()])) {
+  const payload = [];
+  for (const name of [...new Set([...before.keys(), ...after.keys()])].sort()) {
     const old = before.get(name), next = after.get(name);
     if (JSON.stringify(old) === JSON.stringify(next)) continue;
     // electron-builder adds the elevation helper only when creating NSIS.
     if (platform === "win32" && name === "resources/elevate.exe" && old?.sha256 && !next) continue;
     assert(old?.sha256 && next?.sha256 && old.mode === next.mode && desktopPatchPaths[platform].includes(name),
       `Application resources changed outside the differential contract: ${name}. Build a full installer.`);
-    files.push({ path: name, baseSha256: old.sha256, sha256: next.sha256, fileSize: next.fileSize });
+    const source = await fs.readFile(path.join(base, name));
+    const content = await fs.readFile(path.join(target, name));
+    assert.equal(sha256(source), old.sha256);
+    assert.equal(sha256(content), next.sha256);
+    const ranges = [];
+    const blockSize = 64 * 1024;
+    for (let offset = 0; offset < content.length; offset += blockSize) {
+      const end = Math.min(offset + blockSize, content.length);
+      if (source.subarray(offset, end).equals(content.subarray(offset, end))) continue;
+      const last = ranges.at(-1);
+      if (last && last.offset + last.size === offset) last.size += end - offset;
+      else ranges.push({ offset, size: end - offset });
+    }
+    files.push({ path: name, baseSha256: old.sha256, sha256: next.sha256, fileSize: next.fileSize, ranges });
+    for (const range of ranges) payload.push(content.subarray(range.offset, range.offset + range.size));
   }
-  const bytes = Buffer.concat(await Promise.all(files.map(async file => {
-    const content = await fs.readFile(path.join(target, file.path));
-    assert.equal(sha256(content), file.sha256);
-    return content;
-  })));
+  const bytes = Buffer.concat(payload);
   const manifest = { version, platform, arch, channel: version.includes("-") ? "beta" : "stable",
     sha256: sha256(bytes), fileSize: bytes.length, patch: { baseVersion, files } };
   assert(validDesktopPatch(manifest), "Invalid differential release");

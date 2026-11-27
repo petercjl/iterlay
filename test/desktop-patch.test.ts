@@ -9,17 +9,18 @@ import { validDesktopPatch } from "../shared/desktop-patch.js";
 import type { UpdateManifest } from "../shared/app-update.js";
 
 const hash = (data: string | Buffer) => createHash("sha256").update(data).digest("hex");
-const base = ["old main executable", "old application code"];
-const target = ["new main executable", "new application code"];
+const base = ["the old main executable", "the old application code"];
+const target = ["the new main executable", "the new application code"];
 const names = ["Tuda.exe", "resources/app.asar"];
-const data = Buffer.from(target.join(""));
+const changed = { offset: 4, size: 3 };
+const data = Buffer.from(target.map(file => file.slice(changed.offset, changed.offset+changed.size)).join(""));
 const part = { sha256: hash(data), fileSize: data.length,
   url: `https://registry.npmjs.org/@petercjl/tuda-desktop/-/tuda-desktop-0.0.0-payload.${hash(data)}.tgz` };
 const patch: UpdateManifest = {
   version: "0.1.10", platform: "win32", arch: "x64", channel: "stable", sha256: part.sha256,
   downloadUrl: part.url, fileSize: part.fileSize, npmPayloads: [part],
   patch: { baseVersion: "0.1.9", files: names.map((name, index) => ({
-    path: name, fileSize: Buffer.byteLength(target[index]), baseSha256: hash(base[index]), sha256: hash(target[index]),
+    path: name, fileSize: Buffer.byteLength(target[index]), baseSha256: hash(base[index]), sha256: hash(target[index]), ranges: [changed],
   })) },
 };
 const { patch: _delta, ...installer } = patch;
@@ -48,6 +49,10 @@ describe("desktop differential release", () => {
       { ...patch.patch!.files[0], path: "../settings.json" }, patch.patch!.files[1],
     ] } })).toBe(false);
     expect(validDesktopPatch({ ...patch, patch: { ...patch.patch!, files: [patch.patch!.files[0], patch.patch!.files[0]] } })).toBe(false);
+    const [first, second] = patch.patch!.files;
+    expect(validDesktopPatch({ ...patch, patch: { ...patch.patch!, files: [
+      { ...first, ranges: [changed, { offset: 5, size: 2 }] }, second
+    ] } })).toBe(false);
   });
 
   async function fixture() {
