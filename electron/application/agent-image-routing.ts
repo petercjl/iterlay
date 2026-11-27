@@ -10,8 +10,16 @@ type RoutingSettings = Pick<AppSettings, "providers" | "activeProviderId" | "ima
 
 export function agentImageChannels(settings: RoutingSettings, request: { model: string; count: number; references: number; transparent: boolean }): Channel[] {
   const routing = resolveImageRouting(settings.imageRouting, settings.providers, settings.activeProviderId);
-  const name = request.model || routing.defaultModel;
-  const route = routing.models.find(model => model.name === name);
+  const requestedModel = request.model.trim();
+  const name = requestedModel || routing.defaultModel;
+  let route = routing.models.find(model => model.name === name);
+  if (!route && requestedModel) {
+    const matches = routing.models.filter(model => model.channels.some(channel => channel.model === requestedModel));
+    if (matches.length > 1) {
+      throw new Error(`生图模型 ID「${requestedModel}」对应多个模型，请使用完整的 Tuda 模型名称：${matches.map(model => model.name).join("、")}。`);
+    }
+    [route] = matches;
+  }
   if (!route) throw new Error(name ? `生图模型「${name}」没有配置渠道。` : "请在模型设置中配置默认生图模型。");
   const channels = route.channels.flatMap(({ providerId, model }) => {
     const provider = settings.providers.find(item => item.id === providerId);
@@ -22,7 +30,7 @@ export function agentImageChannels(settings: RoutingSettings, request: { model: 
       (request.transparent && !capabilities.transparentBackground)) return [];
     return [{ provider, model }];
   });
-  if (!channels.length) throw new Error(`「${name}」没有可用于本次参数的已配置生图渠道。`);
+  if (!channels.length) throw new Error(`「${route.name}」没有可用于本次参数的已配置生图渠道。`);
   return channels;
 }
 

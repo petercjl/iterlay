@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { agentImageChannels, generateWithImageRouting } from "../electron/application/agent-image-routing.js";
+import { mergeManagedRouting } from "../electron/company/managed-models.js";
 import { ImageSubmissionError } from "../electron/providers/errors.js";
 import { Sub2ApiImageProvider } from "../electron/providers/sub2api.js";
 import { resolveImageRouting } from "../shared/image-routing.js";
@@ -37,6 +38,39 @@ describe("Agent image model channel order", () => {
     const route = { defaultModel: "模型别名", models: [{ name: "模型别名", channels: initial.models[0].channels.toReversed() }] };
     const chosen = agentImageChannels({ ...settings, imageRouting: route }, { model: "", count: 1, references: 0, transparent: false });
     expect(chosen.map(item => [item.provider.id, item.model])).toEqual([["toapis", model], ["aipai", model]]);
+  });
+
+  it("resolves the exact provider model ID to a renamed personal route without changing the upstream ID", async () => {
+    const id = "GPT-Image-2.6-Sunburst";
+    const managedId = id.toLowerCase();
+    const local = { ...providers[0], model: id };
+    const managed = { ...providers[1], model: managedId };
+    const imageRouting = mergeManagedRouting(
+      { defaultModel: managedId, models: [{ name: managedId, channels: [{ providerId: managed.id, model: managedId }] }] },
+      { defaultModel: id, models: [{ name: id, channels: [{ providerId: local.id, model: id }] }] },
+      true,
+    );
+    expect(imageRouting.defaultModel).toBe(`${id} · 个人`);
+    const configured = { ...settings, providers: [local, managed], imageRouting };
+    const request = { count: 1, references: 0, transparent: false };
+    for (const selection of ["", id, imageRouting.defaultModel]) {
+      expect(agentImageChannels(configured, { ...request, model: selection })).toEqual([{ provider: local, model: id }]);
+    }
+    expect(agentImageChannels(configured, { ...request, model: managedId })).toEqual([{ provider: managed, model: managedId }]);
+    const submit = vi.fn(async () => ({ job: { providerId: local.id } as GenerateResponse["job"], images: [] }));
+    await generateWithImageRouting(agentImageChannels(configured, { ...request, model: id }), input, submit);
+    expect(submit).toHaveBeenCalledTimes(1);
+    expect(submit).toHaveBeenCalledWith(expect.objectContaining({ providerId: local.id, model: id }));
+  });
+
+  it("requires a route name when a provider model ID matches multiple routes", () => {
+    const imageRouting = { defaultModel: "首选", models: [
+      { name: "首选", channels: [{ providerId: "aipai", model }] },
+      { name: "备用", channels: [{ providerId: "toapis", model }] }
+    ] };
+    const request = { count: 1, references: 0, transparent: false };
+    expect(() => agentImageChannels({ ...settings, imageRouting }, { ...request, model })).toThrow(/对应多个模型.*首选、备用/);
+    expect(agentImageChannels({ ...settings, imageRouting }, { ...request, model: "备用" })[0].provider.id).toBe("toapis");
   });
 
   it("switches from a definite AI派 rejection to ToAPIs for the same model and keeps separate credentials", async () => {

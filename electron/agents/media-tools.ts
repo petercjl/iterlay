@@ -26,10 +26,14 @@ export function bindTudaAgentMediaTools(tools: ToolDefinition[], providers: Prov
       const schema = tool.parameters as { properties?: Record<string, unknown>; required?: string[] };
       const properties = { ...schema.properties };
       delete properties.providerId;
+      properties.model = {
+        type: "string",
+        description: "用户明确指定模型时，传入授权列表中的完整 Tuda 模型名称，包括「· 个人」等后缀。用户未指定时省略此字段，使用当前默认生图模型。"
+      };
       return {
         ...tool,
         parameters: { ...tool.parameters, properties, required: (schema.required ?? []).filter(key => key !== "model" && key !== "providerId") },
-        description: "生成图片并添加到画板。提供提示词、画板和必要参数。省略 model 时使用用户配置的 Agent 默认生图模型，Tuda 自动按渠道顺序提交。返回 generationId 后查询原任务。若状态未知，等待核对，避免发起重复任务。",
+        description: "生成图片并添加到画板。提供提示词、画板和必要参数。用户未指定模型时省略 model，由 Tuda 按当前默认模型的渠道顺序提交。需要指定时使用完整的 Tuda 模型名称。返回 generationId 后查询原任务。若状态未知，等待核对，避免发起重复任务。",
         execute: async (id, raw, signal, update, context) => {
           const args = { ...(raw as Record<string, unknown>) };
           delete args.providerId;
