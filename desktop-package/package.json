@@ -20,5 +20,67 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "tudaRelease": {
+    "schemaVersion": 1,
+    "applicationVersion": "0.1.9",
+    "installers": [
+      {
+        "version": "0.1.9",
+        "platform": "darwin",
+        "arch": "arm64",
+        "channel": "stable",
+        "downloadUrl": "https://registry.npmjs.org/@petercjl/tuda-desktop/-/tuda-desktop-0.0.0-payload.9d768796432fd001fddeb5475d3a67676b3ddd9753403dd27a97d4e798895d3c.tgz",
+        "npmPayloads": [
+          {
+            "url": "https://registry.npmjs.org/@petercjl/tuda-desktop/-/tuda-desktop-0.0.0-payload.9d768796432fd001fddeb5475d3a67676b3ddd9753403dd27a97d4e798895d3c.tgz",
+            "sha256": "9d768796432fd001fddeb5475d3a67676b3ddd9753403dd27a97d4e798895d3c",
+            "fileSize": 50331648
+          },
+          {
+            "url": "https://registry.npmjs.org/@petercjl/tuda-desktop/-/tuda-desktop-0.0.0-payload.19440e8d4b3d1776306522cd62112ef9ab4dd7eddc736a50a4a0d5f291319bd1.tgz",
+            "sha256": "19440e8d4b3d1776306522cd62112ef9ab4dd7eddc736a50a4a0d5f291319bd1",
+            "fileSize": 50331648
+          },
+          {
+            "url": "https://registry.npmjs.org/@petercjl/tuda-desktop/-/tuda-desktop-0.0.0-payload.17afeeecadfe001351983a26003e64fc08ff4e8976f270eed5fe89466d502c5a.tgz",
+            "sha256": "17afeeecadfe001351983a26003e64fc08ff4e8976f270eed5fe89466d502c5a",
+            "fileSize": 38818058
+          }
+        ],
+        "sha256": "fe7dcec52f6806f81f75bf838e403c46f7333cd119dba9c702a45462715b869c",
+        "fileSize": 139481354,
+        "publishedAt": "2026-11-27T12:56:27.054Z",
+        "releaseNotes": "Tuda · 图塔 0.1.9"
+      },
+      {
+        "version": "0.1.9",
+        "platform": "win32",
+        "arch": "x64",
+        "channel": "stable",
+        "downloadUrl": "https://registry.npmjs.org/@petercjl/tuda-desktop/-/tuda-desktop-0.0.0-payload.bd0b33d0638d91461252aef329c475bf5ebed0150525a1c5111699278f014444.tgz",
+        "npmPayloads": [
+          {
+            "url": "https://registry.npmjs.org/@petercjl/tuda-desktop/-/tuda-desktop-0.0.0-payload.bd0b33d0638d91461252aef329c475bf5ebed0150525a1c5111699278f014444.tgz",
+            "sha256": "bd0b33d0638d91461252aef329c475bf5ebed0150525a1c5111699278f014444",
+            "fileSize": 50331648
+          },
+          {
+            "url": "https://registry.npmjs.org/@petercjl/tuda-desktop/-/tuda-desktop-0.0.0-payload.dbdb612b1cfb9b7e209741183bcaa3c983e506661f47b1ae71923fda03c1212e.tgz",
+            "sha256": "dbdb612b1cfb9b7e209741183bcaa3c983e506661f47b1ae71923fda03c1212e",
+            "fileSize": 50331648
+          },
+          {
+            "url": "https://registry.npmjs.org/@petercjl/tuda-desktop/-/tuda-desktop-0.0.0-payload.6d1118fe5ae7a6ea32acaebbd95af3ba3bfe26469e70c23132ed319216a969f1.tgz",
+            "sha256": "6d1118fe5ae7a6ea32acaebbd95af3ba3bfe26469e70c23132ed319216a969f1",
+            "fileSize": 21777500
+          }
+        ],
+        "sha256": "df9eb61e53d309e55bd8c4a09d9d46cf9d6431a2b67ab45397298d289e934312",
+        "fileSize": 122440796,
+        "publishedAt": "2026-11-27T13:05:13.589Z",
+        "releaseNotes": "Tuda · 图塔 0.1.9"
+      }
+    ]
   }
 }
