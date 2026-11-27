@@ -384,3 +384,10 @@ X、小红书、Hacker News、Linux.do、开源中国、少数派暂未找到已
 - 内容：OMNI 正式环境接入、企业模型配置和画板交互优化。提供 Windows x64 与 Mac arm64 首装及更新内容。
 - 源码：[bd67882](https://github.com/petercjl/iterlay/commit/bd6788286791a707f5a11b477a04db24bf5302b0)。两平台分别原生构建并完成安装验证，Windows 同版本重装后保留测试画板。
 - 状态：本机固定制品发布完成。公开安装分块、安装器 SHA-256、npm 精确安装、稳定标签和两个平台的更新选择均已核验。完整证据和验收范围见 [0.1.6 发布记录](../releases/tuda-0.1.6.md)。指标未采集。
+
+
+### DESKTOP-NPM-006 · Tuda 0.1.8 Windows / Mac 更新
+
+- 稳定渠道 `latest` 于 2026-11-27（Asia/Shanghai）发布。 [npm 精确版本](https://www.npmjs.com/package/@petercjl/tuda-desktop/v/0.1.8)
+- 支持个人生图渠道及异步任务协议，修复默认图片模型和渠道的选择顺序。提供 Windows x64 和 macOS arm64。
+- 两端均验证了 0.1.7 到 0.1.8 的升级、画板恢复和个人生图渠道。公开安装包哈希、npm 精确安装和两平台更新发现已核对。 [0.1.8 发布记录](../releases/tuda-0.1.8.md)
