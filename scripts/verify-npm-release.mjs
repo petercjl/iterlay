@@ -27,7 +27,9 @@ async function fetchArchive(url) {
   } finally { clearTimeout(idle); clearTimeout(hard); }
 }
 const release = JSON.parse(await readFile(process.argv[2], "utf8"));
-for (const installer of release.installers) {
+const artifacts = release.installers ?? release.patches;
+if (!Array.isArray(artifacts) || artifacts.length === 0) throw Error("No desktop update artifacts to verify");
+for (const installer of artifacts) {
   const whole = createHash("sha256");
   let total = 0;
   const payloads = await Promise.all(installer.npmPayloads.map(async (part) => {
@@ -60,6 +62,19 @@ for (const installer of release.installers) {
     return payload;
   }));
   for (const payload of payloads) { whole.update(payload); total += payload.length; }
-  if (total !== installer.fileSize || whole.digest("hex") !== installer.sha256) throw Error("Registry installer integrity mismatch");
+  if (total !== installer.fileSize || whole.digest("hex") !== installer.sha256) throw Error("Registry update artifact integrity mismatch");
+  if (installer.patch) {
+    const bytes = Buffer.concat(payloads, total);
+    let offset = 0;
+    for (const file of installer.patch.files) {
+      const end = offset + file.fileSize;
+      if (!Number.isSafeInteger(file.fileSize) || file.fileSize <= 0 || end > total
+        || createHash("sha256").update(bytes.subarray(offset, end)).digest("hex") !== file.sha256) {
+        throw Error("Registry differential file integrity mismatch");
+      }
+      offset = end;
+    }
+    if (offset !== total) throw Error("Registry differential artifact has unexpected bytes");
+  }
   console.log(JSON.stringify({ ok: true, applicationVersion: installer.version, platform: installer.platform, arch: installer.arch, fileSize: total, sha256: installer.sha256, source: "npm" }));
 }

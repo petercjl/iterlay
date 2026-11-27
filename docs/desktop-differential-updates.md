@@ -9,4 +9,4 @@
 1. 保留每个受支持基线的原始、已验证应用目录。用 `pnpm release:mac --arch arm64 --app-only` 和 Windows 的 `pnpm release --arch x64 --app-only` 构建目标版本的应用目录。使用与基线相同的运行时、平台工具链和正式环境默认配置。
 2. 在编译后的仓库运行 `node scripts/prepare-desktop-patch.mjs --base <基线应用目录> --target <新版应用目录> --platform <darwin|win32> --arch <arm64|x64>`。任意原生依赖、额外资源或应用目录结构变化超出差分支持范围时，构建整包。维护每个需要支持的起始版本到目标版本的差分。
 3. 验证过渡版通过实际更新按钮应用差分，并核对升级前后的画板及设置。使用 `node scripts/prepare-desktop-patch.mjs --release <各平台生成的 patch-manifest.json> --out <新目录>` 准备差分清单。通过 npm-release-kit 先发布和验证所有内容分块，再发布差分清单到预期标签。兼容整包更新的稳定入口仍指向已验收的整包版本。
-4. 分别核对公开 npm 精确版本、标签、下载内容和实际应用重启后的目标版本。若存在没有匹配基线的旧应用，保留整包入口或制作对应起始版本的差分。
+4. 用 `node scripts/verify-npm-release.mjs <合并后的 patch-manifest.json>` 核对公开 npm 下载内容。分别确认精确版本、标签和应用重启后的目标版本。若存在没有匹配基线的旧应用，保留整包入口或制作对应起始版本的差分。

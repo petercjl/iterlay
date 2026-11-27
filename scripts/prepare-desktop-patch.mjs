@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { desktopPatchPaths, validDesktopPatch } from "../dist-electron/shared/desktop-patch.js";
+import { validNpmPayloads } from "../dist-electron/electron/updater/npm-payload.js";
 import { prepareDesktopPayloads } from "./desktop-release.mjs";
 
 const args = process.argv.slice(2);
@@ -20,7 +21,8 @@ if (args[0] === "--release") {
   const output = path.resolve(arg("--out"));
   const patches = await Promise.all(args.slice(1, args.indexOf("--out")).map(async file => JSON.parse(await fs.readFile(file, "utf8"))));
   const version = patches[0]?.version;
-  assert(patches.length >= 2 && patches.every(patch => patch.version === version && validDesktopPatch(patch)));
+  assert(patches.length >= 2 && patches.every(patch => patch.version === version && validDesktopPatch(patch)
+    && validNpmPayloads(patch) && patch.downloadUrl === patch.npmPayloads[0].url && /^[a-f0-9]{64}$/u.test(patch.sha256)));
   assert.equal(new Set(patches.map(item => [item.platform, item.arch, item.patch.baseVersion].join("/"))).size, patches.length);
   assert(patches.some(item => item.platform === "darwin" && item.arch === "arm64"));
   assert(patches.some(item => item.platform === "win32" && item.arch === "x64"));
@@ -74,6 +76,8 @@ assert.equal(pkg.version,pkg.tudaPatchRelease.applicationVersion);
   for (const name of new Set([...before.keys(), ...after.keys()])) {
     const old = before.get(name), next = after.get(name);
     if (JSON.stringify(old) === JSON.stringify(next)) continue;
+    // electron-builder adds the elevation helper only when creating NSIS.
+    if (platform === "win32" && name === "resources/elevate.exe" && old?.sha256 && !next) continue;
     assert(old?.sha256 && next?.sha256 && old.mode === next.mode && desktopPatchPaths[platform].includes(name),
       `Application resources changed outside the differential contract: ${name}. Build a full installer.`);
     files.push({ path: name, baseSha256: old.sha256, sha256: next.sha256, fileSize: next.fileSize });
