@@ -1,6 +1,6 @@
 {
   "name": "@petercjl/tuda-desktop",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Tuda Windows and macOS desktop release manifest and immutable installer payload distribution",
   "license": "MIT",
   "type": "module",
